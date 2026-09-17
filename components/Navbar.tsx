@@ -52,11 +52,9 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  // State สำหรับเปิด/ปิด Dropdown Menu
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // ปิด Dropdown เมื่อคลิกพื้นที่อื่นภายนอก
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -67,30 +65,27 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ฟังก์ชัน Logout และนำทางไปหน้า Home (/)
   const handleLogout = () => {
     setIsDropdownOpen(false);
-
-    // ล้างข้อมูล Session/LocalStorage
     if (typeof window !== "undefined") {
       localStorage.clear();
       sessionStorage.clear();
     }
-
-    // เปลี่ยนหน้ากลับไปหน้าแรก (Home)
     router.push("/");
     router.refresh();
   };
 
+  const currentPath = pathname.toLowerCase();
+
   // 1. ซ่อน Navbar ทั้งหมดเมื่ออยู่หน้า Login
-  if (pathname.toLowerCase() === "/login") {
+  if (currentPath === "/login") {
     return null;
   }
 
   // 2. เช็คหน้าปัจจุบัน
-  const isHomePage = pathname === "/";
-  const isAdvisor = pathname.startsWith("/advisor");
-  const isStudent = pathname.startsWith("/pagestudent");
+  const isHomePage = currentPath === "/";
+  const isAdvisor = currentPath.startsWith("/advisor");
+  const isStudent = currentPath.startsWith("/pagestudent");
   const isLoggedIn = isAdvisor || isStudent;
 
   // 3. ข้อมูลโปรไฟล์ตามบทบาท
@@ -118,8 +113,8 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Nav tabs */}
-        {!isHomePage && !isAdvisor && (
+        {/* Nav tabs (จะซ่อนทันทีเมื่ออยู่หน้า Home, Advisor หรือ Student) */}
+        {!isHomePage && !isAdvisor && !isStudent && (
           <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
             {navItems.map((item) => {
               const active = pathname === item.href;
@@ -141,17 +136,15 @@ export default function Navbar() {
           </nav>
         )}
 
-        {/* Right side */}
+        {/* Right side (แสดงโปรไฟล์ + กระดิ่ง) */}
         <div className="flex shrink-0 items-center gap-3">
           {isLoggedIn ? (
-            /* กรณีล็อกอินแล้ว */
             <div className="flex items-center gap-3">
-              <button className="relative rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition">
+              <button className="relative rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer">
                 <BellIcon className="h-5 w-5" />
                 <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500"></span>
               </button>
 
-              {/* ส่วนคลิกโปรไฟล์ + Dropdown Menu */}
               <div className="relative border-l border-slate-200 pl-3" ref={dropdownRef}>
                 <button
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -171,7 +164,6 @@ export default function Navbar() {
                   </div>
                 </button>
 
-                {/* Dropdown เมนูลอยลงมา */}
                 {isDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-100 bg-white p-1.5 shadow-lg ring-1 ring-black/5 z-50">
                     <div className="px-3 py-2 border-b border-slate-100 sm:hidden">
@@ -191,7 +183,6 @@ export default function Navbar() {
               </div>
             </div>
           ) : (
-            /* ปุ่มเข้าสู่ระบบ */
             <Link
               href="/login"
               className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-indigo-900 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-800"
