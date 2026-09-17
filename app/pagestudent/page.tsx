@@ -295,40 +295,6 @@ export default function StudentDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 text-sm font-sans">
-      {/* Top Navigation */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-8">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-indigo-900 rounded-lg flex items-center justify-center text-white font-bold text-lg">
-                W
-              </div>
-              <span className="font-bold text-lg text-indigo-900">WU-InternShip</span>
-            </div>
-            <nav className="hidden md:flex space-x-1">
-              <button className="px-3 py-2 text-slate-600 hover:text-indigo-900 rounded-md text-xs font-medium">ภาพรวม</button>
-              <button className="px-3 py-2 bg-indigo-900 text-white rounded-md text-xs font-medium">ค้นหาตำแหน่งงาน</button>
-              <button className="px-3 py-2 text-slate-600 hover:text-indigo-900 rounded-md text-xs font-medium">บันทึกการสมัคร</button>
-              <button className="px-3 py-2 text-slate-600 hover:text-indigo-900 rounded-md text-xs font-medium">เอกสารและประวัติ</button>
-            </nav>
-          </div>
-          <div className="flex items-center space-x-4">
-            <button className="p-2 text-slate-500 hover:text-slate-700 relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-            </button>
-            <div className="flex items-center space-x-3 border-l border-slate-200 pl-4">
-              <div className="text-right">
-                <div className="text-xs font-bold text-slate-900">{profileData.name}</div>
-                <div className="text-[10px] text-slate-500">{profileData.studentId}</div>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-900 font-bold">
-                {profileData.name.charAt(0) || 'ก'}
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
 
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
