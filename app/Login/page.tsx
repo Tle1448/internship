@@ -1,10 +1,18 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const router = useRouter();
+
   // สร้าง State สำหรับเปิด/ปิดตา
   const [showPassword, setShowPassword] = useState(false);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    router.push("/pagestudent");
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4 font-sans">
@@ -25,7 +33,7 @@ export default function LoginPage() {
         </div>
 
         {/* Form */}
-        <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
+        <form className="space-y-5" onSubmit={handleLogin}>
           
           {/* Username Input */}
           <div className="space-y-2">
@@ -113,7 +121,7 @@ export default function LoginPage() {
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full flex justify-center items-center gap-2 py-3.5 px-4 border border-transparent rounded-[10px] shadow-sm text-[15px] font-semibold text-white bg-[#3D348B] hover:bg-[#7678ED] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#7678ED] transition-all active:scale-[0.98]"
+            className="w-full flex justify-center items-center gap-2 py-3.5 px-4 border border-transparent rounded-[10px] shadow-sm text-[15px] font-semibold text-white bg-[#3D348B] hover:bg-[#7678ED] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#7678ED] transition-all active:scale-[0.98] cursor-pointer"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
@@ -136,7 +144,11 @@ export default function LoginPage() {
 
         {/* Alternative Logins - เฉพาะ WU Mail */}
         <div className="grid grid-cols-1 gap-3">
-          <button className="w-full inline-flex justify-center items-center gap-2 py-2.5 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          <button
+            type="button"
+            onClick={() => router.push("/pagestudent")}
+            className="w-full inline-flex justify-center items-center gap-2 py-2.5 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+          >
             <svg className="w-5 h-5 text-[#3D348B]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
             WU Walailak Mail
           </button>
