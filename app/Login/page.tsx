@@ -4,30 +4,50 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  // สร้าง State สำหรับเปิด/ปิดรหัสผ่าน
   const [showPassword, setShowPassword] = useState(false);
 
-  // 1. สร้าง State สำหรับเก็บค่า Input และ Error Message
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // สร้าง router สำหรับเปลี่ยนหน้า
   const router = useRouter();
 
-  // 2. ฟังก์ชันตรวจสอบข้อมูลเมื่อกดปุ่ม Sign In หรือกด Enter
+  // ฟังก์ชันตรวจสอบรหัสและแยกหน้าอัตโนมัติ
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // เช็คว่ากรอกข้อมูลครบทั้ง 2 ช่องหรือไม่
-    if (!username.trim() || !password.trim()) {
-      setError("กรุณากรอกรหัสนักศึกษาและรหัสผ่านให้ครบถ้วน");
+    const cleanUsername = username.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+    // 1. ตรวจสอบว่ากรอกข้อมูลครบหรือไม่
+    if (!cleanUsername || !cleanPassword) {
+      setError("กรุณากรอกบัญชีผู้ใช้งานและรหัสผ่านให้ครบถ้วน");
       return;
     }
 
-    // ผ่านเงื่อนไข -> ล้าง Error และเปลี่ยนหน้า
     setError("");
-    router.push("/pagestudent");
+
+    // 2. เช็กเงื่อนไขประเภทผู้ใช้งาน
+    // - รหัสอาจารย์: ขึ้นต้นด้วย adv, t, a หรือพิมพ์ advisor
+    const isAdvisor = 
+      cleanUsername.startsWith("adv") || 
+      cleanUsername.startsWith("t") || 
+      cleanUsername.startsWith("a") || 
+      cleanUsername === "advisor";
+
+    // - รหัสนักศึกษา: เป็นตัวเลขล้วน
+    const isStudent = /^\d+$/.test(cleanUsername);
+
+    if (isAdvisor) {
+      // ถ้ารหัสตรงกับอาจารย์ -> ไปหน้า Advisor
+      router.push("/advisor");
+    } else if (isStudent) {
+      // ถ้ารหัสเป็นตัวเลขนักศึกษา -> ไปหน้า Student
+      router.push("/pagestudent");
+    } else {
+      // หากป้อนรูปแบบที่ไม่ถูกต้อง
+      setError("รูปแบบบัญชีผู้ใช้งานไม่ถูกต้อง (นักศึกษาใช้รหัสตัวเลข / อาจารย์ใช้รหัสขึ้นต้นด้วย ADV, T หรือ A)");
+    }
   };
 
   return (
@@ -64,7 +84,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* แสดงแจ้งเตือนเมื่อยังไม่ได้กรอกข้อมูล */}
+        {/* แสดงข้อความ Error */}
         {error && (
           <div className="mb-5 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs font-medium flex items-center gap-2">
             <svg
@@ -120,10 +140,10 @@ export default function LoginPage() {
                 value={username}
                 onChange={(e) => {
                   setUsername(e.target.value);
-                  if (error) setError(""); // ล้าง Error เมื่อเริ่มพิมพ์
+                  if (error) setError("");
                 }}
                 className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-[#7678ED] focus:border-[#7678ED] sm:text-sm transition-colors outline-none"
-                placeholder="รหัสนักศึกษา (Student ID เช่น 64112345)"
+                placeholder="รหัสนักศึกษา (เช่น 6410210545) หรือ รหัสอาจารย์ (เช่น ADV001)"
               />
             </div>
           </div>
@@ -170,13 +190,12 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
-                  if (error) setError(""); // ล้าง Error เมื่อเริ่มพิมพ์
+                  if (error) setError("");
                 }}
                 className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-[#7678ED] focus:border-[#7678ED] sm:text-sm transition-colors outline-none"
                 placeholder="••••••••••••"
               />
 
-              {/* ปุ่มเปิด/ปิดรหัสผ่าน */}
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
@@ -230,7 +249,6 @@ export default function LoginPage() {
                 type="checkbox"
                 className="h-4 w-4 text-[#3D348B] focus:ring-[#7678ED] border-gray-300 rounded cursor-pointer"
               />
-
               <label
                 htmlFor="remember-me"
                 className="ml-2 block text-sm text-gray-600 cursor-pointer"
@@ -265,7 +283,6 @@ export default function LoginPage() {
               <polyline points="10 17 15 12 10 7" />
               <line x1="15" y1="12" x2="3" y2="12" />
             </svg>
-
             เข้าสู่ระบบ (Sign In)
           </button>
         </form>
@@ -275,7 +292,6 @@ export default function LoginPage() {
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-200"></div>
           </div>
-
           <div className="relative flex justify-center text-sm">
             <span className="px-3 bg-white text-gray-500">
               หรือเข้าสู่ระบบด้วยช่องทางมหาวิทยาลัย
@@ -285,8 +301,8 @@ export default function LoginPage() {
 
         {/* Alternative Login */}
         <div className="grid grid-cols-1 gap-3">
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="w-full inline-flex justify-center items-center gap-2 py-2.5 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           >
             <svg
@@ -303,7 +319,6 @@ export default function LoginPage() {
                 d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
               />
             </svg>
-
             WU Walailak Mail
           </button>
         </div>
