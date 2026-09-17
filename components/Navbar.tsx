@@ -98,6 +98,8 @@ export default function Navbar() {
     ? { name: "Adviser", subText: "อาจารย์ที่ปรึกษา", avatarChar: "A" }
     : { name: "กานต์พิชชา วงษ์สุวรรณ", subText: "6410210545", avatarChar: "ก" };
 
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) return null;
+
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white">
       <div className="flex w-full items-center justify-between gap-4 px-4 py-2.5">
