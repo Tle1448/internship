@@ -1,13 +1,35 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+
 import {
-  Search, MapPin, User, Bell,
-  Upload, Sparkles, Building2, Briefcase,
-  ChevronRight, CheckCircle2, X, Calendar, UserCheck,
-  Plus, Trash2, Check, File, LayoutDashboard, FileSpreadsheet,
-  Loader2, Send, Phone, Mail, MessageCircle
+  Search,
+  MapPin,
+  User,
+  Bell,
+  Upload,
+  Sparkles,
+  Building2,
+  Briefcase,
+  ChevronRight,
+  CheckCircle2,
+  X,
+  Calendar,
+  UserCheck,
+  Plus,
+  Trash2,
+  Check,
+  File,
+  LayoutDashboard,
+  FileSpreadsheet,
+  Loader2,
+  Send,
+  Phone,
+  Mail,
+  MessageCircle,
 } from 'lucide-react';
+
 import StudentSidebar from '@/components/StudentSidebar';
 import { supabase } from '@/lib/supabase';
 import { getCurrentStudentId } from '@/lib/currentUser';
@@ -25,7 +47,11 @@ interface Job {
   responsibilities: string[];
   qualifications: string[];
   perks: string[];
-  timeline: { open: string; interview: string; start: string };
+  timeline: {
+    open: string;
+    interview: string;
+    start: string;
+  };
   hrName?: string;
   hrRole?: string;
   contactPhone?: string;
@@ -62,28 +88,43 @@ const EMPTY_PROFILE: ProfileData = {
 };
 
 export default function StudentDashboard() {
+  const router = useRouter();
+
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
   const [profileData, setProfileData] =
     useState<ProfileData>(EMPTY_PROFILE);
 
-  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [loadingProfile, setLoadingProfile] =
+    useState(true);
+
   const [internshipRecordId, setInternshipRecordId] =
     useState<string | null>(null);
 
-  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] =
+    useState(false);
+
   const [tempProfile, setTempProfile] =
     useState<ProfileData>(EMPTY_PROFILE);
 
-  const [newSkillInput, setNewSkillInput] = useState('');
-  const [resumeFile, setResumeFile] = useState<File | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [newSkillInput, setNewSkillInput] =
+    useState('');
+
+  const [resumeFile, setResumeFile] =
+    useState<File | null>(null);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [saveError, setSaveError] =
+    useState<string | null>(null);
 
   const [isExternalCompanyOpen, setIsExternalCompanyOpen] =
     useState(false);
 
-  const [externalSaving, setExternalSaving] = useState(false);
+  const [externalSaving, setExternalSaving] =
+    useState(false);
+
   const [externalError, setExternalError] =
     useState<string | null>(null);
 
@@ -98,9 +139,20 @@ export default function StudentDashboard() {
     details: '',
   });
 
-  // ---------------------------------------------------------------------
+  // =========================================================
+  // สมัครงาน
+  // =========================================================
+
+  const [applying, setApplying] =
+    useState(false);
+
+  const [applyError, setApplyError] =
+    useState<string | null>(null);
+
+  // =========================================================
   // โหลดข้อมูลนักศึกษา
-  // ---------------------------------------------------------------------
+  // =========================================================
+
   useEffect(() => {
     loadStudentData();
   }, []);
@@ -116,12 +168,14 @@ export default function StudentDashboard() {
       return;
     }
 
-    const { data: profile, error: profileError } =
-      await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+    const {
+      data: profile,
+      error: profileError,
+    } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
 
     if (profileError) {
       console.error(
@@ -130,16 +184,18 @@ export default function StudentDashboard() {
       );
     }
 
-    const { data: record, error: recordError } =
-      await supabase
-        .from('internship_records')
-        .select('*')
-        .eq('student_id', userId)
-        .order('updated_at', {
-          ascending: false,
-        })
-        .limit(1)
-        .maybeSingle();
+    const {
+      data: record,
+      error: recordError,
+    } = await supabase
+      .from('internship_records')
+      .select('*')
+      .eq('student_id', userId)
+      .order('updated_at', {
+        ascending: false,
+      })
+      .limit(1)
+      .maybeSingle();
 
     if (recordError) {
       console.error(
@@ -157,30 +213,44 @@ export default function StudentDashboard() {
       year: profile?.year?.toString() ?? '',
       gpa: profile?.gpa?.toString() ?? '',
       credits: profile?.credits?.toString() ?? '',
-      skills: record?.skills ?? profile?.skills ?? [],
-      resumeName: profile?.resume_name ?? '',
-      resumeUrl: profile?.resume_url ?? null,
+      skills:
+        record?.skills ??
+        profile?.skills ??
+        [],
+      resumeName:
+        profile?.resume_name ?? '',
+      resumeUrl:
+        profile?.resume_url ?? null,
     };
 
     setProfileData(loaded);
-    setInternshipRecordId(record?.id ?? null);
+    setInternshipRecordId(
+      record?.id ?? null
+    );
+
     setLoadingProfile(false);
   }
 
-  // ---------------------------------------------------------------------
+  // =========================================================
   // เปิด Modal แก้ไขโปรไฟล์
-  // ---------------------------------------------------------------------
+  // =========================================================
+
   const handleOpenEditProfile = () => {
-    setTempProfile({ ...profileData });
+    setTempProfile({
+      ...profileData,
+    });
+
     setNewSkillInput('');
     setResumeFile(null);
     setSaveError(null);
+
     setIsEditProfileOpen(true);
   };
 
-  // ---------------------------------------------------------------------
+  // =========================================================
   // บันทึกโปรไฟล์
-  // ---------------------------------------------------------------------
+  // =========================================================
+
   const handleSaveProfile = async (
     e: React.FormEvent
   ) => {
@@ -190,72 +260,105 @@ export default function StudentDashboard() {
     setSaveError(null);
 
     try {
-      let resumeUrl = tempProfile.resumeUrl;
-      let resumeName = tempProfile.resumeName;
+      let resumeUrl =
+        tempProfile.resumeUrl;
+
+      let resumeName =
+        tempProfile.resumeName;
 
       if (resumeFile) {
         const filePath =
           `${tempProfile.id}/${Date.now()}_${resumeFile.name}`;
 
-        const { error: uploadError } =
-          await supabase.storage
-            .from('resumes')
-            .upload(
-              filePath,
-              resumeFile,
-              { upsert: true }
-            );
+        const {
+          error: uploadError,
+        } = await supabase.storage
+          .from('resumes')
+          .upload(
+            filePath,
+            resumeFile,
+            {
+              upsert: true,
+            }
+          );
 
         if (uploadError) {
           throw uploadError;
         }
 
-        const { data: publicUrlData } =
-          supabase.storage
-            .from('resumes')
-            .getPublicUrl(filePath);
+        const {
+          data: publicUrlData,
+        } = supabase.storage
+          .from('resumes')
+          .getPublicUrl(filePath);
 
         resumeUrl =
           publicUrlData.publicUrl;
 
-        resumeName = resumeFile.name;
+        resumeName =
+          resumeFile.name;
       }
 
-      const { error: profileUpdateError } =
-        await supabase
-          .from('profiles')
-          .update({
-            full_name: tempProfile.name,
-            student_code: tempProfile.studentId,
-            faculty: tempProfile.faculty,
-            major: tempProfile.major,
-            year: tempProfile.year,
-            gpa: tempProfile.gpa,
-            credits: tempProfile.credits,
-            resume_name: resumeName,
-            resume_url: resumeUrl,
-          })
-          .eq('id', tempProfile.id);
+      const {
+        error: profileUpdateError,
+      } = await supabase
+        .from('profiles')
+        .update({
+          full_name:
+            tempProfile.name,
+
+          student_code:
+            tempProfile.studentId,
+
+          faculty:
+            tempProfile.faculty,
+
+          major:
+            tempProfile.major,
+
+          year:
+            tempProfile.year,
+
+          gpa:
+            tempProfile.gpa,
+
+          credits:
+            tempProfile.credits,
+
+          resume_name:
+            resumeName,
+
+          resume_url:
+            resumeUrl,
+        })
+        .eq(
+          'id',
+          tempProfile.id
+        );
 
       if (profileUpdateError) {
         throw profileUpdateError;
       }
 
-      let recordIdToLog = internshipRecordId;
+      let recordIdToLog =
+        internshipRecordId;
 
       if (internshipRecordId) {
-        const { error: recordUpdateError } =
-          await supabase
-            .from('internship_records')
-            .update({
-              skills: tempProfile.skills,
-              updated_at:
-                new Date().toISOString(),
-            })
-            .eq(
-              'id',
-              internshipRecordId
-            );
+        const {
+          error: recordUpdateError,
+        } = await supabase
+          .from('internship_records')
+          .update({
+            skills:
+              tempProfile.skills,
+
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq(
+            'id',
+            internshipRecordId
+          );
 
         if (recordUpdateError) {
           throw recordUpdateError;
@@ -267,9 +370,14 @@ export default function StudentDashboard() {
         } = await supabase
           .from('internship_records')
           .insert({
-            student_id: tempProfile.id,
-            skills: tempProfile.skills,
-            status: 'in_progress',
+            student_id:
+              tempProfile.id,
+
+            skills:
+              tempProfile.skills,
+
+            status:
+              'in_progress',
           })
           .select()
           .single();
@@ -278,22 +386,29 @@ export default function StudentDashboard() {
           throw insertError;
         }
 
-        recordIdToLog = newRecord.id;
+        recordIdToLog =
+          newRecord.id;
+
         setInternshipRecordId(
           newRecord.id
         );
       }
 
       if (recordIdToLog) {
-        const { error: logError } =
-          await supabase
-            .from('progress_updates')
-            .insert({
-              record_id: recordIdToLog,
-              student_id: tempProfile.id,
-              note:
-                'นักศึกษาอัปเดตข้อมูลโปรไฟล์และทักษะ',
-            });
+        const {
+          error: logError,
+        } = await supabase
+          .from('progress_updates')
+          .insert({
+            record_id:
+              recordIdToLog,
+
+            student_id:
+              tempProfile.id,
+
+            note:
+              'นักศึกษาอัปเดตข้อมูลโปรไฟล์และทักษะ',
+          });
 
         if (logError) {
           console.error(
@@ -325,9 +440,10 @@ export default function StudentDashboard() {
     }
   };
 
-  // ---------------------------------------------------------------------
+  // =========================================================
   // เพิ่มทักษะ
-  // ---------------------------------------------------------------------
+  // =========================================================
+
   const handleAddSkill = () => {
     if (
       newSkillInput.trim() &&
@@ -337,6 +453,7 @@ export default function StudentDashboard() {
     ) {
       setTempProfile({
         ...tempProfile,
+
         skills: [
           ...tempProfile.skills,
           newSkillInput.trim(),
@@ -347,23 +464,28 @@ export default function StudentDashboard() {
     }
   };
 
-  // ---------------------------------------------------------------------
+  // =========================================================
   // ลบทักษะ
-  // ---------------------------------------------------------------------
+  // =========================================================
+
   const handleRemoveSkill = (
     skillToRemove: string
   ) => {
     setTempProfile({
       ...tempProfile,
-      skills: tempProfile.skills.filter(
-        (s) => s !== skillToRemove
-      ),
+
+      skills:
+        tempProfile.skills.filter(
+          (s) =>
+            s !== skillToRemove
+        ),
     });
   };
 
-  // ---------------------------------------------------------------------
+  // =========================================================
   // เปลี่ยนไฟล์ผลการศึกษา
-  // ---------------------------------------------------------------------
+  // =========================================================
+
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -371,94 +493,170 @@ export default function StudentDashboard() {
       e.target.files &&
       e.target.files[0]
     ) {
-      const file = e.target.files[0];
+      const file =
+        e.target.files[0];
 
       setResumeFile(file);
 
       setTempProfile({
         ...tempProfile,
-        resumeName: file.name,
+        resumeName:
+          file.name,
       });
     }
   };
 
-  // ---------------------------------------------------------------------
+  // =========================================================
   // เพิ่มบริษัทจากภายนอก
-  // ---------------------------------------------------------------------
+  // =========================================================
+
   const handleOpenExternalCompany = () => {
     setExternalError(null);
     setIsExternalCompanyOpen(true);
   };
 
-  const handleSubmitExternalCompany = async (
-    e: React.FormEvent
-  ) => {
-    e.preventDefault();
+  const handleSubmitExternalCompany =
+    async (
+      e: React.FormEvent
+    ) => {
+      e.preventDefault();
 
-    setExternalSaving(true);
-    setExternalError(null);
+      setExternalSaving(true);
+      setExternalError(null);
 
-    try {
-      const { error } =
-        await supabase
+      try {
+        const {
+          error,
+        } = await supabase
           .from(
             'external_company_submissions'
           )
           .insert({
-            student_id: profileData.id,
+            student_id:
+              profileData.id,
+
             company_name:
               externalCompany.companyName,
+
             position:
               externalCompany.position,
+
             location:
               externalCompany.location,
+
             contact_name:
               externalCompany.contactName,
+
             contact_phone:
               externalCompany.contactPhone,
+
             contact_email:
               externalCompany.contactEmail,
+
             company_website:
               externalCompany.companyWebsite,
+
             details:
               externalCompany.details,
-            status: 'pending',
+
+            status:
+              'pending',
           });
+
+        if (error) {
+          throw error;
+        }
+
+        setExternalCompany({
+          companyName: '',
+          position: '',
+          location: '',
+          contactName: '',
+          contactPhone: '',
+          contactEmail: '',
+          companyWebsite: '',
+          details: '',
+        });
+
+        setIsExternalCompanyOpen(false);
+      } catch (err: any) {
+        console.error(
+          'ส่งข้อมูลบริษัทไม่สำเร็จ:',
+          err
+        );
+
+        setExternalError(
+          err.message ??
+            'เกิดข้อผิดพลาดในการส่งข้อมูลบริษัท'
+        );
+      } finally {
+        setExternalSaving(false);
+      }
+    };
+
+  // =========================================================
+  // สมัครงาน
+  // =========================================================
+
+  const handleApplyJob = async () => {
+    if (
+      !selectedJob ||
+      !profileData.id
+    ) {
+      return;
+    }
+
+    setApplying(true);
+    setApplyError(null);
+
+    try {
+      const {
+        error,
+      } = await supabase
+        .from('job_applications')
+        .insert({
+          student_id:
+            profileData.id,
+
+          job_id:
+            selectedJob.id,
+
+          job_title:
+            selectedJob.title,
+
+          company_name:
+            selectedJob.company,
+
+          status:
+            'pending',
+        });
 
       if (error) {
         throw error;
       }
 
-      setExternalCompany({
-        companyName: '',
-        position: '',
-        location: '',
-        contactName: '',
-        contactPhone: '',
-        contactEmail: '',
-        companyWebsite: '',
-        details: '',
-      });
+      setSelectedJob(null);
 
-      setIsExternalCompanyOpen(false);
+      router.push('/coordinator');
     } catch (err: any) {
       console.error(
-        'ส่งข้อมูลบริษัทไม่สำเร็จ:',
+        'สมัครงานไม่สำเร็จ:',
         err
       );
 
-      setExternalError(
+      setApplyError(
         err.message ??
-          'เกิดข้อผิดพลาดในการส่งข้อมูลบริษัท'
+          'เกิดข้อผิดพลาดในการสมัครงาน'
       );
     } finally {
-      setExternalSaving(false);
+      setApplying(false);
     }
   };
 
-  // ---------------------------------------------------------------------
+  // =========================================================
   // Jobs
-  // ---------------------------------------------------------------------
+  // =========================================================
+
   const jobs: Job[] = [
     {
       id: 'scb-techx',
@@ -466,8 +664,10 @@ export default function StudentDashboard() {
         'Software Engineer Intern (Frontend / Fullstack - Co-op 2025)',
       company:
         'SCB TechX Co., Ltd.',
-      badge: 'SCBX Group',
-      match: '98%',
+      badge:
+        'SCBX Group',
+      match:
+        '98%',
       tags: [
         'TypeScript',
         'React',
@@ -526,8 +726,10 @@ export default function StudentDashboard() {
         'Full-Stack Developer Intern',
       company:
         'LINE Thailand (LINE MAN Wongnai)',
-      badge: 'LINE Group',
-      match: '95%',
+      badge:
+        'LINE Group',
+      match:
+        '95%',
       tags: [
         'React',
         'Node.js',
@@ -537,7 +739,8 @@ export default function StudentDashboard() {
         '12,000 / เดือน',
       location:
         'กรุงเทพมหานคร (เอกมัย)',
-      workType: 'On-site',
+      workType:
+        'On-site',
       responsibilities: [
         'ร่วมพัฒนาฟีเจอร์ใหม่บนแพลตฟอร์ม LINE MAN และ Wongnai',
         'พัฒนา Microservices และ API ด้วย Node.js และ TypeScript',
@@ -579,8 +782,10 @@ export default function StudentDashboard() {
         'Associate UI/UX Designer (Intern)',
       company:
         'Kasikorn Business-Technology Group (KBTG)',
-      badge: 'KBank Group',
-      match: '91%',
+      badge:
+        'KBank Group',
+      match:
+        '91%',
       tags: [
         'Figma',
         'User Research',
@@ -590,7 +795,8 @@ export default function StudentDashboard() {
         '15,000 / เดือน',
       location:
         'นนทบุรี (แจ้งวัฒนะ)',
-      workType: 'Hybrid',
+      workType:
+        'Hybrid',
       responsibilities: [
         'ออกแบบ Wireframe, Prototype และ User Interface สำหรับแอปพลิเคชันการเงิน',
         'ทำ User Research และ Usability Testing ร่วมกับทีม UX',
@@ -631,8 +837,10 @@ export default function StudentDashboard() {
         'Associate Frontend Engineer',
       company:
         'Agoda Services Co., Ltd.',
-      badge: 'Global Tech',
-      match: '88%',
+      badge:
+        'Global Tech',
+      match:
+        '88%',
       tags: [
         'React',
         'TypeScript',
@@ -642,7 +850,8 @@ export default function StudentDashboard() {
         '27,000 / เดือน',
       location:
         'กรุงเทพมหานคร (เซ็นทรัลเวิลด์)',
-      workType: 'Hybrid',
+      workType:
+        'Hybrid',
       responsibilities: [
         'ร่วมสร้างสรรค์ประสบการณ์ใช้งานเว็บไซต์ท่องเที่ยวระดับโลก',
         'พัฒนา UI Component ที่รองรับการแสดงผลหลายภาษา และประสิทธิภาพสูง',
@@ -683,8 +892,10 @@ export default function StudentDashboard() {
         'Data Engineer & Platform Intern',
       company:
         'AIS (Advanced Info Service)',
-      badge: 'SET Top 10',
-      match: '85%',
+      badge:
+        'SET Top 10',
+      match:
+        '85%',
       tags: [
         'Python',
         'Kafka',
@@ -694,7 +905,8 @@ export default function StudentDashboard() {
         '17,000 / เดือน',
       location:
         'กรุงเทพมหานคร (พญาไท)',
-      workType: 'On-site',
+      workType:
+        'On-site',
       responsibilities: [
         'ออกแบบและสร้าง Data Pipeline ในการประมวลผลข้อมูล Big Data',
         'ดูแลและปรับปรุงประสิทธิภาพของฐานข้อมูล PostgreSQL และ Kafka',
@@ -735,8 +947,10 @@ export default function StudentDashboard() {
         'Backend Engineer Intern (Cloud)',
       company:
         'Garena Online Co., Ltd.',
-      badge: 'Sea Group',
-      match: '82%',
+      badge:
+        'Sea Group',
+      match:
+        '82%',
       tags: [
         'GoLang',
         'Docker',
@@ -746,7 +960,8 @@ export default function StudentDashboard() {
         '20,000 / เดือน',
       location:
         'กรุงเทพมหานคร (พระราม 9)',
-      workType: 'On-site',
+      workType:
+        'On-site',
       responsibilities: [
         'พัฒนาและดูแลระบบ Backend รองรับเกมออนไลน์ระดับโลก',
         'เขียนโปรแกรมด้วยภาษา Go (Golang) และทำงานกับ Docker/Kubernetes',
@@ -782,9 +997,10 @@ export default function StudentDashboard() {
     },
   ];
 
-  // ---------------------------------------------------------------------
+  // =========================================================
   // Loading
-  // ---------------------------------------------------------------------
+  // =========================================================
+
   if (loadingProfile) {
     return (
       <div className="flex min-h-[calc(100vh-61px)] items-center justify-center bg-slate-100">
@@ -800,15 +1016,14 @@ export default function StudentDashboard() {
   return (
     <div className="flex min-h-[calc(100vh-61px)] bg-slate-100 text-slate-800 text-sm font-sans">
 
-      {/* Sidebar */}
       <StudentSidebar />
 
-      {/* Main Content */}
       <main className="flex-1 p-6 space-y-6 overflow-y-auto">
 
         {/* ========================================================= */}
         {/* Profile Section */}
         {/* ========================================================= */}
+
         <section className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
 
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -818,7 +1033,9 @@ export default function StudentDashboard() {
               <div className="relative">
 
                 <div className="w-20 h-20 rounded-full bg-slate-200 overflow-hidden border-2 border-indigo-900 flex items-center justify-center">
+
                   <User className="w-12 h-12 text-slate-400" />
+
                 </div>
 
                 <span className="absolute bottom-0 right-0 bg-emerald-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">
@@ -829,16 +1046,15 @@ export default function StudentDashboard() {
 
               <div>
 
-                <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                {/* ชื่อผู้ใช้ */}
+                {/* ลบป้าย "ผ่านการทดสอบสหกิจศึกษาแล้ว" ออกแล้ว */}
+
+                <div className="flex items-center">
 
                   <h1 className="text-lg font-bold text-slate-900">
                     {profileData.name ||
                       'ยังไม่ระบุชื่อ'}
                   </h1>
-
-                  <span className="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-medium">
-                    ผ่านการทดสอบสหกิจศึกษาแล้ว
-                  </span>
 
                 </div>
 
@@ -856,6 +1072,7 @@ export default function StudentDashboard() {
             </div>
 
             {/* Stats & Actions */}
+
             <div className="flex items-center space-x-6 w-full md:w-auto justify-between md:justify-end">
 
               <div className="text-center">
@@ -890,18 +1107,21 @@ export default function StudentDashboard() {
 
               </div>
 
-              {/* เหลือเฉพาะปุ่มแก้ไขโปรไฟล์ */}
+              {/* ปุ่มจัดการโปรไฟล์ */}
+
               <div className="flex flex-col border-l border-slate-200 pl-6">
 
                 <button
                   onClick={handleOpenEditProfile}
                   className="px-5 py-3 bg-indigo-900 hover:bg-indigo-800 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all min-w-[220px]"
                 >
+
                   <Upload className="w-5 h-5" />
 
                   <span>
                     แก้ไขโปรไฟล์ / แนบผลการศึกษา
                   </span>
+
                 </button>
 
               </div>
@@ -910,7 +1130,8 @@ export default function StudentDashboard() {
 
           </div>
 
-          {/* Skills Tags */}
+          {/* Skills */}
+
           <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap gap-2 items-center">
 
             <span className="text-xs font-semibold text-slate-500 mr-2">
@@ -940,8 +1161,9 @@ export default function StudentDashboard() {
         </section>
 
         {/* ========================================================= */}
-        {/* Search & Grid Section */}
+        {/* Search & Jobs */}
         {/* ========================================================= */}
+
         <section className="space-y-4">
 
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -961,6 +1183,7 @@ export default function StudentDashboard() {
 
             <span className="text-xs text-slate-500">
               ตำแหน่งงานเปิดรับ:
+
               <strong className="text-indigo-900">
                 {' '}142
               </strong>{' '}
@@ -969,7 +1192,8 @@ export default function StudentDashboard() {
 
           </div>
 
-          {/* Search Bar */}
+          {/* Search */}
+
           <div className="flex gap-2">
 
             <div className="relative flex-1">
@@ -990,7 +1214,8 @@ export default function StudentDashboard() {
 
           </div>
 
-          {/* Filter Pills */}
+          {/* Filters */}
+
           <div className="flex flex-wrap gap-2 text-xs">
 
             <button className="px-3 py-1.5 bg-indigo-900 text-white rounded-full font-medium">
@@ -1015,7 +1240,8 @@ export default function StudentDashboard() {
 
           </div>
 
-          {/* Jobs Cards Grid */}
+          {/* Jobs Cards */}
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
             {jobs.map((job) => (
@@ -1092,8 +1318,9 @@ export default function StudentDashboard() {
       </main>
 
       {/* ========================================================= */}
-      {/* ปุ่มเพิ่มข้อมูลบริษัทจากภายนอก */}
+      {/* เพิ่มบริษัทจากภายนอก */}
       {/* ========================================================= */}
+
       <button
         onClick={handleOpenExternalCompany}
         className="fixed bottom-6 right-6 z-40 px-4 py-3 bg-indigo-900 hover:bg-indigo-800 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2 text-xs"
@@ -1110,6 +1337,7 @@ export default function StudentDashboard() {
       {/* ========================================================= */}
       {/* MODAL 1: แก้ไขโปรไฟล์ */}
       {/* ========================================================= */}
+
       {isEditProfileOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-200"
@@ -1126,13 +1354,14 @@ export default function StudentDashboard() {
             }
           >
 
-            {/* Modal Header */}
             <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50">
 
               <div className="flex items-center space-x-2">
 
                 <div className="w-8 h-8 bg-indigo-900 text-white rounded-lg flex items-center justify-center font-bold">
+
                   <User className="w-4 h-4" />
+
                 </div>
 
                 <h2 className="text-base font-bold text-slate-900">
@@ -1153,7 +1382,6 @@ export default function StudentDashboard() {
 
             </div>
 
-            {/* Modal Body */}
             <form
               onSubmit={handleSaveProfile}
               className="p-6 overflow-y-auto space-y-5 text-xs"
@@ -1179,7 +1407,8 @@ export default function StudentDashboard() {
                     onChange={(e) =>
                       setTempProfile({
                         ...tempProfile,
-                        name: e.target.value,
+                        name:
+                          e.target.value,
                       })
                     }
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-900/20 focus:border-indigo-900"
@@ -1196,7 +1425,9 @@ export default function StudentDashboard() {
 
                   <input
                     type="text"
-                    value={tempProfile.studentId}
+                    value={
+                      tempProfile.studentId
+                    }
                     onChange={(e) =>
                       setTempProfile({
                         ...tempProfile,
@@ -1222,7 +1453,9 @@ export default function StudentDashboard() {
 
                   <input
                     type="text"
-                    value={tempProfile.faculty}
+                    value={
+                      tempProfile.faculty
+                    }
                     onChange={(e) =>
                       setTempProfile({
                         ...tempProfile,
@@ -1244,7 +1477,9 @@ export default function StudentDashboard() {
 
                   <input
                     type="text"
-                    value={tempProfile.major}
+                    value={
+                      tempProfile.major
+                    }
                     onChange={(e) =>
                       setTempProfile({
                         ...tempProfile,
@@ -1270,7 +1505,9 @@ export default function StudentDashboard() {
 
                   <input
                     type="text"
-                    value={tempProfile.year}
+                    value={
+                      tempProfile.year
+                    }
                     onChange={(e) =>
                       setTempProfile({
                         ...tempProfile,
@@ -1292,7 +1529,9 @@ export default function StudentDashboard() {
 
                   <input
                     type="text"
-                    value={tempProfile.gpa}
+                    value={
+                      tempProfile.gpa
+                    }
                     onChange={(e) =>
                       setTempProfile({
                         ...tempProfile,
@@ -1314,7 +1553,9 @@ export default function StudentDashboard() {
 
                   <input
                     type="text"
-                    value={tempProfile.credits}
+                    value={
+                      tempProfile.credits
+                    }
                     onChange={(e) =>
                       setTempProfile({
                         ...tempProfile,
@@ -1331,6 +1572,7 @@ export default function StudentDashboard() {
               </div>
 
               {/* Skills */}
+
               <div className="pt-2">
 
                 <label className="block font-medium text-slate-700 mb-1.5">
@@ -1373,14 +1615,19 @@ export default function StudentDashboard() {
                   <input
                     type="text"
                     placeholder="พิมพ์ชื่อทักษะ เช่น Docker, Next.js..."
-                    value={newSkillInput}
+                    value={
+                      newSkillInput
+                    }
                     onChange={(e) =>
                       setNewSkillInput(
                         e.target.value
                       )
                     }
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
+                      if (
+                        e.key ===
+                        'Enter'
+                      ) {
                         e.preventDefault();
                         handleAddSkill();
                       }
@@ -1390,7 +1637,9 @@ export default function StudentDashboard() {
 
                   <button
                     type="button"
-                    onClick={handleAddSkill}
+                    onClick={
+                      handleAddSkill
+                    }
                     className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg flex items-center space-x-1 font-medium"
                   >
 
@@ -1407,6 +1656,7 @@ export default function StudentDashboard() {
               </div>
 
               {/* Resume */}
+
               <div className="pt-2">
 
                 <label className="block font-medium text-slate-700 mb-1.5">
@@ -1418,7 +1668,9 @@ export default function StudentDashboard() {
                   <input
                     type="file"
                     accept=".pdf,.doc,.docx"
-                    onChange={handleFileChange}
+                    onChange={
+                      handleFileChange
+                    }
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
 
@@ -1430,7 +1682,9 @@ export default function StudentDashboard() {
 
                       {tempProfile.resumeName ? (
                         <span className="text-indigo-900 font-semibold">
-                          {tempProfile.resumeName}
+                          {
+                            tempProfile.resumeName
+                          }
                         </span>
                       ) : (
                         'คลิกเพื่อแนบผลการศึกษา หรือลากไฟล์มาวางที่นี่'
@@ -1448,13 +1702,16 @@ export default function StudentDashboard() {
 
               </div>
 
-              {/* Modal Buttons */}
+              {/* Buttons */}
+
               <div className="pt-4 border-t border-slate-200 flex justify-end space-x-2">
 
                 <button
                   type="button"
                   onClick={() =>
-                    setIsEditProfileOpen(false)
+                    setIsEditProfileOpen(
+                      false
+                    )
                   }
                   className="px-4 py-2 border border-slate-300 text-slate-600 hover:bg-slate-100 font-medium rounded-lg"
                   disabled={saving}
@@ -1494,6 +1751,7 @@ export default function StudentDashboard() {
       {/* ========================================================= */}
       {/* MODAL 2: รายละเอียดตำแหน่งงาน */}
       {/* ========================================================= */}
+
       {selectedJob && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-200"
@@ -1509,7 +1767,8 @@ export default function StudentDashboard() {
             }
           >
 
-            {/* Modal Header */}
+            {/* Header */}
+
             <div className="p-6 border-b border-slate-200 bg-white">
 
               <div className="flex justify-between items-start">
@@ -1566,32 +1825,29 @@ export default function StudentDashboard() {
 
                 </div>
 
-                {/* เหลือเฉพาะปุ่ม X */}
-                <div className="flex items-center">
-
-                  <button
-                    onClick={() =>
-                      setSelectedJob(null)
-                    }
-                    className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-
-                </div>
+                <button
+                  onClick={() =>
+                    setSelectedJob(null)
+                  }
+                  className="p-2 border border-slate-200 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
 
               </div>
 
             </div>
 
-            {/* Modal Body */}
+            {/* Body */}
+
             <div className="p-6 overflow-y-auto space-y-6">
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
+                {/* Left */}
+
                 <div className="lg:col-span-2 space-y-6">
 
-                  {/* Responsibilities */}
                   <div>
 
                     <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-3 flex items-center">
@@ -1616,7 +1872,6 @@ export default function StudentDashboard() {
 
                   </div>
 
-                  {/* Qualifications */}
                   <div>
 
                     <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-3 flex items-center">
@@ -1641,7 +1896,6 @@ export default function StudentDashboard() {
 
                   </div>
 
-                  {/* Workplace */}
                   <div>
 
                     <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-3 flex items-center">
@@ -1668,10 +1922,12 @@ export default function StudentDashboard() {
 
                 </div>
 
-                {/* Right Side */}
+                {/* Right */}
+
                 <div className="space-y-4">
 
                   {/* Salary */}
+
                   <div className="bg-amber-50/50 border border-amber-200 p-4 rounded-xl">
 
                     <div className="text-xs text-amber-800 font-medium">
@@ -1708,6 +1964,7 @@ export default function StudentDashboard() {
                   </div>
 
                   {/* Timeline */}
+
                   <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-xs space-y-2">
 
                     <div className="font-bold text-slate-900 border-b border-slate-200 pb-2 flex items-center">
@@ -1757,6 +2014,7 @@ export default function StudentDashboard() {
                   </div>
 
                   {/* HR Contact */}
+
                   {selectedJob.hrName && (
                     <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-xs space-y-3">
 
@@ -1834,16 +2092,60 @@ export default function StudentDashboard() {
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end">
 
-              <button
-                onClick={() =>
-                  setSelectedJob(null)
-                }
-                className="px-4 py-2 border border-slate-300 text-slate-600 hover:bg-slate-100 font-medium rounded-lg text-xs transition-colors"
-              >
-                ปิดหน้านี้
-              </button>
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+
+              {applyError ? (
+                <span className="text-xs text-red-600">
+                  {applyError}
+                </span>
+              ) : (
+                <span></span>
+              )}
+
+              <div className="flex items-center gap-2">
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedJob(null)
+                  }
+                  disabled={applying}
+                  className="px-4 py-2 border border-slate-300 text-slate-600 hover:bg-slate-100 font-medium rounded-lg text-xs transition-colors disabled:opacity-50"
+                >
+                  ปิดหน้านี้
+                </button>
+
+                <button
+                  type="button"
+                  onClick={
+                    handleApplyJob
+                  }
+                  disabled={applying}
+                  className="px-5 py-2 bg-indigo-900 hover:bg-indigo-800 text-white font-semibold rounded-lg text-xs transition-colors flex items-center gap-2 shadow-sm disabled:opacity-60"
+                >
+
+                  {applying ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+
+                      <span>
+                        กำลังส่งคำขอ...
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+
+                      <span>
+                        ต้องการสมัคร
+                      </span>
+                    </>
+                  )}
+
+                </button>
+
+              </div>
 
             </div>
 
@@ -1855,6 +2157,7 @@ export default function StudentDashboard() {
       {/* ========================================================= */}
       {/* MODAL 3: เพิ่มข้อมูลบริษัทจากภายนอก */}
       {/* ========================================================= */}
+
       {isExternalCompanyOpen && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-200"
@@ -1871,13 +2174,16 @@ export default function StudentDashboard() {
             }
           >
 
-            {/* Modal Header */}
+            {/* Header */}
+
             <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50">
 
               <div className="flex items-center space-x-2">
 
                 <div className="w-8 h-8 bg-indigo-900 text-white rounded-lg flex items-center justify-center font-bold">
+
                   <Send className="w-4 h-4" />
+
                 </div>
 
                 <div>
@@ -1896,17 +2202,22 @@ export default function StudentDashboard() {
 
               <button
                 onClick={() =>
-                  setIsExternalCompanyOpen(false)
+                  setIsExternalCompanyOpen(
+                    false
+                  )
                 }
                 className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200/50"
-                disabled={externalSaving}
+                disabled={
+                  externalSaving
+                }
               >
                 <X className="w-5 h-5" />
               </button>
 
             </div>
 
-            {/* Modal Body */}
+            {/* Body */}
+
             <form
               onSubmit={
                 handleSubmitExternalCompany
@@ -1921,6 +2232,7 @@ export default function StudentDashboard() {
               )}
 
               {/* Company */}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 <div>
@@ -1976,6 +2288,7 @@ export default function StudentDashboard() {
               </div>
 
               {/* Location */}
+
               <div>
 
                 <label className="block font-medium text-slate-700 mb-1">
@@ -2001,6 +2314,7 @@ export default function StudentDashboard() {
               </div>
 
               {/* Contact */}
+
               <div className="pt-2 border-t border-slate-200">
 
                 <div className="font-semibold text-slate-800 mb-3">
@@ -2110,6 +2424,7 @@ export default function StudentDashboard() {
               </div>
 
               {/* Details */}
+
               <div>
 
                 <label className="block font-medium text-slate-700 mb-1">
@@ -2135,6 +2450,7 @@ export default function StudentDashboard() {
               </div>
 
               {/* Buttons */}
+
               <div className="pt-4 border-t border-slate-200 flex justify-end space-x-2">
 
                 <button
@@ -2145,14 +2461,18 @@ export default function StudentDashboard() {
                     )
                   }
                   className="px-4 py-2 border border-slate-300 text-slate-600 hover:bg-slate-100 font-medium rounded-lg"
-                  disabled={externalSaving}
+                  disabled={
+                    externalSaving
+                  }
                 >
                   ยกเลิก
                 </button>
 
                 <button
                   type="submit"
-                  disabled={externalSaving}
+                  disabled={
+                    externalSaving
+                  }
                   className="px-4 py-2 bg-indigo-900 hover:bg-indigo-800 text-white font-medium rounded-lg shadow-sm flex items-center space-x-1 disabled:opacity-60"
                 >
 
