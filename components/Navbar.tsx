@@ -82,14 +82,25 @@ export default function Navbar() {
     return null;
   }
 
-  // 2. เช็คหน้าปัจจุบัน
+  // 2. เช็กประเภทของหน้าปัจจุบัน
   const isHomePage = currentPath === "/";
+  const isAdmin = currentPath.startsWith("/admin");
   const isAdvisor = currentPath.startsWith("/advisor");
-  const isStudent = currentPath.startsWith("/pagestudent");
-  const isLoggedIn = isAdvisor || isStudent;
 
-  // 3. ข้อมูลโปรไฟล์ตามบทบาท
-  const userData = isAdvisor
+  // เช็กว่าอยู่ในหน้านักศึกษา (รวม pagestudent, internship-record, jobs, documents, notifications)
+  const isStudent = 
+    currentPath.startsWith("/pagestudent") || 
+    currentPath.startsWith("/internship-record") ||
+    currentPath.startsWith("/jobs") ||
+    currentPath.startsWith("/documents") ||
+    currentPath.startsWith("/notifications");
+
+  const isLoggedIn = isAdmin || isAdvisor || isStudent;
+
+  // 3. กำหนดข้อมูลโปรไฟล์ผู้ใช้งาน
+  const userData = isAdmin
+    ? { name: "Admin User", subText: "System Admin", avatarChar: "A" }
+    : isAdvisor
     ? { name: "Adviser", subText: "อาจารย์ที่ปรึกษา", avatarChar: "A" }
     : { name: "กานต์พิชชา วงษ์สุวรรณ", subText: "6410210545", avatarChar: "ก" };
 
@@ -113,8 +124,8 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Nav tabs (จะซ่อนทันทีเมื่ออยู่หน้า Home, Advisor หรือ Student) */}
-        {!isHomePage && !isAdvisor && !isStudent && (
+        {/* Nav tabs (ซ่อนเมื่ออยู่หน้า Home, Admin, Advisor หรือหน้านักศึกษา) */}
+        {!isHomePage && !isAdmin && !isAdvisor && !isStudent && (
           <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
             {navItems.map((item) => {
               const active = pathname === item.href;
@@ -136,7 +147,7 @@ export default function Navbar() {
           </nav>
         )}
 
-        {/* Right side (แสดงโปรไฟล์ + กระดิ่ง) */}
+        {/* Right side (แสดงกระดิ่ง + โปรไฟล์ + Dropdown Logout) */}
         <div className="flex shrink-0 items-center gap-3">
           {isLoggedIn ? (
             <div className="flex items-center gap-3">

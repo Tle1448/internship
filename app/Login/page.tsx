@@ -12,7 +12,7 @@ export default function LoginPage() {
 
   const router = useRouter();
 
-  // ฟังก์ชันตรวจสอบรหัสและแยกหน้าอัตโนมัติ
+  // ฟังก์ชันตรวจสอบรหัสและแยกหน้าอัตโนมัติ (Admin / Advisor / Student)
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -28,6 +28,11 @@ export default function LoginPage() {
     setError("");
 
     // 2. เช็กเงื่อนไขประเภทผู้ใช้งาน
+    // - รหัส Admin: ขึ้นต้นด้วย adm หรือพิมพ์ admin
+    const isAdmin = 
+      cleanUsername.startsWith("adm") || 
+      cleanUsername === "admin";
+
     // - รหัสอาจารย์: ขึ้นต้นด้วย adv, t, a หรือพิมพ์ advisor
     const isAdvisor = 
       cleanUsername.startsWith("adv") || 
@@ -38,7 +43,10 @@ export default function LoginPage() {
     // - รหัสนักศึกษา: เป็นตัวเลขล้วน
     const isStudent = /^\d+$/.test(cleanUsername);
 
-    if (isAdvisor) {
+    if (isAdmin) {
+      // ถ้ารหัสตรงกับ Admin -> ไปหน้า Admin Dashboard
+      router.push("/admin/dashboard");
+    } else if (isAdvisor) {
       // ถ้ารหัสตรงกับอาจารย์ -> ไปหน้า Advisor
       router.push("/advisor");
     } else if (isStudent) {
@@ -46,7 +54,7 @@ export default function LoginPage() {
       router.push("/pagestudent");
     } else {
       // หากป้อนรูปแบบที่ไม่ถูกต้อง
-      setError("รูปแบบบัญชีผู้ใช้งานไม่ถูกต้อง (นักศึกษาใช้รหัสตัวเลข / อาจารย์ใช้รหัสขึ้นต้นด้วย ADV, T หรือ A)");
+      setError("รูปแบบบัญชีผู้ใช้งานไม่ถูกต้อง (นักศึกษาใช้รหัสตัวเลข / อาจารย์ใช้รหัส ADV, T, A / แอดมินใช้ admin, ADM)");
     }
   };
 
@@ -143,7 +151,7 @@ export default function LoginPage() {
                   if (error) setError("");
                 }}
                 className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-[#7678ED] focus:border-[#7678ED] sm:text-sm transition-colors outline-none"
-                placeholder="รหัสนักศึกษา (เช่น 6410210545) หรือ รหัสอาจารย์ (เช่น ADV001)"
+                placeholder="รหัสนักศึกษา, รหัสอาจารย์ (ADV...) หรือ รหัสแอดมิน (ADMIN)"
               />
             </div>
           </div>
