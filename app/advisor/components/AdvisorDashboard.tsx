@@ -6,27 +6,12 @@ import Icon from "./Icon";
 import { supabase } from "@/lib/supabase";
 import { getCurrentAdvisorId } from "@/lib/currentUser"; // TODO: เปลี่ยนเป็น auth จริงทีหลัง
 import "../advisor.css";
+import StudentDetailsDialog, { type AdvisorStudent as Student } from "./StudentDetailsDialog";
 
 // ---------------------------------------------------------------------
 // Student row shape used by this page — ตอนนี้มาจาก Supabase จริงแล้ว
 // (แทนที่ mock `students` เดิมจาก ../data)
 // ---------------------------------------------------------------------
-type Student = {
-  id: string;           // student_code
-  authId: string;       // profiles.id (auth uid) — ใช้อ้างอิงตอน query
-  name: string;
-  major: string;
-  company: string;
-  province: string;
-  project: string;
-  role: string;
-  status: string;        // internship_records.status
-  visited: boolean;
-  latestNote: string | null;
-  latestNoteAt: string | null; // ISO timestamp ของ progress_updates ล่าสุด
-  evidenceFiles: string[]; // URL ไฟล์หลักฐานที่ นศ. อัปโหลด
-};
-
 type Appointment = {
   company: string;
   date: string;
@@ -34,18 +19,47 @@ type Appointment = {
   mode: string;
 };
 
-const menus = ["ภาพรวมและสถิติ", "ความก้าวหน้านักศึกษา", "บันทึกนิเทศและแบบประเมิน"];
+type FilterOption = { value: string; label: string };
 
-// ดึงชื่อไฟล์ที่อ่านง่ายออกมาจาก public URL ที่เก็บไว้
-function fileNameFromUrl(url: string) {
-  try {
-    const parts = url.split("/");
-    const last = parts[parts.length - 1];
-    return decodeURIComponent(last.replace(/^\d+_/, ""));
-  } catch {
-    return url;
-  }
+function FilterSelect({ label, value, options, onChange }: {
+  label: string;
+  value: string;
+  options: FilterOption[];
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const menu = useRef<HTMLDivElement>(null);
+  const selected = options.find((option) => option.value === value)?.label ?? options[0]?.label;
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: MouseEvent) => {
+      if (!menu.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open]);
+
+  return <div className={`filter-select ${open ? "is-open" : ""}`} ref={menu}>
+    <button type="button" className="filter-trigger" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <span className="filter-label">{label}</span>
+      <span className="filter-value">{selected}</span>
+      <Icon name="chevron" size={16} />
+    </button>
+    {open && <div className="filter-menu" role="listbox" aria-label={label}>
+      {options.map((option) => <button type="button" role="option" aria-selected={option.value === value} className={option.value === value ? "selected" : ""} key={option.value || "all"} onClick={() => { onChange(option.value); setOpen(false); }}><span>{option.label}</span>{option.value === value && <Icon name="check" size={16} />}</button>)}
+    </div>}
+  </div>;
 }
+
+const menus = ["ภาพรวมและสถิติ", "ความก้าวหน้านักศึกษา", "บันทึกนิเทศและแบบประเมิน"];
 
 export default function AdvisorDashboard() {
   const [query, setQuery] = useState("");
@@ -221,8 +235,7 @@ export default function AdvisorDashboard() {
   }
 
   function formatNoteTime(iso: string | null) {
-    if (!iso) return "";
-    return new Date(iso).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" });
+    return iso ? new Date(iso).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" }) : "";
   }
 
   return (
@@ -337,7 +350,7 @@ export default function AdvisorDashboard() {
               <span className="stat-top">
                 <span>{item.title}</span>
                 <span className="stat-icon">
-                  <Icon name={item.icon} size={26} />
+                  <Icon name={item.icon} size={22} />
                 </span>
               </span>
               <span className="stat-number">
@@ -368,75 +381,10 @@ export default function AdvisorDashboard() {
                     }}
                   />
                 </label>
-                <label className="select-field">
-                  สถานะ:
-                  <select
-                    aria-label="สถานะ"
-                    value={status}
-                    onChange={(e) => {
-                      setStatus(e.target.value);
-                      setPage(1);
-                    }}
-                  >
-                    <option value="">ทั้งหมด</option>
-                    {Object.entries(statusLabels).map(([key, value]) => (
-                      <option key={key} value={key}>
-                        {value as string}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="select-field">
-                  สถานประกอบการ:
-                  <select
-                    aria-label="สถานประกอบการ"
-                    value={company}
-                    onChange={(e) => {
-                      setCompany(e.target.value);
-                      setPage(1);
-                    }}
-                  >
-                    <option value="">ทุกบริษัท</option>
-                    {[...new Set(students.map((s) => s.company))].map((c) => (
-                      <option key={c}>{c}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="select-field">
-                  สาขาวิชา:
-                  <select
-                    aria-label="สาขาวิชา"
-                    value={major}
-                    onChange={(e) => {
-                      setMajor(e.target.value);
-                      setPage(1);
-                    }}
-                  >
-                    <option value="">ทุกสาขา</option>
-                    {[...new Set(students.map((s) => s.major))].map((m) => (
-                      <option key={m}>{m}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="select-field">
-                  การนิเทศ:
-                  <select
-                    aria-label="การนิเทศ"
-                    value={visit}
-                    onChange={(e) => {
-                      setVisit(e.target.value);
-                      setPage(1);
-                    }}
-                  >
-                    <option value="">ทั้งหมด</option>
-                    <option value="no">ยังไม่ได้นิเทศ</option>
-                    <option value="yes">นิเทศแล้ว</option>
-                  </select>
-                </label>
-                <button className="reset-button" onClick={reset}>
-                  <Icon name="reset" size={17} />
-                  รีเซ็ตตัวกรอง
-                </button>
+                <FilterSelect label="สถานะ" value={status} options={[{ value: "", label: "ทั้งหมด" }, ...Object.entries(statusLabels).map(([value, label]) => ({ value, label: label as string }))]} onChange={(value) => { setStatus(value); setPage(1); }} />
+                <FilterSelect label="สถานประกอบการ" value={company} options={[{ value: "", label: "ทุกบริษัท" }, ...[...new Set(students.map((student) => student.company))].map((value) => ({ value, label: value }))]} onChange={(value) => { setCompany(value); setPage(1); }} />
+                <FilterSelect label="สาขาวิชา" value={major} options={[{ value: "", label: "ทุกสาขา" }, ...[...new Set(students.map((student) => student.major))].map((value) => ({ value, label: value }))]} onChange={(value) => { setMajor(value); setPage(1); }} />
+                <FilterSelect label="การนิเทศ" value={visit} options={[{ value: "", label: "ทั้งหมด" }, { value: "no", label: "ยังไม่ได้นิเทศ" }, { value: "yes", label: "นิเทศแล้ว" }]} onChange={(value) => { setVisit(value); setPage(1); }} />
               </div>
               <div className="filter-chips">
                 <span>ตัวกรองที่เลือก:</span>
@@ -462,6 +410,10 @@ export default function AdvisorDashboard() {
                       <Icon name="close" size={13} />
                     </button>
                   ))}
+                <button className="reset-button" onClick={reset}>
+                  <Icon name="reset" size={17} />
+                  รีเซ็ตตัวกรอง
+                </button>
               </div>
             </section>
             <section className="table-card">
@@ -660,61 +612,7 @@ export default function AdvisorDashboard() {
           </button>
         </form>
       </dialog>
-      <dialog ref={studentDialog} className="modal" aria-label="ข้อมูลนักศึกษา">
-        <div className="modal-header">
-          <h2>ข้อมูลนักศึกษา</h2>
-          <button className="icon-button" aria-label="ปิด" onClick={() => studentDialog.current?.close()}>
-            <Icon name="close" />
-          </button>
-        </div>
-        {selected && (
-          <div className="student-detail">
-            <span className={`badge ${selected.status}`}>{statusLabels[selected.status as keyof typeof statusLabels] ?? selected.status}</span>
-            <h3>{selected.name}</h3>
-            <p>
-              {selected.id} · {selected.major}
-            </p>
-            <dl>
-              <dt>สถานประกอบการ</dt>
-              <dd>{selected.company}</dd>
-              <dt>จังหวัด</dt>
-              <dd>{selected.province}</dd>
-              <dt>หัวข้อโครงงาน</dt>
-              <dd>{selected.project}</dd>
-              <dt>ตำแหน่ง</dt>
-              <dd>{selected.role}</dd>
-              <dt>การนิเทศ</dt>
-              <dd>{selected.visited ? "นิเทศแล้ว" : "ยังไม่ได้นิเทศ"}</dd>
-              {selected.latestNote && (
-                <>
-                  <dt>อัปเดตล่าสุดจากนักศึกษา</dt>
-                  <dd>
-                    &ldquo;{selected.latestNote}&rdquo;
-                    <br />
-                    <small>{formatNoteTime(selected.latestNoteAt)}</small>
-                  </dd>
-                </>
-              )}
-              <dt>ไฟล์หลักฐานที่อัปโหลด</dt>
-              <dd>
-                {selected.evidenceFiles.length === 0 ? (
-                  <span>ยังไม่มีไฟล์แนบ</span>
-                ) : (
-                  <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                    {selected.evidenceFiles.map((url, idx) => (
-                      <li key={idx} style={{ marginBottom: 4 }}>
-                        <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: "#4338ca", textDecoration: "underline" }}>
-                          📎 {fileNameFromUrl(url)}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </dd>
-            </dl>
-          </div>
-        )}
-      </dialog>
+      <StudentDetailsDialog dialogRef={studentDialog} student={selected} />
       <dialog ref={evaluationDialog} className="modal" aria-label="เตรียมแบบประเมินนิเทศ">
         <div className="modal-header">
           <h2>เตรียมแบบประเมินนิเทศ</h2>
