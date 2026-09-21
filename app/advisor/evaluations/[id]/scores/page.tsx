@@ -1,6 +1,6 @@
-import AdvisorStudentRoute from "../../../components/AdvisorStudentRoute";
+import { redirect } from "next/navigation";
 
-export default async function EvaluationScoresPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function LegacyEvaluationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <AdvisorStudentRoute id={id} view="evaluation" step="scores" />;
+  redirect(`/advisor/students/${id}/evaluation`);
 }
