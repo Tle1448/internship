@@ -1,6 +1,5 @@
-import AdvisorShell from "../components/AdvisorShell";
-import EvaluationList from "../components/EvaluationList";
+import { redirect } from "next/navigation";
 
 export default function AdvisorEvaluationsPage() {
-  return <AdvisorShell active="evaluation" title="บันทึกนิเทศและแบบประเมิน"><EvaluationList /></AdvisorShell>;
+  redirect("/advisor/tasks");
 }

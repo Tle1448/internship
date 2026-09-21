@@ -1,13 +1,30 @@
-export type WeeklyRecord = { week: number; title: string; date: string; status: "pending" | "approved" | "upcoming"; content: string; comment?: string };
+import type { Student } from "./data";
 
-export const weeklyRecords: WeeklyRecord[] = [
-  { week: 8, title: "พัฒนา OpenTelemetry Collector และระบบติดตามแบบกระจาย", date: "18 ต.ค. 2567 เวลา 17:30 น.", status: "pending", content: "ได้ดำเนินการติดตั้งและตั้งค่า OpenTelemetry Collector agent บน Kubernetes Cluster ในระบบทดสอบ เพื่อรวบรวมข้อมูล span จากไมโครเซอร์วิสหลัก 3 บริการ และส่งต่อไปยัง Grafana Tempo ตรวจสอบปัญหาคอขวดที่เกิดขึ้นในระบบสืบค้นข้อมูลได้สำเร็จ" },
-  { week: 7, title: "ปรับปรุงประสิทธิภาพ Database Query บน PostgreSQL", date: "11 ต.ค. 2567 เวลา 16:45 น.", status: "approved", content: "วิเคราะห์คำสั่งค้นหาที่ใช้เวลานาน และเพิ่มดัชนีเพื่อปรับปรุงประสิทธิภาพ พร้อมเปรียบเทียบผลก่อนและหลังการปรับปรุง", comment: "ผลงานดีมาก มีการวัดผลเปรียบเทียบชัดเจน ขอให้บันทึกเทคนิค indexing ที่ใช้ลงในเล่มรายงานวิจัยด้วย" },
-  { week: 6, title: "จัดทำ Unit Testing & Integration Testing ครอบคลุมกว่า 85%", date: "4 ต.ค. 2567 เวลา 18:00 น.", status: "approved", content: "เพิ่มชุดทดสอบสำหรับบริการหลักและทดสอบการเชื่อมต่อระหว่างระบบ ครอบคลุมเส้นทางการทำงานสำคัญ" },
-  { week: 5, title: "ออกแบบ REST API และเอกสารระบบด้วย Swagger", date: "27 ก.ย. 2567 เวลา 17:15 น.", status: "approved", content: "ออกแบบ API และจัดทำเอกสารตัวอย่างคำขอและผลลัพธ์สำหรับทีมพัฒนา" },
-  ...[4, 3, 2, 1].map(week => ({ week, title: ["เรียนรู้ระบบงานและวางแผนการฝึกงาน", "ศึกษาความต้องการและออกแบบโครงงาน", "พัฒนาระบบต้นแบบ", "ทดสอบและปรับปรุงระบบต้นแบบ"][week - 1], date: "ภาคการศึกษา 1/2567", status: "approved" as const, content: "ดำเนินงานตามแผนประจำสัปดาห์ พร้อมสรุปสิ่งที่เรียนรู้และประเด็นที่ต้องพัฒนาร่วมกับพี่เลี้ยง" })),
-  ...Array.from({ length: 8 }, (_, i) => ({ week: i + 9, title: i === 0 ? "เตรียมนำเสนอความก้าวหน้าโครงงานก่อนนิเทศ" : "ดำเนินโครงงานและสรุปผลการปฏิบัติงาน", date: "ยังไม่ถึงกำหนดส่ง", status: "upcoming" as const, content: "" })),
-];
+export type WeeklyStatus = "pending" | "approved" | "revision" | "upcoming";
+export type WeeklyRecord = { week: number; title: string; date: string; status: WeeklyStatus; content: string; comment?: string };
+
+const featuredWeeks: Record<number, Pick<WeeklyRecord, "title" | "content">> = {
+  5: { title: "ออกแบบ REST API และเอกสารระบบด้วย Swagger", content: "ออกแบบ API และจัดทำเอกสารตัวอย่างคำขอและผลลัพธ์สำหรับทีมพัฒนา" },
+  6: { title: "จัดทำ Unit Testing & Integration Testing ครอบคลุมกว่า 85%", content: "เพิ่มชุดทดสอบสำหรับบริการหลักและทดสอบการเชื่อมต่อระหว่างระบบ ครอบคลุมเส้นทางการทำงานสำคัญ" },
+  7: { title: "ปรับปรุงประสิทธิภาพ Database Query บน PostgreSQL", content: "วิเคราะห์คำสั่งค้นหาที่ใช้เวลานาน และเพิ่มดัชนีเพื่อปรับปรุงประสิทธิภาพ พร้อมเปรียบเทียบผลก่อนและหลังการปรับปรุง" },
+  8: { title: "พัฒนา OpenTelemetry Collector และระบบติดตามแบบกระจาย", content: "ติดตั้งและตั้งค่า OpenTelemetry Collector บน Kubernetes Cluster เพื่อรวบรวมข้อมูลจากบริการหลักและตรวจสอบปัญหาคอขวดของระบบ" },
+};
+
+export function createWeeklyRecords(student: Student): WeeklyRecord[] {
+  return Array.from({ length: 16 }, (_, index) => {
+    const week = index + 1;
+    const featured = featuredWeeks[week];
+    const status: WeeklyStatus = week < student.currentWeek ? "approved" : week === student.currentWeek ? "pending" : "upcoming";
+    return {
+      week,
+      title: featured?.title ?? (week > student.currentWeek ? "ดำเนินโครงงานและสรุปผลการปฏิบัติงาน" : "สรุปการปฏิบัติงานและสิ่งที่ได้เรียนรู้"),
+      date: status === "upcoming" ? "ยังไม่ถึงกำหนดส่ง" : `สัปดาห์ที่ ${week} · ภาคการศึกษา 1/2567`,
+      status,
+      content: status === "upcoming" ? "" : featured?.content ?? "ดำเนินงานตามแผนประจำสัปดาห์ พร้อมสรุปสิ่งที่เรียนรู้และประเด็นที่ต้องพัฒนาร่วมกับพี่เลี้ยง",
+      comment: status === "approved" && week === 7 ? "ผลงานดี มีการวัดผลเปรียบเทียบชัดเจน ควรบันทึกเทคนิคที่ใช้ลงในรายงานด้วย" : undefined,
+    };
+  }).sort((a, b) => b.week - a.week);
+}
 
 export const scoreCriteria = [
   { title: "ผลสัมฤทธิ์ของงานและโครงงานสหกิจ", description: "คุณภาพของชิ้นงาน ผลผลิตตามเป้าหมาย ความถูกต้อง และการส่งมอบตรงเวลา", max: 30, initial: 28 },

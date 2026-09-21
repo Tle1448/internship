@@ -1,6 +1,6 @@
-import AdvisorStudentRoute from "../../components/AdvisorStudentRoute";
+import { redirect } from "next/navigation";
 
-export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+export default async function LegacySupervisionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <AdvisorStudentRoute id={id} view="evaluation" />;
+  redirect(`/advisor/students/${id}/supervision`);
 }
