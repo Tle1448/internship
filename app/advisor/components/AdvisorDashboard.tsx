@@ -1,12 +1,16 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { statusLabels } from "../data";
 import Icon from "./Icon";
 import { supabase } from "@/lib/supabase";
 import { getCurrentAdvisorId } from "@/lib/currentUser"; // TODO: เปลี่ยนเป็น auth จริงทีหลัง
 import "../advisor.css";
-import StudentDetailsDialog, { type AdvisorStudent as Student } from "./StudentDetailsDialog";
+import type { AdvisorStudent as Student } from "./StudentDetailsDialog";
+import StudentProgress from "./StudentProgress";
+import EvaluationForm from "./EvaluationForm";
+import type { Student as ProgressStudent } from "../data";
 
 // ---------------------------------------------------------------------
 // Student row shape used by this page — ตอนนี้มาจาก Supabase จริงแล้ว
@@ -62,6 +66,7 @@ function FilterSelect({ label, value, options, onChange }: {
 const menus = ["ภาพรวมและสถิติ", "ความก้าวหน้านักศึกษา", "บันทึกนิเทศและแบบประเมิน"];
 
 export default function AdvisorDashboard() {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
   const [company, setCompany] = useState("");
@@ -76,11 +81,9 @@ export default function AdvisorDashboard() {
   const [loadingStudents, setLoadingStudents] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [selected, setSelected] = useState<Student | null>(null);
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [message, setMessage] = useState("");
   const appointmentDialog = useRef<HTMLDialogElement>(null);
-  const studentDialog = useRef<HTMLDialogElement>(null);
   const evaluationDialog = useRef<HTMLDialogElement>(null);
 
   // ---------------------------------------------------------------------
@@ -230,12 +233,64 @@ export default function AdvisorDashboard() {
   }
 
   function openStudent(student: Student) {
-    setSelected(student);
-    studentDialog.current?.showModal();
+    const detailStudent = {
+      id: student.id,
+      name: student.name,
+      company: student.company,
+      province: student.province,
+      project: student.project,
+      role: student.role,
+      major: student.major,
+      status: student.status === "approved" ? "approved" : student.status === "late" ? "late" : "pending",
+      visited: student.visited,
+    };
+    sessionStorage.setItem(`advisor-student-${student.id}`, JSON.stringify(detailStudent));
+    router.push(`/advisor/students/${student.id}`);
   }
 
   function formatNoteTime(iso: string | null) {
     return iso ? new Date(iso).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" }) : "";
+  }
+
+  const progressStudent = students[0] ? {
+    id: students[0].id,
+    name: students[0].name,
+    company: students[0].company,
+    province: students[0].province,
+    project: students[0].project,
+    role: students[0].role,
+    major: students[0].major,
+    status: students[0].status === "approved" ? "approved" : students[0].status === "late" ? "late" : "pending",
+    visited: students[0].visited,
+  } satisfies ProgressStudent : null;
+
+  if (section === 1) {
+    return <div className="advisor-app advisor-details">
+      <button type="button" className="icon-button mobile-toggle" aria-controls="advisor-menu" aria-expanded={mobileMenu} onClick={() => setMobileMenu(!mobileMenu)}><Icon name="menu" />เมนูอาจารย์</button>
+      <aside id="advisor-menu" className={`sidebar ${mobileMenu ? "is-open" : ""}`}>
+        <div><p className="nav-label">การจัดการนิเทศ</p><nav aria-label="เมนูอาจารย์">{menus.map((menu, index) => <button key={menu} className={index === 1 ? "active" : ""} aria-current={index === 1 ? "page" : undefined} onClick={() => { setSection(index); setMobileMenu(false); }}><Icon name={index === 0 ? "dashboard" : index === 1 ? "users" : "checklist"} />{menu}</button>)}</nav></div>
+        <div className="sidebar-footer"><strong>วิทยาลัยนวัตกรรมวิชาชีพ</strong><span>หน่วยสหกิจศึกษาและการฝึกงาน</span></div>
+      </aside>
+      <main className="main-content detail-main">
+        <div className="detail-context"><button className="detail-back" aria-label="กลับหน้าภาพรวม" onClick={() => setSection(0)}><Icon name="chevron" size={20} /></button><div className="breadcrumb"><span>หน้าหลัก</span><span>›</span><strong>ความก้าวหน้านักศึกษา</strong></div></div>
+        <p className="detail-demo">ข้อมูลนักศึกษาในความดูแลของคุณ</p>
+        {loadingStudents ? <p className="demo-note">กำลังโหลดข้อมูลนักศึกษา...</p> : progressStudent ? <StudentProgress student={progressStudent} embedded /> : <div className="detail-card empty-state"><Icon name="users" size={32} /><strong>ยังไม่มีนักศึกษาในความดูแล</strong><p>เมื่อนักศึกษาถูกมอบหมายให้อาจารย์ หน้าความก้าวหน้าจะแสดงข้อมูลที่นี่</p></div>}
+      </main>
+    </div>;
+  }
+
+  if (section === 2) {
+    return <div className="advisor-app advisor-details">
+      <button type="button" className="icon-button mobile-toggle" aria-controls="advisor-menu" aria-expanded={mobileMenu} onClick={() => setMobileMenu(!mobileMenu)}><Icon name="menu" />เมนูอาจารย์</button>
+      <aside id="advisor-menu" className={`sidebar ${mobileMenu ? "is-open" : ""}`}>
+        <div><p className="nav-label">การจัดการนิเทศ</p><nav aria-label="เมนูอาจารย์">{menus.map((menu, index) => <button key={menu} className={index === 2 ? "active" : ""} aria-current={index === 2 ? "page" : undefined} onClick={() => { setSection(index); setMobileMenu(false); }}><Icon name={index === 0 ? "dashboard" : index === 1 ? "users" : "checklist"} />{menu}</button>)}</nav></div>
+        <div className="sidebar-footer"><strong>วิทยาลัยนวัตกรรมวิชาชีพ</strong><span>หน่วยสหกิจศึกษาและการฝึกงาน</span></div>
+      </aside>
+      <main className="main-content detail-main">
+        <div className="detail-context"><button className="detail-back" aria-label="กลับหน้าภาพรวม" onClick={() => setSection(0)}><Icon name="chevron" size={20} /></button><div className="breadcrumb"><span>หน้าหลัก</span><span>›</span><strong>บันทึกนิเทศและแบบประเมิน</strong></div></div>
+        {loadingStudents ? <p className="demo-note">กำลังโหลดข้อมูลนักศึกษา...</p> : progressStudent ? <EvaluationForm student={progressStudent} embedded /> : <div className="detail-card empty-state"><Icon name="users" size={32} /><strong>ยังไม่มีนักศึกษาในความดูแล</strong><p>เมื่อนักศึกษาถูกมอบหมายให้อาจารย์แล้ว จะสามารถบันทึกการนิเทศและประเมินผลได้ที่นี่</p></div>}
+      </main>
+    </div>;
   }
 
   return (
@@ -260,8 +315,16 @@ export default function AdvisorDashboard() {
                 className={section === i ? "active" : ""}
                 aria-current={section === i ? "page" : undefined}
                 onClick={() => {
-                  setSection(i);
                   setMobileMenu(false);
+                  if (i === 1) {
+                    router.push("/advisor/students");
+                    return;
+                  }
+                  if (i === 2) {
+                    router.push("/advisor/evaluations");
+                    return;
+                  }
+                  setSection(i);
                 }}
               >
                 <Icon name={i === 0 ? "dashboard" : i === 1 ? "users" : "checklist"} />
@@ -279,9 +342,7 @@ export default function AdvisorDashboard() {
       <main className="main-content">
         <div className="breadcrumb">
           <Icon name="home" size={16} />
-          <span>หน้าหลัก</span>
-          <span>/</span>
-          <strong>แดชบอร์ดอาจารย์นิเทศ</strong>
+          <span>ภาพรวมและสถิติ</span>
         </div>
 
         <section className="page-heading">
@@ -612,7 +673,6 @@ export default function AdvisorDashboard() {
           </button>
         </form>
       </dialog>
-      <StudentDetailsDialog dialogRef={studentDialog} student={selected} />
       <dialog ref={evaluationDialog} className="modal" aria-label="เตรียมแบบประเมินนิเทศ">
         <div className="modal-header">
           <h2>เตรียมแบบประเมินนิเทศ</h2>

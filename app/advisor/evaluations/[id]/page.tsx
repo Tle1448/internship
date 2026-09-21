@@ -1,10 +1,6 @@
-import { notFound } from "next/navigation";
-import { students } from "../../data";
-import EvaluationForm from "../../components/EvaluationForm";
+import AdvisorStudentRoute from "../../components/AdvisorStudentRoute";
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const student = students.find(s => s.id === id);
-  if (!student) notFound();
-  return <EvaluationForm key={student.id} student={student}/>;
+  return <AdvisorStudentRoute id={id} view="evaluation" />;
 }
