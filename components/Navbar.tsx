@@ -3,6 +3,9 @@
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
+import NotificationBell from "@/components/NotificationBell";
+import { supabase } from "@/lib/supabase";
+import { getCurrentStudentId } from "@/lib/currentUser";
 
 // ---------- Icons (inline SVG, ไม่ต้องพึ่ง dependency เพิ่ม) ----------
 // ---------- Config ----------
@@ -29,15 +32,6 @@ function UserIcon({ className = "" }: { className?: string }) {
   );
 }
 
-function BellIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-    </svg>
-  );
-}
-
 function LogOutIcon({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -56,6 +50,23 @@ export default function Navbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // ข้อมูลนักศึกษาจริงที่ล็อกอินอยู่ตอนนี้ (ดึงจาก profiles ตาม currentStudentId)
+  const [studentProfile, setStudentProfile] = useState<{
+    name: string;
+    code: string;
+  } | null>(null);
+
+  const currentPath = pathname ? pathname.toLowerCase() : "";
+
+  // เช็กว่าอยู่ในหน้านักศึกษา (คำนวณไว้ตั้งแต่ต้น เพื่อใช้ใน useEffect ด้านล่างได้)
+  const isStudentPath =
+    currentPath.startsWith("/pagestudent") ||
+    currentPath.startsWith("/internship-record") ||
+    currentPath.startsWith("/jobs") ||
+    currentPath.startsWith("/documents") ||
+    currentPath.startsWith("/notifications");
+
+  // ปิด dropdown เมื่อคลิกข้างนอก
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -66,51 +77,104 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // โหลดชื่อ-รหัสนักศึกษาจริงจาก profiles ตาม currentStudentId (mock login ด้วยรหัส นศ)
+  useEffect(() => {
+    if (!isStudentPath) {
+      setStudentProfile(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      const studentId = await getCurrentStudentId();
+
+      if (!studentId) {
+        if (!cancelled) setStudentProfile(null);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name, student_code")
+        .eq("id", studentId)
+        .maybeSingle();
+
+      if (!cancelled) {
+        if (error) {
+          console.error("โหลดโปรไฟล์สำหรับ Navbar ไม่สำเร็จ:", error);
+          setStudentProfile(null);
+        } else {
+          setStudentProfile({
+            name: data?.full_name ?? "",
+            code: data?.student_code ?? "",
+          });
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isStudentPath, currentPath]);
+
+  // 1. ถ้าอยู่หน้า Login ให้คืนค่าเป็น null ทันที เพื่อป้องกัน Navbar เรนเดอร์ชนกับหน้า Login หรือเกิด 404
+  if (currentPath === "/login" || currentPath.startsWith("/login")) {
+    return null;
+  }
+
   const handleLogout = () => {
     setIsDropdownOpen(false);
     if (typeof window !== "undefined") {
       localStorage.clear();
       sessionStorage.clear();
+      // ใช้ window.location.replace เพื่อล้างประวัติหน้าเก่าและพุ่งตรงไปที่หน้า login โดยไม่ติดหน้า 404
+      window.location.replace("/login");
     }
-    router.push("/");
-    router.refresh();
   };
-
-  const currentPath = pathname.toLowerCase();
-
-  // 1. ซ่อน Navbar ทั้งหมดเมื่ออยู่หน้า Login
-  if (currentPath === "/login") {
-    return null;
-  }
 
   // 2. เช็กประเภทของหน้าปัจจุบัน
   const isHomePage = currentPath === "/";
   const isAdmin = currentPath.startsWith("/admin");
   const isAdvisor = currentPath.startsWith("/advisor");
+  const isConditer = currentPath.startsWith("/conditer");
+  const isStudent = isStudentPath;
 
-  // เช็กว่าอยู่ในหน้านักศึกษา (รวม pagestudent, internship-record, jobs, documents, notifications)
-  const isStudent = 
-    currentPath.startsWith("/pagestudent") || 
-    currentPath.startsWith("/internship-record") ||
-    currentPath.startsWith("/jobs") ||
-    currentPath.startsWith("/documents") ||
-    currentPath.startsWith("/notifications");
-
-  const isLoggedIn = isAdmin || isAdvisor || isStudent;
+  const isLoggedIn = isAdmin || isAdvisor || isStudent || isConditer;
 
   // 3. กำหนดข้อมูลโปรไฟล์ผู้ใช้งาน
+  //    ฝั่งนักศึกษา: ถ้ายังไม่มีชื่อ (full_name ว่าง) ให้โชว์แค่รหัสนักศึกษาไปก่อน
+  //    พอกรอกโปรไฟล์แล้วมีชื่อ จะเปลี่ยนมาโชว์ชื่อแทนอัตโนมัติ
+  const studentDisplayName =
+    studentProfile?.name && studentProfile.name.trim().length > 0
+      ? studentProfile.name
+      : studentProfile?.code || "นักศึกษา";
+
+  const studentAvatarChar =
+    studentProfile?.name && studentProfile.name.trim().length > 0
+      ? studentProfile.name.trim().charAt(0)
+      : "น";
+
   const userData = isAdmin
     ? { name: "Admin User", subText: "System Admin", avatarChar: "A" }
     : isAdvisor
     ? { name: "Adviser", subText: "อาจารย์ที่ปรึกษา", avatarChar: "A" }
-    : { name: "กานต์พิชชา วงษ์สุวรรณ", subText: "6410210545", avatarChar: "ก" };
+    : isConditer
+    ? { name: "Coordinator", subText: "เจ้าหน้าที่ผู้ประสานงาน", avatarChar: "C" }
+    : isStudent
+    ? {
+        name: studentDisplayName,
+        subText: studentProfile?.code || "",
+        avatarChar: studentAvatarChar,
+      }
+    : { name: "ผู้ใช้งาน", subText: "", avatarChar: "?" };
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white">
       <div className="flex w-full items-center justify-between gap-4 px-4 py-2.5">
 
-        {/* Logo (ด้านซ้าย) */}
-        <Link href="/" className="flex shrink-0 items-center gap-2">
+        {/* Logo (ด้านซ้าย) - ถ้าอยู่หน้า Conditer ให้กดแล้ววิ่งไป /conditer/companies */}
+        <Link href={isConditer ? "/conditer/companies" : "/"} className="flex shrink-0 items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-900 text-sm font-bold text-white">
             WU
           </div>
@@ -120,7 +184,7 @@ export default function Navbar() {
               WU-Intern<span className="text-orange-500">Ship</span>
             </p>
             <p className="text-[11px] leading-tight text-slate-400">
-              ระบบสหกิจศึกษาและฝึกงานวิชาชีพ
+              {isConditer ? "ระบบจัดการสำหรับเจ้าหน้าที่" : "ระบบสหกิจศึกษาและฝึกงานวิชาชีพ"}
             </p>
           </div>
         </Link>
@@ -149,14 +213,14 @@ export default function Navbar() {
           </nav>
         )}
 
-        {/* Right side (แสดงกระดิ่ง + โปรไฟล์ + Dropdown Logout) */}
+        {/* Right side */}
         <div className="flex shrink-0 items-center gap-3">
           {isLoggedIn ? (
             <div className="flex items-center gap-3">
-              <button className="relative rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer">
-                <BellIcon className="h-5 w-5" />
-                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500"></span>
-              </button>
+              {/* กระดิ่งแจ้งเตือน: ใช้งานได้ทั้งฝั่งนักศึกษาและฝั่ง Coordinator
+                  (Admin / Advisor ยังไม่มีระบบแจ้งเตือนผูกไว้ จึงไม่แสดง) */}
+              {isStudent && <NotificationBell role="student" />}
+              {isConditer && <NotificationBell role="coordinator" />}
 
               <div className="relative border-l border-slate-200 pl-3" ref={dropdownRef}>
                 <button
