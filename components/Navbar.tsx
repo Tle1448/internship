@@ -1,15 +1,10 @@
 "use client";
 
-<<<<<<< HEAD
-=======
 import { usePathname, useRouter } from "next/navigation";
->>>>>>> 2fe4a91be7bf8464e56e93566919b2f348c4c75c
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 
-<<<<<<< HEAD
 // ---------- Icons (inline SVG, ไม่ต้องพึ่ง dependency เพิ่ม) ----------
-=======
 // ---------- Config ----------
 interface NavItem {
   label: string;
@@ -25,7 +20,6 @@ const navItems: NavItem[] = [
 ];
 
 // ---------- Icons ----------
->>>>>>> 2fe4a91be7bf8464e56e93566919b2f348c4c75c
 function UserIcon({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
@@ -56,12 +50,6 @@ function LogOutIcon({ className = "" }: { className?: string }) {
 
 // ---------- Component ----------
 export default function Navbar() {
-<<<<<<< HEAD
-  return (
-    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white">
-      <div className="flex w-full items-center justify-between px-5 py-2.5 sm:px-6">
-        {/* Logo */}
-=======
   const pathname = usePathname();
   const router = useRouter();
 
@@ -122,7 +110,6 @@ export default function Navbar() {
       <div className="flex w-full items-center justify-between gap-4 px-4 py-2.5">
 
         {/* Logo (ด้านซ้าย) */}
->>>>>>> 2fe4a91be7bf8464e56e93566919b2f348c4c75c
         <Link href="/" className="flex shrink-0 items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-900 text-sm font-bold text-white">
             WU
@@ -138,9 +125,7 @@ export default function Navbar() {
           </div>
         </Link>
 
-<<<<<<< HEAD
         {/* Right side: ยังไม่มีระบบล็อกอิน จึงโชว์ปุ่มเข้าสู่ระบบแทนข้อมูลผู้ใช้ */}
-=======
         {/* Nav tabs (ซ่อนเมื่ออยู่หน้า Home, Admin, Advisor หรือหน้านักศึกษา) */}
         {!isHomePage && !isAdmin && !isAdvisor && !isStudent && (
           <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
@@ -165,7 +150,6 @@ export default function Navbar() {
         )}
 
         {/* Right side (แสดงกระดิ่ง + โปรไฟล์ + Dropdown Logout) */}
->>>>>>> 2fe4a91be7bf8464e56e93566919b2f348c4c75c
         <div className="flex shrink-0 items-center gap-3">
           {isLoggedIn ? (
             <div className="flex items-center gap-3">

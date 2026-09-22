@@ -1,5 +1,6 @@
 ﻿"use client";
 import AdminSidebar from "@/components/AdminSidebar";
+import AdminBreadcrumb from "@/components/AdminBreadcrumb";
 
 import AdminStudentProfileModal from "@/components/adminStudentProfileModal";
 import { useEffect, useState } from "react";
@@ -59,7 +60,7 @@ export default function StudentPage() {
       <AdminSidebar active="student" />
 
       <div className="min-w-0 flex-1 md:ml-[260px]">
-        <header className="px-5 py-6 lg:px-10"><div className="border-l-4 border-[#3D348B] pl-4"><h1 className="text-2xl font-bold lg:text-[30px]">จัดการนักศึกษา</h1><p className="mt-1 text-[#555]">ตรวจสอบข้อมูลและสถานะการฝึกงานของนักศึกษา</p></div></header>
+<header className="px-5 py-6 lg:px-10"><AdminBreadcrumb current="จัดการนักศึกษา" /><div className="mt-5"><h1 className="text-2xl font-bold lg:text-[30px]">จัดการนักศึกษา</h1><p className="mt-1 text-[#555]">ตรวจสอบข้อมูลและสถานะการฝึกงานของนักศึกษา</p></div></header>
         <main className="space-y-6 p-5 lg:p-10">
           <section aria-label="สรุปสถานะนักศึกษา" className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
              {[{ label: "นักศึกษาทั้งหมด", value: students.length, icon: "🎓", accent: "text-[#171717]", iconColor: "bg-[#EEECFF] text-[#3D348B]", detail: "นักศึกษาทั้งหมด", badge: "100% รวมทั้งหมด", badgeColor: "bg-gray-100 text-gray-700" }, { label: "กำลังหาที่ฝึกงาน", value: unplacedStudents, icon: "⌕", accent: "text-[#F35B04]", iconColor: "bg-[#FFE8DC] text-[#F35B04]", detail: "อยู่ระหว่างค้นหาสถานประกอบการ", badge: `${percentage(unplacedStudents)} กำลังหา`, badgeColor: "bg-[#F35B04] text-white" }, { label: "รอการอนุมัติ", value: reviewingStudents, icon: "◷", accent: "text-[#F18701]", iconColor: "bg-[#FFF0DD] text-[#F18701]", detail: "อยู่ในกระบวนการพิจารณา", badge: `${percentage(reviewingStudents)} รออนุมัติ`, badgeColor: "bg-[#F18701] text-white" }, { label: "ได้ที่ฝึกงานแล้ว", value: placedStudents, icon: "✓", accent: "text-[#3D348B]", iconColor: "bg-[#EEECFF] text-[#3D348B]", detail: "ผ่านการคัดเลือกและตอบรับ", badge: `${percentage(placedStudents)} ได้ที่ฝึกงานแล้ว`, badgeColor: "bg-[#3D348B] text-white" }].map((card) => <article key={card.label} className="flex min-h-[220px] flex-col rounded-2xl border border-[#EAEAEA] bg-white p-6 shadow-sm transition duration-150 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(61,52,139,0.10)]"><div className="flex items-start justify-between gap-3"><p className="max-w-[180px] text-sm font-semibold leading-5 text-gray-500">{card.label}</p><span className={`flex size-12 shrink-0 items-center justify-center rounded-2xl text-2xl ${card.iconColor}`}>{card.icon}</span></div><p className={`mt-2 font-mono text-4xl font-bold ${card.accent}`}>{card.value}</p><div className="mt-auto flex items-end justify-between gap-3"><p className="max-w-[135px] text-sm leading-5 text-gray-600">{card.detail}</p><span className={`rounded-full px-3 py-2 text-xs font-bold ${card.badgeColor}`}>{card.badge}</span></div></article>)}

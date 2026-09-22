@@ -1,5 +1,6 @@
 ﻿"use client";
 import AdminSidebar from "@/components/AdminSidebar";
+import AdminBreadcrumb from "@/components/AdminBreadcrumb";
 
 import AdminDeleteConfirmationModal from "@/components/adminDeleteConfirmationModal";
 import AdminDeletedUsersTable from "@/components/adminDeletedUsersTable";
@@ -104,7 +105,8 @@ export default function UsersPage() {
 
       <div className="min-w-0 flex-1 md:ml-[260px]">
         <header className="px-5 py-6 lg:px-10">
-          <h1 className="text-2xl font-bold lg:text-[30px]">จัดการผู้ใช้งาน</h1>
+          <AdminBreadcrumb current="จัดการผู้ใช้งาน" />
+          <h1 className="mt-5 text-2xl font-bold lg:text-[30px]">จัดการผู้ใช้งาน</h1>
           <p className="mt-1 text-[#555]">ดู เพิ่ม แก้ไข และจัดการสิทธิ์ผู้ใช้งานทั้งหมดในระบบ</p>
         </header>
         <main className="space-y-7 p-5 lg:p-10">
