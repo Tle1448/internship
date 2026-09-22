@@ -5,7 +5,7 @@ import Link from "next/link";
 
 export default function AdminDashboardPage() {
   return (
-    <div className="flex min-h-screen bg-[#F8F9FA] text-black font-sans">
+    <div className="flex min-h-screen bg-[#17142C] text-[#F8F7FF] font-sans">
       {/* เมนูด้านซ้าย */}
       <AdminSidebar active="dashboard" />
 
@@ -13,7 +13,30 @@ export default function AdminDashboardPage() {
       <div className="flex min-w-0 flex-grow flex-col md:ml-[260px]">
 
         {/* เนื้อหาหน้าภาพรวมระบบ */}
-        <main className="p-8 max-w-[1440px]">
+        <main className="admin-dashboard-dark max-w-[1440px] p-8">
+          <style>{`
+            .admin-dashboard-dark { color: #F8F7FF; }
+            .admin-dashboard-dark [class*="bg-white"] { background-color: #24203D !important; }
+            .admin-dashboard-dark [class*="bg-[#FAFAFA]"] { background-color: #201C35 !important; }
+            .admin-dashboard-dark [class*="bg-[#F8F7FF]"] { background-color: #2C274A !important; }
+            .admin-dashboard-dark [class*="bg-[#EEECFF]"] { background-color: #352F5F !important; }
+            .admin-dashboard-dark [class*="bg-[#FFF4D8]"] { background-color: #5D400E !important; }
+            .admin-dashboard-dark [class*="bg-[#FEE2E2]"] { background-color: #632937 !important; }
+            .admin-dashboard-dark [class*="bg-[#E5FAED]"] { background-color: #1C4934 !important; }
+            .admin-dashboard-dark [class*="border-[#EAEAEA]"] { border-color: #484165 !important; }
+            .admin-dashboard-dark [class*="divide-[#EAEAEA]"] > :not([hidden]) ~ :not([hidden]) { border-color: #484165 !important; }
+            .admin-dashboard-dark [class~="text-black"],
+            .admin-dashboard-dark [class*="text-[#555"],
+            .admin-dashboard-dark [class*="text-[#805A00]"] { color: #E6E1F5 !important; }
+            .admin-dashboard-dark [class*="text-[#3D348B]"] { color: #C7C1FF !important; }
+            .admin-dashboard-dark [class*="text-[#A16207]"] { color: #FFD27A !important; }
+            .admin-dashboard-dark [class*="text-[#B42318]"] { color: #FFB5AD !important; }
+            .admin-dashboard-dark [class*="text-[#16733B]"] { color: #9BF0B8 !important; }
+            .admin-dashboard-dark [class*="hover:bg-[#FAFAFF]"]:hover,
+            .admin-dashboard-dark [class*="hover:bg-[#EEECFF]"]:hover { background-color: #3D3669 !important; }
+            .admin-dashboard-dark [class*="hover:bg-[#FFE9B0]"]:hover { background-color: #72531B !important; }
+            .admin-dashboard-dark [class*="hover:bg-[#FECACA]"]:hover { background-color: #7B3343 !important; }
+          `}</style>
 
           <AdminBreadcrumb isRoot />
           <header className="flex flex-col items-start justify-between gap-4 py-4 sm:flex-row sm:items-center">
