@@ -1,84 +1,60 @@
-﻿import Link from "next/link";
+﻿"use client";
+import AdminSidebar from "@/components/AdminSidebar";
+import AdminBreadcrumb from "@/components/AdminBreadcrumb";
 
-export default function AdminDocumentsPage() {
-  return (
-    <main className="min-h-screen bg-[#F8F9FA] p-6 text-black sm:p-10">
-      <div className="mx-auto max-w-7xl">
-        <Link href="/admin/dashboard" className="mb-6 inline-flex min-h-11 items-center font-semibold text-[#3D348B] hover:underline">
-          ← กลับหน้า Dashboard
-        </Link>
-        <section className="rounded-xl border border-[#EAEAEA] bg-white p-6">
-          <h1 className="mb-6 text-xl font-bold">Recent Student Document Submissions</h1>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="bg-[#FAFAFA] border-b border-[#EAEAEA] text-xs font-semibold text-[#555555]">
-                  <th className="p-3.5">รหัสนักศึกษา (ID)</th>
-                  <th className="p-3.5">ชื่อ - นามสกุล</th>
-                  <th className="p-3.5">ประเภทเอกสาร (DOCUMENT TYPE)</th>
-                  <th className="p-3.5">วันที่ส่ง</th>
-                  <th className="p-3.5">สถานะ (STATUS)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#EAEAEA] text-xs">
-                <tr className="hover:bg-[#7678ED]/10 transition-colors">
-                  <td className="p-3.5 font-mono font-bold">65114289</td>
-                  <td className="p-3.5">นายสมชาย ในดี</td>
-                  <td className="p-3.5">
-                    หนังสือตอบรับเข้าฝึกงาน (Acceptance Letter)
-                  </td>
-                  <td className="p-3.5 font-mono font-bold">28 ก.ย. 2026</td>
-                  <td className="p-3.5">
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F18701] text-white">
-                      รอตรวจสอบ (Pending)
-                    </span>
-                  </td>
-                </tr>
-                <tr className="hover:bg-[#7678ED]/10 transition-colors">
-                  <td className="p-3.5 font-mono font-bold">65118942</td>
-                  <td className="p-3.5">นางสาววิภาดา ภักดีสุวรรณ</td>
-                  <td className="p-3.5">
-                    หนังสือยินยอมผู้ปกครอง (Parental Consent)
-                  </td>
-                  <td className="p-3.5 font-mono font-bold">27 ก.ย. 2026</td>
-                  <td className="p-3.5">
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F18701] text-white">
-                      รอตรวจสอบ (Pending)
-                    </span>
-                  </td>
-                </tr>
-                <tr className="hover:bg-[#7678ED]/10 transition-colors">
-                  <td className="p-3.5 font-mono font-bold">65120194</td>
-                  <td className="p-3.5">นายธนกฤต ชนบท</td>
-                  <td className="p-3.5">
-                    หนังสือยืนยันวันนัดสัมภาษณ์ (Interview Confirmation)
-                  </td>
-                  <td className="p-3.5 font-mono font-bold">26 ก.ย. 2026</td>
-                  <td className="p-3.5">
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F35B04] text-white">
-                      ส่งแก้ไข (Needs Edit)
-                    </span>
-                  </td>
-                </tr>
-                <tr className="hover:bg-[#7678ED]/10 transition-colors">
-                  <td className="p-3.5 font-mono font-bold">65115531</td>
-                  <td className="p-3.5">นางสาวกาญจนา รัตนวิจิตร</td>
-                  <td className="p-3.5">
-                    กรมธรรม์ประกันภัยอุบัติเหตุ (Insurance)
-                  </td>
-                  <td className="p-3.5 font-mono font-bold">26 ก.ย. 2026</td>
-                  <td className="p-3.5">
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#3D348B] text-white">
-                      อนุมัติแล้ว (Approved)
-                    </span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    </main>
-  );
+import { useMemo, useState } from "react";
+
+type DocumentStatus = "รอตรวจสอบ" | "อนุมัติแล้ว" | "ส่งแก้ไข";
+type Document = { id: string; student: string; studentId: string; email: string; type: string; company: string; submittedAt: string; fileName: string; size: string; status: DocumentStatus; note?: string };
+
+const initialDocuments: Document[] = [
+  { id: "DOC-001", student: "นายสมชาย ใจดี", studentId: "65114289", email: "somchai.na@wu.ac.th", type: "หนังสือตอบรับเข้าฝึกงาน", company: "บริษัท วลัยลักษณ์เทคโนโลยี จำกัด", submittedAt: "28 ก.ย. 2569 · 10:32 น.", fileName: "Acceptance_Letter_65114289.pdf", size: "1.2 MB", status: "รอตรวจสอบ" },
+  { id: "DOC-002", student: "นางสาววิภาดา ภักดี", studentId: "65118942", email: "wiphada.ph@wu.ac.th", type: "หนังสือยินยอมผู้ปกครอง", company: "บริษัท ดิจิทัลโซลูชันส์ จำกัด", submittedAt: "27 ก.ย. 2569 · 14:10 น.", fileName: "Parental_Consent_65118942.pdf", size: "840 KB", status: "รอตรวจสอบ" },
+  { id: "DOC-003", student: "นายณัฐพงศ์ วัฒนชัย", studentId: "65117530", email: "nattapong.wa@wu.ac.th", type: "แบบคำขอออกฝึกงาน", company: "บริษัท สยามอุตสาหกรรม จำกัด", submittedAt: "26 ก.ย. 2569 · 09:45 น.", fileName: "Internship_Request_65117530.pdf", size: "2.1 MB", status: "อนุมัติแล้ว" },
+  { id: "DOC-004", student: "นางสาวปิยาภรณ์ มณีวงศ์", studentId: "65116720", email: "piyaporn.ma@wu.ac.th", type: "กรมธรรม์ประกันภัยอุบัติเหตุ", company: "โรงพยาบาลนครพัฒน์", submittedAt: "26 ก.ย. 2569 · 16:20 น.", fileName: "Insurance_65116720.pdf", size: "1.6 MB", status: "ส่งแก้ไข", note: "กรุณาแนบหน้าที่แสดงวันสิ้นสุดความคุ้มครอง" },
+  { id: "DOC-005", student: "นายสมชาย ใจดี", studentId: "65114289", email: "somchai.na@wu.ac.th", type: "แบบบันทึกการปฐมนิเทศ", company: "บริษัท วลัยลักษณ์เทคโนโลยี จำกัด", submittedAt: "25 ก.ย. 2569 · 11:08 น.", fileName: "Orientation_65114289.pdf", size: "620 KB", status: "อนุมัติแล้ว" },
+];
+
+const statusStyles: Record<DocumentStatus, string> = { "รอตรวจสอบ": "bg-[#FFF4D8] text-[#A16207]", "อนุมัติแล้ว": "bg-[#E5FAED] text-[#16A34A]", "ส่งแก้ไข": "bg-[#FEE2E2] text-[#DC2626]" };
+
+export default function DocumentsPage() {
+  const [documents, setDocuments] = useState(initialDocuments);
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<DocumentStatus | "ทั้งหมด">("ทั้งหมด");
+  const [type, setType] = useState("ทั้งหมด");
+  const [selected, setSelected] = useState<Document | null>(null);
+  const types = useMemo(() => [...new Set(documents.map((document) => document.type))], [documents]);
+  const filtered = documents.filter((document) => (status === "ทั้งหมด" || document.status === status) && (type === "ทั้งหมด" || document.type === type) && [document.student, document.studentId, document.type, document.company].some((item) => item.toLowerCase().includes(query.trim().toLowerCase())));
+  const updateStatus = (nextStatus: DocumentStatus) => { if (!selected) return; setDocuments((current) => current.map((document) => document.id === selected.id ? { ...document, status: nextStatus } : document)); setSelected((current) => current ? { ...current, status: nextStatus } : null); };
+  const pending = documents.filter((document) => document.status === "รอตรวจสอบ").length;
+  const approved = documents.filter((document) => document.status === "อนุมัติแล้ว").length;
+  const revision = documents.filter((document) => document.status === "ส่งแก้ไข").length;
+return <div lang="th" className="min-h-screen bg-[#F8F9FA] text-black md:flex"><AdminSidebar active="documents" /><div className="min-w-0 flex-1 md:ml-[260px]"><header className="px-5 py-6 lg:px-10"><AdminBreadcrumb current="ตรวจสอบเอกสาร" /><div className="mt-5"><h1 className="text-2xl font-bold lg:text-[30px]">ตรวจสอบเอกสาร</h1><p className="mt-1 text-[#555]">ตรวจสอบ อนุมัติ และส่งเอกสารกลับเพื่อแก้ไขก่อนเริ่มฝึกงาน</p></div></header><main className="space-y-6 p-5 lg:p-10"><section className="grid gap-4 sm:grid-cols-3">{[{ label: "รอตรวจสอบ", value: pending, color: "text-[#F18701]" }, { label: "อนุมัติแล้ว", value: approved, color: "text-[#16A34A]" }, { label: "ส่งแก้ไข", value: revision, color: "text-[#F35B04]" }].map((card) => <article key={card.label} className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm"><p className="text-sm text-gray-500">{card.label}</p><p className={`mt-2 font-mono text-3xl font-bold ${card.color}`}>{card.value}</p></article>)}</section><section className="grid gap-3 rounded-xl border border-[#EAEAEA] bg-white p-4 shadow-sm lg:grid-cols-[minmax(0,1fr)_230px_190px]"><input type="search" placeholder="ค้นหาชื่อ รหัสนักศึกษา ประเภทเอกสาร หรือสถานประกอบการ" value={query} onChange={(event) => setQuery(event.target.value)} className="rounded-lg border border-[#EAEAEA] px-4 py-2.5 outline-none focus:border-[#7678ED]" /><select value={type} onChange={(event) => setType(event.target.value)} className="rounded-lg border border-[#EAEAEA] bg-white px-4 py-2.5"><option value="ทั้งหมด">ทุกประเภทเอกสาร</option>{types.map((item) => <option key={item}>{item}</option>)}</select><select value={status} onChange={(event) => setStatus(event.target.value as DocumentStatus | "ทั้งหมด")} className="rounded-lg border border-[#EAEAEA] bg-white px-4 py-2.5"><option value="ทั้งหมด">ทุกสถานะ</option>{Object.keys(statusStyles).map((item) => <option key={item}>{item}</option>)}</select></section><section className="overflow-x-auto rounded-xl border border-[#EAEAEA] bg-white p-4 shadow-sm"><table className="w-full min-w-[1120px] text-left text-sm"><thead className="bg-[#FAFAFA] text-[#555]"><tr>{["นักศึกษา", "ประเภทเอกสาร", "สถานประกอบการ", "วันที่ส่ง", "สถานะ", "จัดการ"].map((heading) => <th key={heading} className="border-b border-[#EAEAEA] px-4 py-4 text-xs">{heading}</th>)}</tr></thead><tbody>{filtered.map((document) => <tr key={document.id} className="border-b border-gray-100 hover:bg-[#FAFAFF]"><td className="px-4 py-4"><p className="font-semibold">{document.student}</p><p className="mt-1 font-mono text-xs text-gray-500">{document.studentId} · {document.email}</p></td><td className="px-4 py-4">{document.type}</td><td className="px-4 py-4">{document.company}</td><td className="px-4 py-4">{document.submittedAt}</td><td className="px-4 py-4"><span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${statusStyles[document.status]}`}>{document.status}</span></td><td className="px-4 py-4"><button type="button" onClick={() => setSelected(document)} className="rounded-lg border border-[#EAEAEA] px-2 py-1 text-[11px] font-semibold text-[#3D348B]">ตรวจสอบ</button></td></tr>)}{filtered.length === 0 && <tr><td colSpan={6} className="p-10 text-center text-gray-500">ไม่พบเอกสาร</td></tr>}</tbody></table></section></main></div>{selected && <DocumentDialog document={selected} onClose={() => setSelected(null)} onUpdate={updateStatus} />}</div>;
 }
 
+function DocumentDialog({ document, onClose, onUpdate }: { document: Document; onClose: () => void; onUpdate: (status: DocumentStatus) => void }) {
+  const [checks, setChecks] = useState({ complete: true, signed: true, internship: true, dates: true, clear: true });
+  const [note, setNote] = useState(document.note ?? "ตรวจสอบเอกสารเรียบร้อยแล้ว เนื้อหาครอบคลุมระยะเวลาฝึกงาน และข้อมูลสถานประกอบการถูกต้อง");
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewFile, setPreviewFile] = useState(document.fileName);
+  const documentFiles = [{ name: document.fileName, size: document.size }, { name: `Company_Certificate_${document.studentId}.pdf`, size: "980 KB" }, { name: `Internship_Plan_${document.studentId}.pdf`, size: "760 KB" }];
+  const toggle = (key: keyof typeof checks) => setChecks((current) => ({ ...current, [key]: !current[key] }));
+  const save = (status: DocumentStatus) => { onUpdate(status); onClose(); };
+  const checkItems: Array<[keyof typeof checks, string]> = [["complete", "เอกสารครบถ้วนสมบูรณ์"], ["signed", "ลงนามชื่อชัดเจน"], ["internship", "ตราประทับถูกต้อง"], ["dates", "วันที่ครอบคลุมระยะเวลาฝึกงาน"], ["clear", "ระบุเนื้อหาชัดเจน"]];
+  return <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"><section className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-2xl"><header className="bg-[#4B42B5] px-6 py-5 text-white sm:px-8"><div className="flex items-start justify-between gap-4"><div><p className="inline-flex rounded bg-white/15 px-2 py-1 text-xs font-semibold">เอกสารประกอบการฝึกงาน · {document.id}</p><h2 className="mt-3 text-2xl font-bold">{document.type}</h2><p className="mt-1 text-base text-white/80">{document.student} · {document.studentId}</p></div><button type="button" onClick={onClose} aria-label="ปิดหน้าต่าง" className="flex size-10 items-center justify-center rounded-full bg-white/15 text-xl hover:bg-white/25">×</button></div></header><div className="p-6 sm:p-8"><section className="mt-0"><div className="mb-3 flex items-center justify-between"><h3 className="font-semibold">เอกสารที่ส่ง ({documentFiles.length} ไฟล์)</h3><span className="text-xs text-gray-500">กดชื่อไฟล์เพื่อดูตัวอย่าง</span></div><div className="space-y-2">{documentFiles.map((file) => <button key={file.name} type="button" onClick={() => { setPreviewFile(file.name); setShowPreview(true); }} className="flex w-full items-center justify-between gap-4 rounded-xl border border-[#EAEAEA] bg-[#FAFAFA] p-4 text-left transition hover:border-[#7678ED] hover:bg-[#FAFAFF]"><span className="min-w-0"><span className="block truncate text-base font-bold">📄 {file.name}</span><span className="mt-1 block text-sm text-gray-500">ขนาดไฟล์ {file.size} · ส่งเมื่อ {document.submittedAt}</span></span><span className="shrink-0 text-xs font-semibold text-[#3D348B]">ดูตัวอย่าง</span></button>)}</div></section><dl className="mt-6 grid gap-5 border-b border-[#EAEAEA] pb-6 sm:grid-cols-2 text-sm"><div><dt className="text-gray-500">สถานประกอบการ</dt><dd className="mt-1 font-semibold text-base">{document.company}</dd></div><div><dt className="text-gray-500">สถานะปัจจุบัน</dt><dd className="mt-1 font-semibold text-base">{document.status}</dd></div></dl><section className="mt-6"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-lg font-bold">🖉 บันทึกผลการตรวจสอบและสั่งการ (Audit Decision Console)</h3><p className="text-xs text-gray-500">มาตรฐาน C3 (US-CO2 &amp; FR4/FR5)</p></div><p className="mt-4 text-sm font-semibold">เกณฑ์ประเมินความสมบูรณ์ตามระเบียบ C3:</p><div className="mt-3 flex flex-wrap gap-2">{checkItems.map(([key, label]) => <label key={key} className="flex cursor-pointer items-center gap-2 rounded-full bg-[#F1F1F3] px-3 py-2 text-sm"><input type="checkbox" checked={checks[key]} onChange={() => toggle(key)} className="size-4 accent-[#3D348B]" />{label}</label>)}</div><label className="mt-5 block text-sm font-semibold">ข้อเสนอแนะ / บันทึกผลการตรวจทาน (Auditor Note):<textarea value={note} onChange={(event) => setNote(event.target.value)} rows={4} className="mt-2 w-full rounded-xl border border-[#EAEAEA] bg-[#FAFAFA] p-3 font-normal leading-6 outline-none focus:border-[#7678ED]" /></label></section></div><footer className="grid gap-3 border-t border-[#EAEAEA] bg-[#FAFAFA] p-5 sm:grid-cols-[auto_auto_1fr]"><button type="button" onClick={() => save("ส่งแก้ไข")} className="rounded-xl bg-[#F35B04] px-5 py-3 text-sm font-semibold text-white">⊗ ปฏิเสธเอกสาร</button><button type="button" onClick={() => save("ส่งแก้ไข")} className="rounded-xl bg-[#F18701] px-5 py-3 text-sm font-semibold text-white">✎ ส่งกลับแก้ไข</button><button type="button" disabled={!Object.values(checks).every(Boolean)} onClick={() => save("อนุมัติแล้ว")} className="rounded-xl bg-[#3D348B] px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">✿ อนุมัติเอกสาร (C3 Pass)</button></footer></section>{showPreview && <DocumentPreview document={document} fileName={previewFile} onClose={() => setShowPreview(false)} />}</div>;
+}
+function DocumentPreview({ document, fileName, onClose }: { document: Document; fileName: string; onClose: () => void }) {
+  const [zoom, setZoom] = useState(100);
+  const [rotation, setRotation] = useState(0);
+  const download = () => {
+    const blob = new Blob([`เอกสารประกอบการฝึกงาน\n${document.type}\n${document.student} (${document.studentId})\n${document.company}`], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const link = Object.assign(window.document.createElement("a"), { href: url, download: fileName });
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+  return <div role="dialog" aria-modal="true" aria-label="ตัวอย่างเอกสาร" className="fixed inset-0 z-[60] flex items-center justify-center bg-[#E9EDF4] p-3"><section className="flex h-full w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"><header className="flex flex-wrap items-center gap-2 border-b border-[#EAEAEA] bg-[#F8F9FA] px-2 py-1.5"><div className="flex items-center gap-1 rounded-lg bg-white p-1 shadow-sm"><ZoomControl label="ย่อเอกสาร" symbol="−" onClick={() => setZoom((value) => Math.max(50, value - 10))} /><span className="min-w-11 text-center font-mono text-[11px] font-bold">{zoom}%</span><ZoomControl label="ขยายเอกสาร" symbol="+" onClick={() => setZoom((value) => Math.min(150, value + 10))} /></div><button type="button" onClick={() => setRotation((value) => (value + 90) % 360)} className="rounded-lg bg-white px-2 py-1 text-[11px] shadow-sm hover:bg-gray-100">↻</button><button type="button" onClick={() => setZoom(100)} className="rounded-lg bg-white px-2 py-1 text-[11px] shadow-sm hover:bg-gray-100">⛶</button><span className="text-[10px] text-gray-500">หน้า 1 จาก 1</span><div className="ml-auto flex items-center gap-2"><button type="button" onClick={download} className="rounded-lg bg-white px-3 py-2 text-[11px] font-semibold text-[#3D348B] shadow-sm hover:bg-[#EEECFF]">⇩ ดาวน์โหลด PDF (2.4 MB)</button><button type="button" onClick={() => window.print()} aria-label="พิมพ์เอกสาร" className="flex size-10 items-center justify-center rounded-lg border border-[#EAEAEA] bg-white text-[#3D348B] shadow-sm hover:bg-[#EEECFF]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="size-4"><path d="M6 9V3h12v6" /><path d="M6 17H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2" /><path d="M6 14h12v7H6z" /></svg></button><button type="button" onClick={onClose} className="rounded-lg border border-[#EAEAEA] px-4 py-2 text-[11px] font-semibold hover:bg-gray-100">× ปิด</button></div></header><div className="flex-1 overflow-auto bg-[#EEF1F5] p-5 sm:p-8"><article style={{ transform: `scale(${zoom / 100}) rotate(${rotation}deg)`, transformOrigin: "top center" }} className="mx-auto min-h-[760px] w-full max-w-[620px] bg-white p-8 text-[12px] leading-relaxed text-slate-700 shadow-xl transition-transform sm:p-12"><div className="flex items-start justify-between border-b-2 border-[#3D348B] pb-5"><div className="flex items-center gap-3"><span className="flex size-11 items-center justify-center rounded-xl bg-[#E9E7FF] font-bold text-[#3D348B]">WU</span><div><p className="font-bold text-[#3D348B]">มหาวิทยาลัยวลัยลักษณ์</p><p>ศูนย์สหกิจศึกษาและฝึกงานวิชาชีพ</p></div></div><p className="text-right text-[10px]">เลขที่เอกสาร: {document.id}<br />วันที่ 24 เมษายน 2569</p></div><p className="mt-4 text-[10px] text-gray-500">{fileName}</p><h1 className="mt-8 text-center text-lg font-bold text-slate-900">หนังสือตอบรับเข้าฝึกงาน</h1><p className="mt-6">เรื่อง: การตอบรับนักศึกษาเข้าฝึกงานตามโครงการสหกิจศึกษา</p><p>เรียน: ผู้อำนวยการศูนย์สหกิจศึกษาและฝึกงานวิชาชีพ มหาวิทยาลัยวลัยลักษณ์</p><p className="mt-5">บริษัทมีความยินดีตอบรับ <b>{document.student}</b> รหัสนักศึกษา <b>{document.studentId}</b> เพื่อเข้ารับการฝึกงาน ณ <b>{document.company}</b> โดยมีรายละเอียดดังต่อไปนี้</p><div className="mt-5 rounded-lg bg-[#F7F7F8] p-4"><p><b>ตำแหน่งงาน:</b> นักพัฒนาซอฟต์แวร์ฝึกหัด</p><p><b>ระยะเวลาฝึกงาน:</b> 1 มิถุนายน 2569 – 15 ตุลาคม 2569</p><p><b>ผู้ควบคุมงาน:</b> คุณกมลชนก สุขใจ</p></div><p className="mt-5">ทั้งนี้ บริษัทจะจัดให้นักศึกษาได้ปฏิบัติงานตามแผนการฝึกงาน ภายใต้การดูแลของพนักงานผู้รับผิดชอบ และปฏิบัติตามระเบียบของบริษัทอย่างเคร่งครัด</p><div className="mt-20 text-right"><p>ขอแสดงความนับถือ</p><p className="mt-8 font-semibold">กมลชนก สุขใจ</p><p>ผู้จัดการฝ่ายทรัพยากรบุคคล</p><p>{document.company}</p></div></article></div></section></div>;
+}
+function ZoomControl({ label, symbol, onClick }: { label: string; symbol: "+" | "−"; onClick: () => void }) {
+  return <button type="button" aria-label={label} onClick={onClick} className="rounded px-1.5 py-1 text-[#243852] hover:bg-gray-100"><svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="10" cy="10" r="6" /><path d="m15 15 6 6" strokeLinecap="round" /><path d="M7 10h6" strokeLinecap="round" />{symbol === "+" && <path d="M10 7v6" strokeLinecap="round" />}</svg></button>;
+}
