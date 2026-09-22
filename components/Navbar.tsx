@@ -7,6 +7,7 @@ import NotificationBell from "@/components/NotificationBell";
 import { supabase } from "@/lib/supabase";
 import { getCurrentStudentId } from "@/lib/currentUser";
 
+// ---------- Icons (inline SVG, ไม่ต้องพึ่ง dependency เพิ่ม) ----------
 // ---------- Config ----------
 interface NavItem {
   label: string;
@@ -188,8 +189,9 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Nav tabs */}
-        {!isHomePage && !isAdmin && !isAdvisor && !isStudent && !isConditer && (
+        {/* Right side: ยังไม่มีระบบล็อกอิน จึงโชว์ปุ่มเข้าสู่ระบบแทนข้อมูลผู้ใช้ */}
+        {/* Nav tabs (ซ่อนเมื่ออยู่หน้า Home, Admin, Advisor หรือหน้านักศึกษา) */}
+        {!isHomePage && !isAdmin && !isAdvisor && !isStudent && (
           <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
             {navItems.map((item) => {
               const active = pathname === item.href;
