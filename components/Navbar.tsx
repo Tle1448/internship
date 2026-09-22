@@ -46,6 +46,7 @@ function LogOutIcon({ className = "" }: { className?: string }) {
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, logout } = useAuth();
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);

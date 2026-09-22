@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/AuthProvider";
+import { homeForRole } from "@/lib/auth/types";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -9,15 +11,17 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [remember, setRemember] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const router = useRouter();
+  const { login } = useAuth();
 
-  // ฟังก์ชันตรวจสอบรหัสและแยกหน้าอัตโนมัติ (Admin / Advisor / Student)
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const cleanUsername = username.trim().toLowerCase();
-    const cleanPassword = password.trim();
+    const cleanPassword = password;
 
     // 1. ตรวจสอบว่ากรอกข้อมูลครบหรือไม่
     if (!cleanUsername || !cleanPassword) {
@@ -26,35 +30,16 @@ export default function LoginPage() {
     }
 
     setError("");
+    setSubmitting(true);
 
-    // 2. เช็กเงื่อนไขประเภทผู้ใช้งาน
-    // - รหัส Admin: ขึ้นต้นด้วย adm หรือพิมพ์ admin
-    const isAdmin = 
-      cleanUsername.startsWith("adm") || 
-      cleanUsername === "admin";
-
-    // - รหัสอาจารย์: ขึ้นต้นด้วย adv, t, a หรือพิมพ์ advisor
-    const isAdvisor = 
-      cleanUsername.startsWith("adv") || 
-      cleanUsername.startsWith("t") || 
-      cleanUsername.startsWith("a") || 
-      cleanUsername === "advisor";
-
-    // - รหัสนักศึกษา: เป็นตัวเลขล้วน
-    const isStudent = /^\d+$/.test(cleanUsername);
-
-    if (isAdmin) {
-      // ถ้ารหัสตรงกับ Admin -> ไปหน้า Admin Dashboard
-      router.push("/admin/dashboard");
-    } else if (isAdvisor) {
-      // ถ้ารหัสตรงกับอาจารย์ -> ไปหน้า Advisor
-      router.push("/advisor");
-    } else if (isStudent) {
-      // ถ้ารหัสเป็นตัวเลขนักศึกษา -> ไปหน้า Student
-      router.push("/pagestudent");
-    } else {
-      // หากป้อนรูปแบบที่ไม่ถูกต้อง
-      setError("รูปแบบบัญชีผู้ใช้งานไม่ถูกต้อง (นักศึกษาใช้รหัสตัวเลข / อาจารย์ใช้รหัส ADV, T, A / แอดมินใช้ admin, ADM)");
+    try {
+      const user = await login(cleanUsername, cleanPassword, remember);
+      router.replace(homeForRole(user.role));
+      router.refresh();
+    } catch (loginError) {
+      setError(loginError instanceof Error ? loginError.message : "เข้าสู่ระบบไม่สำเร็จ");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -121,7 +106,7 @@ export default function LoginPage() {
               htmlFor="username"
               className="block text-sm font-semibold text-gray-700"
             >
-              บัญชีผู้ใช้งาน (Username / ID){" "}
+              อีเมล (Email){" "}
               <span className="text-red-500">*</span>
             </label>
 
@@ -146,12 +131,14 @@ export default function LoginPage() {
                 type="text"
                 id="username"
                 value={username}
+                inputMode="email"
+                autoComplete="email"
                 onChange={(e) => {
                   setUsername(e.target.value);
                   if (error) setError("");
                 }}
                 className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-[#7678ED] focus:border-[#7678ED] sm:text-sm transition-colors outline-none"
-                placeholder="รหัสนักศึกษา, รหัสอาจารย์ (ADV...) หรือ รหัสแอดมิน (ADMIN)"
+                placeholder="name@example.com"
               />
             </div>
           </div>
@@ -196,6 +183,7 @@ export default function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 id="password"
                 value={password}
+                autoComplete="current-password"
                 onChange={(e) => {
                   setPassword(e.target.value);
                   if (error) setError("");
@@ -255,6 +243,8 @@ export default function LoginPage() {
                 id="remember-me"
                 name="remember-me"
                 type="checkbox"
+                checked={remember}
+                onChange={(event) => setRemember(event.target.checked)}
                 className="h-4 w-4 text-[#3D348B] focus:ring-[#7678ED] border-gray-300 rounded cursor-pointer"
               />
               <label
@@ -274,6 +264,7 @@ export default function LoginPage() {
           {/* Submit Button */}
           <button
             type="submit"
+            disabled={submitting}
             className="w-full flex justify-center items-center gap-2 py-3.5 px-4 border border-transparent rounded-[10px] shadow-sm text-[15px] font-semibold text-white bg-[#3D348B] hover:bg-[#7678ED] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#7678ED] transition-all active:scale-[0.98]"
           >
             <svg
@@ -291,7 +282,7 @@ export default function LoginPage() {
               <polyline points="10 17 15 12 10 7" />
               <line x1="15" y1="12" x2="3" y2="12" />
             </svg>
-            เข้าสู่ระบบ (Sign In)
+            {submitting ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ (Sign In)"}
           </button>
         </form>
 

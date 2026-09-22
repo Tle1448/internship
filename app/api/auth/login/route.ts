@@ -1,22 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticate, createSession, isSameOrigin, REMEMBER_SECONDS, SESSION_COOKIE, SESSION_SECONDS } from "@/lib/auth/server";
+import { isSameOrigin, sessionUserForAuthUser } from "@/lib/auth/server";
+import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
-  if (!isSameOrigin(request)) return NextResponse.json({ error: "ไม่อนุญาตคำขอจากเว็บไซต์อื่น" }, { status: 403 });
-  let body;
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "รูปแบบข้อมูลไม่ถูกต้อง" }, { status: 400 }); }
-  if (!body || typeof body.username !== "string" || typeof body.password !== "string" || !body.username.trim() || !body.password || body.username.length > 200 || body.password.length > 200) return NextResponse.json({ error: "กรุณากรอกบัญชีผู้ใช้และรหัสผ่านให้ถูกต้อง" }, { status: 400 });
-  try {
-    const user = authenticate(body.username.trim(), body.password);
-    if (!user) return NextResponse.json({ error: "บัญชีผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" }, { status: 401 });
-    const remember = body.remember === true;
-    const duration = remember ? REMEMBER_SECONDS : SESSION_SECONDS;
-    const response = NextResponse.json({ user }, { headers: { "Cache-Control": "no-store" } });
-    response.cookies.set(SESSION_COOKIE, createSession(user, duration), { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", ...(remember ? { maxAge: duration } : {}) });
-    return response;
-  } catch {
-    return NextResponse.json({ error: "ระบบเข้าสู่ระบบยังไม่ได้ตั้งค่าบัญชีผู้ใช้ กรุณาติดต่อผู้ดูแลระบบ" }, { status: 503 });
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "ไม่อนุญาตคำขอจากเว็บไซต์อื่น" }, { status: 403 });
   }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "รูปแบบข้อมูลไม่ถูกต้อง" }, { status: 400 });
+  }
+
+  const credentials = body as Record<string, unknown> | null;
+  if (
+    !credentials ||
+    typeof credentials.username !== "string" ||
+    typeof credentials.password !== "string" ||
+    !credentials.username.trim() ||
+    !credentials.password ||
+    credentials.username.length > 200 ||
+    credentials.password.length > 200
+  ) {
+    return NextResponse.json({ error: "กรุณากรอกอีเมลและรหัสผ่านให้ถูกต้อง" }, { status: 400 });
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: credentials.username.trim().toLowerCase(),
+    password: credentials.password,
+  });
+
+  if (error || !data.user) {
+    return NextResponse.json({ error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" }, { status: 401 });
+  }
+
+  const user = await sessionUserForAuthUser(supabase, data.user);
+  if (!user) {
+    await supabase.auth.signOut();
+    return NextResponse.json({ error: "ไม่พบข้อมูลผู้ใช้ กรุณาติดต่อผู้ดูแลระบบ" }, { status: 403 });
+  }
+
+  return NextResponse.json({ user }, { headers: { "Cache-Control": "no-store" } });
 }
