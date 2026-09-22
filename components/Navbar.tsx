@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import NotificationBell from "@/components/NotificationBell";
+import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import { getCurrentStudentId } from "@/lib/currentUser";
 
@@ -81,7 +82,6 @@ export default function Navbar() {
   // โหลดชื่อ-รหัสนักศึกษาจริงจาก profiles ตาม currentStudentId (mock login ด้วยรหัส นศ)
   useEffect(() => {
     if (!isStudentPath) {
-      setStudentProfile(null);
       return;
     }
 
@@ -117,20 +117,21 @@ export default function Navbar() {
     return () => {
       cancelled = true;
     };
-  }, [isStudentPath, currentPath]);
+  }, [isStudentPath]);
 
   // 1. ถ้าอยู่หน้า Login ให้คืนค่าเป็น null ทันที เพื่อป้องกัน Navbar เรนเดอร์ชนกับหน้า Login หรือเกิด 404
   if (currentPath === "/login" || currentPath.startsWith("/login")) {
     return null;
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsDropdownOpen(false);
-    if (typeof window !== "undefined") {
-      localStorage.clear();
-      sessionStorage.clear();
-      // ใช้ window.location.replace เพื่อล้างประวัติหน้าเก่าและพุ่งตรงไปที่หน้า login โดยไม่ติดหน้า 404
-      window.location.replace("/login");
+    try {
+      await logout();
+      router.replace("/login");
+      router.refresh();
+    } catch (error) {
+      console.error("ออกจากระบบไม่สำเร็จ:", error);
     }
   };
 
@@ -141,7 +142,7 @@ export default function Navbar() {
   const isConditer = currentPath.startsWith("/conditer");
   const isStudent = isStudentPath;
 
-  const isLoggedIn = isAdmin || isAdvisor || isStudent || isConditer;
+  const isLoggedIn = Boolean(user) && (isAdmin || isAdvisor || isStudent || isConditer);
 
   // 3. กำหนดข้อมูลโปรไฟล์ผู้ใช้งาน
   //    ฝั่งนักศึกษา: ถ้ายังไม่มีชื่อ (full_name ว่าง) ให้โชว์แค่รหัสนักศึกษาไปก่อน

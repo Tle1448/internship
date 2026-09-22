@@ -26,7 +26,7 @@ export default function ConditerSidebar() {
       icon: BriefcaseBusiness,
     },
     {
-      label: "การสมัครงาน",
+      label: "ยื่นคำร้องขออนุมัติ",
       href: "/conditer/applications",
       icon: ClipboardCheck,
     },
