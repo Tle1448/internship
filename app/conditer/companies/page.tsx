@@ -7,7 +7,6 @@ import {
   CalendarDays,
   Eye,
   MapPin,
-  Search,
   Trash2,
   User,
   Users,
@@ -366,39 +365,6 @@ export default function CompaniesPage() {
 
       <main className="lg:ml-[235px]">
         <div className="mx-auto max-w-[1400px] px-5 py-7 lg:px-8">
-
-          {/* =================================================
-              HEADER
-          ================================================= */}
-
-          <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-            <div>
-              <h1 className="text-[24px] font-bold text-[#29263E]">
-                รายการบริษัท
-              </h1>
-
-              <p className="mt-1 text-sm text-[#918D9F]">
-                ข้อมูลบริษัทและประกาศงานสำหรับนักศึกษา
-              </p>
-            </div>
-
-            <div className="relative">
-              <Search
-                size={18}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A29EAE]"
-              />
-
-              <input
-                type="text"
-                value={search}
-                onChange={(e) =>
-                  setSearch(e.target.value)
-                }
-                placeholder="ค้นหาบริษัทหรือตำแหน่งงาน..."
-                className="h-11 w-full rounded-xl border border-[#DDD9E8] bg-white pl-11 pr-4 text-sm outline-none transition focus:border-[#7678ED] focus:ring-2 focus:ring-[#7678ED]/10 md:w-[350px]"
-              />
-            </div>
-          </div>
 
           {/* =================================================
               STAT
