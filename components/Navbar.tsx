@@ -1,21 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import Link from "next/link";
-
-// ---------- Config ----------
-interface NavItem {
-  label: string;
-  href: string;
-}
-
-const navItems: NavItem[] = [
-  { label: "หน้าแรก", href: "/" },
-  { label: "ค้นหางาน", href: "/jobs" },
-  { label: "บันทึกฝึกงาน", href: "/internship-record" },
-  { label: "เอกสารส่งงาน", href: "/documents" },
-  { label: "แจ้งเตือน", href: "/notifications" },
-];
 
 // ---------- Icons (inline SVG, ไม่ต้องพึ่ง dependency เพิ่ม) ----------
 function UserIcon({ className = "" }: { className?: string }) {
@@ -42,13 +27,9 @@ function UserIcon({ className = "" }: { className?: string }) {
 //   ...
 //   <body><Navbar /> {children}</body>
 export default function Navbar() {
-  const pathname = usePathname();
-
-  if (pathname === "/admin" || pathname.startsWith("/admin/")) return null;
-
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-2.5">
+      <div className="flex w-full items-center justify-between px-5 py-2.5 sm:px-6">
         {/* Logo */}
         <Link href="/" className="flex shrink-0 items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-900 text-sm font-bold text-white">
@@ -61,26 +42,6 @@ export default function Navbar() {
             <p className="text-[11px] leading-tight text-slate-400">ระบบสหกิจศึกษาและฝึกงานวิชาชีพ</p>
           </div>
         </Link>
-
-        {/* Nav tabs */}
-        <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
-          {navItems.map((item) => {
-            const active = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
-                  active
-                    ? "bg-indigo-900 text-white"
-                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
 
         {/* Right side: ยังไม่มีระบบล็อกอิน จึงโชว์ปุ่มเข้าสู่ระบบแทนข้อมูลผู้ใช้ */}
         <div className="flex shrink-0 items-center gap-3">

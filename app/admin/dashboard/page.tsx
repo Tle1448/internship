@@ -1,111 +1,15 @@
-﻿import React from "react";
+﻿import AdminSidebar from "@/components/AdminSidebar";
+import React from "react";
 import Link from "next/link";
 
 export default function AdminDashboardPage() {
   return (
     <div className="flex min-h-screen bg-[#F8F9FA] text-black font-sans">
       {/* 1. LEFT SIDEBAR NAVIGATION */}
-      <aside className="w-[260px] bg-white border-r border-[#EAEAEA] flex flex-col fixed h-screen z-10">
-        <div className="p-5 flex items-center gap-3 border-b border-[#EAEAEA]">
-          <div className="w-[36px] h-[36px] bg-[#3D348B] text-white rounded-lg flex items-center justify-content-center justify-center font-bold text-lg">
-            WU
-          </div>
-          <div>
-            <div className="text-lg font-bold text-[#3D348B] leading-tight">
-              WU-InternShip
-            </div>
-            <div className="text-[10px] text-[#555555] tracking-widest">
-              ADMIN PORTAL
-            </div>
-          </div>
-        </div>
-
-        <ul className="list-none p-3 flex-grow">
-          <li className="text-[11px] text-[#555555] px-3 pb-2 font-semibold">
-            เมนูการจัดการระบบ
-          </li>
-          <li className="mb-1">
-            <a
-              href="#"
-              className="flex items-center justify-between p-3 rounded-xl text-sm font-medium transition-all bg-[#3D348B] text-white"
-            >
-              <div className="flex items-center gap-2.5">
-                📊 ภาพรวมระบบ (Dashboard)
-              </div>
-            </a>
-          </li>
-          <li className="mb-1">
-            <a
-              href="#"
-              className="flex items-center justify-between p-3 rounded-xl text-sm font-medium transition-all text-black hover:bg-[#7678ED]/10 hover:text-[#3D348B]"
-            >
-              <div className="flex items-center gap-2.5">
-                👥 จัดการผู้ใช้งาน (Users)
-              </div>
-            </a>
-          </li>
-          <li className="mb-1">
-            <a
-              href="#"
-              className="flex items-center justify-between p-3 rounded-xl text-sm font-medium transition-all text-black hover:bg-[#7678ED]/10 hover:text-[#3D348B]"
-            >
-              <div className="flex items-center gap-2.5">
-                🎓 จัดการนักศึกษา (Students)
-              </div>
-              <span className="bg-[#F7B801] text-black text-[11px] font-bold px-2 py-0.5 rounded-full font-mono">
-                450
-              </span>
-            </a>
-          </li>
-          <li className="mb-1">
-            <a
-              href="#"
-              className="flex items-center justify-between p-3 rounded-xl text-sm font-medium transition-all text-black hover:bg-[#7678ED]/10 hover:text-[#3D348B]"
-            >
-              <div className="flex items-center gap-2.5">
-                🏢 จัดการสถานประกอบการ
-              </div>
-              <span className="bg-[#F18701] text-white text-[11px] font-bold px-2 py-0.5 rounded-full font-mono">
-                15
-              </span>
-            </a>
-          </li>
-          <li className="mb-1">
-            <a
-              href="#"
-              className="flex items-center justify-between p-3 rounded-xl text-sm font-medium transition-all text-black hover:bg-[#7678ED]/10 hover:text-[#3D348B]"
-            >
-              <div className="flex items-center gap-2.5">
-                💼 จัดการตำแหน่งงาน (Jobs)
-              </div>
-            </a>
-          </li>
-          <li className="mb-1">
-            <a
-              href="#"
-              className="flex items-center justify-between p-3 rounded-xl text-sm font-medium transition-all text-black hover:bg-[#7678ED]/10 hover:text-[#3D348B]"
-            >
-              <div className="flex items-center gap-2.5">📑 ตรวจสอบเอกสาร</div>
-              <span className="bg-[#F35B04] text-white text-[11px] font-bold px-2 py-0.5 rounded-full font-mono">
-                28
-              </span>
-            </a>
-          </li>
-        </ul>
-
-        <div className="p-4 border-t border-[#EAEAEA] flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[#3D348B] text-white flex items-center justify-center font-bold text-sm">
-            AU
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold">Admin User</span>
-            <span className="text-xs text-[#555555]">System Admin</span>
-          </div>
-        </div>
-      </aside>
+      <AdminSidebar active="dashboard" />
 
       {/* 2. MAIN CONTENT AREA */}
-      <div className="ml-[260px] flex-grow flex flex-col min-w-0">
+      <div className="flex min-w-0 flex-grow flex-col md:ml-[260px]">
 
         {/* Main Dashboard Content */}
         <main className="p-8 max-w-[1440px]">
@@ -119,9 +23,9 @@ export default function AdminDashboardPage() {
 
             {/* Quick Action Buttons */}
             <div className="flex gap-3">
-              <button className="h-10 px-5 rounded-lg text-xs font-semibold bg-[#3D348B] text-white hover:bg-[#7678ED] transition-colors">
+              <Link href="/admin/users" className="inline-flex items-center h-10 px-5 rounded-lg text-xs font-semibold bg-[#3D348B] text-white hover:bg-[#7678ED] transition-colors">
                 + Add New User
-              </button>
+              </Link>
               <button className="h-10 px-5 rounded-lg text-xs font-semibold bg-[#F7B801] text-black transition-colors">
                 Configure Application Period
               </button>
