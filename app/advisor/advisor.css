@@ -209,18 +209,20 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 28px 18px 0;
+  padding: 16px 16px 0;
 }
 .nav-label {
-  font-size: 13px;
-  color: var(--muted);
+  font-size: 11px;
+  color: #94a3b8;
   font-weight: 600;
-  padding-left: 18px;
-  margin: 0 0 16px;
+  padding-left: 12px;
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 .sidebar nav {
   display: grid;
-  gap: 7px;
+  gap: 4px;
 }
 .sidebar nav button {
   display: flex;

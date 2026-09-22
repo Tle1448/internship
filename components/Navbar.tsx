@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
+import { useAuth } from "@/components/AuthProvider";
 
 // ---------- Config ----------
 interface NavItem {
@@ -51,6 +52,7 @@ function LogOutIcon({ className = "" }: { className?: string }) {
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, logout } = useAuth();
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -65,14 +67,15 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsDropdownOpen(false);
-    if (typeof window !== "undefined") {
-      localStorage.clear();
-      sessionStorage.clear();
+    try {
+      await logout();
+      router.replace("/login");
+      router.refresh();
+    } catch (error) {
+      console.error(error);
     }
-    router.push("/");
-    router.refresh();
   };
 
   const currentPath = pathname.toLowerCase();
@@ -95,14 +98,14 @@ export default function Navbar() {
     currentPath.startsWith("/documents") ||
     currentPath.startsWith("/notifications");
 
-  const isLoggedIn = isAdmin || isAdvisor || isStudent;
+  const isLoggedIn = Boolean(user) && (isAdmin || isAdvisor || isStudent);
 
   // 3. กำหนดข้อมูลโปรไฟล์ผู้ใช้งาน
-  const userData = isAdmin
-    ? { name: "Admin User", subText: "System Admin", avatarChar: "A" }
-    : isAdvisor
-    ? { name: "Adviser", subText: "อาจารย์ที่ปรึกษา", avatarChar: "A" }
-    : { name: "กานต์พิชชา วงษ์สุวรรณ", subText: "6410210545", avatarChar: "ก" };
+  const userData = {
+    name: user?.name ?? "ผู้ใช้งาน",
+    subText: user?.username ?? "",
+    avatarChar: (user?.name || "U").trim().charAt(0).toUpperCase(),
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white">

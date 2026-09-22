@@ -16,5 +16,8 @@ export function isSessionUser(value: unknown): value is SessionUser {
 }
 
 export function homeForRole(role: UserRole) {
-  return role === "advisor" ? "/advisor" : role === "student" ? "/pagestudent" : "/";
+  if (role === "admin") return "/admin/dashboard";
+  if (role === "advisor") return "/advisor";
+  if (role === "coordinator") return "/conditer";
+  return "/pagestudent";
 }
