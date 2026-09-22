@@ -5,7 +5,7 @@ import Link from "next/link";
 
 export default function AdminDashboardPage() {
   return (
-    <div className="flex min-h-screen bg-[#17142C] text-[#F8F7FF] font-sans">
+    <div className="flex min-h-screen bg-[#F8F9FA] text-black font-sans">
       {/* เมนูด้านซ้าย */}
       <AdminSidebar active="dashboard" />
 
@@ -13,30 +13,7 @@ export default function AdminDashboardPage() {
       <div className="flex min-w-0 flex-grow flex-col md:ml-[260px]">
 
         {/* เนื้อหาหน้าภาพรวมระบบ */}
-        <main className="admin-dashboard-dark max-w-[1440px] p-8">
-          <style>{`
-            .admin-dashboard-dark { color: #F8F7FF; }
-            .admin-dashboard-dark [class*="bg-white"] { background-color: #24203D !important; }
-            .admin-dashboard-dark [class*="bg-[#FAFAFA]"] { background-color: #201C35 !important; }
-            .admin-dashboard-dark [class*="bg-[#F8F7FF]"] { background-color: #2C274A !important; }
-            .admin-dashboard-dark [class*="bg-[#EEECFF]"] { background-color: #352F5F !important; }
-            .admin-dashboard-dark [class*="bg-[#FFF4D8]"] { background-color: #5D400E !important; }
-            .admin-dashboard-dark [class*="bg-[#FEE2E2]"] { background-color: #632937 !important; }
-            .admin-dashboard-dark [class*="bg-[#E5FAED]"] { background-color: #1C4934 !important; }
-            .admin-dashboard-dark [class*="border-[#EAEAEA]"] { border-color: #484165 !important; }
-            .admin-dashboard-dark [class*="divide-[#EAEAEA]"] > :not([hidden]) ~ :not([hidden]) { border-color: #484165 !important; }
-            .admin-dashboard-dark [class~="text-black"],
-            .admin-dashboard-dark [class*="text-[#555"],
-            .admin-dashboard-dark [class*="text-[#805A00]"] { color: #E6E1F5 !important; }
-            .admin-dashboard-dark [class*="text-[#3D348B]"] { color: #C7C1FF !important; }
-            .admin-dashboard-dark [class*="text-[#A16207]"] { color: #FFD27A !important; }
-            .admin-dashboard-dark [class*="text-[#B42318]"] { color: #FFB5AD !important; }
-            .admin-dashboard-dark [class*="text-[#16733B]"] { color: #9BF0B8 !important; }
-            .admin-dashboard-dark [class*="hover:bg-[#FAFAFF]"]:hover,
-            .admin-dashboard-dark [class*="hover:bg-[#EEECFF]"]:hover { background-color: #3D3669 !important; }
-            .admin-dashboard-dark [class*="hover:bg-[#FFE9B0]"]:hover { background-color: #72531B !important; }
-            .admin-dashboard-dark [class*="hover:bg-[#FECACA]"]:hover { background-color: #7B3343 !important; }
-          `}</style>
+        <main className="max-w-[1440px] p-8">
 
           <AdminBreadcrumb isRoot />
           <header className="flex flex-col items-start justify-between gap-4 py-4 sm:flex-row sm:items-center">
@@ -276,10 +253,10 @@ export default function AdminDashboardPage() {
                 <span className="flex size-10 items-center justify-center rounded-xl bg-[#EEECFF] text-xl">🎓</span>
               </div>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <Link href="/advisor/students" className="rounded-xl bg-[#F8F7FF] p-4 transition hover:bg-[#EEECFF]"><p className="text-sm text-[#555]">อาจารย์นิเทศ</p><p className="mt-1 font-mono text-2xl font-bold text-[#3D348B]">24 <span className="font-sans text-sm font-normal">คน</span></p></Link>
-                <Link href="/advisor/students" className="rounded-xl bg-[#F8F7FF] p-4 transition hover:bg-[#EEECFF]"><p className="text-sm text-[#555]">นักศึกษาในความดูแล</p><p className="mt-1 font-mono text-2xl font-bold text-[#3D348B]">450 <span className="font-sans text-sm font-normal">คน</span></p></Link>
-                <Link href="/advisor/tasks" className="rounded-xl bg-[#FFF4D8] p-4 transition hover:bg-[#FFE9B0]"><p className="text-sm text-[#805A00]">รอนิเทศ</p><p className="mt-1 font-mono text-2xl font-bold text-[#A16207]">18 <span className="font-sans text-sm font-normal">รายการ</span></p></Link>
-                <Link href="/advisor/evaluations" className="rounded-xl bg-[#FEE2E2] p-4 transition hover:bg-[#FECACA]"><p className="text-sm text-[#B42318]">ประเมินรอตรวจ</p><p className="mt-1 font-mono text-2xl font-bold text-[#B42318]">12 <span className="font-sans text-sm font-normal">ฉบับ</span></p></Link>
+                <Link href="/advisor/students" className="rounded-xl bg-[#3D348B] p-4 text-white transition hover:bg-[#5146AA]"><p className="text-sm text-white/80">อาจารย์นิเทศ</p><p className="mt-1 font-mono text-2xl font-bold">24 <span className="font-sans text-sm font-normal">คน</span></p></Link>
+                <Link href="/advisor/students" className="rounded-xl bg-[#3D348B] p-4 text-white transition hover:bg-[#5146AA]"><p className="text-sm text-white/80">นักศึกษาในความดูแล</p><p className="mt-1 font-mono text-2xl font-bold">450 <span className="font-sans text-sm font-normal">คน</span></p></Link>
+                <Link href="/advisor/tasks" className="rounded-xl bg-[#C97700] p-4 text-white transition hover:bg-[#A86300]"><p className="text-sm text-white/80">รอนิเทศ</p><p className="mt-1 font-mono text-2xl font-bold">18 <span className="font-sans text-sm font-normal">รายการ</span></p></Link>
+                <Link href="/advisor/evaluations" className="rounded-xl bg-[#C63B32] p-4 text-white transition hover:bg-[#A92F28]"><p className="text-sm text-white/80">ประเมินรอตรวจ</p><p className="mt-1 font-mono text-2xl font-bold">12 <span className="font-sans text-sm font-normal">ฉบับ</span></p></Link>
               </div>
               <Link href="/advisor/students" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#3D348B] hover:text-[#7678ED]">ดูการติดตามนักศึกษาทั้งหมด <span aria-hidden="true">→</span></Link>
             </section>
@@ -290,10 +267,10 @@ export default function AdminDashboardPage() {
                 <span className="flex size-10 items-center justify-center rounded-xl bg-[#FFF4D8] text-xl">💼</span>
               </div>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <Link href="/conditer/companies" className="rounded-xl bg-[#FFF4D8] p-4 transition hover:bg-[#FFE9B0]"><p className="text-sm text-[#805A00]">บริษัทรออนุมัติ</p><p className="mt-1 font-mono text-2xl font-bold text-[#A16207]">15 <span className="font-sans text-sm font-normal">แห่ง</span></p></Link>
-                <Link href="/conditer/jobs/create" className="rounded-xl bg-[#F8F7FF] p-4 transition hover:bg-[#EEECFF]"><p className="text-sm text-[#555]">ตำแหน่งงานรอตรวจ</p><p className="mt-1 font-mono text-2xl font-bold text-[#3D348B]">4 <span className="font-sans text-sm font-normal">ตำแหน่ง</span></p></Link>
-                <Link href="/conditer/applications" className="rounded-xl bg-[#FEE2E2] p-4 transition hover:bg-[#FECACA]"><p className="text-sm text-[#B42318]">ใบสมัครรอพิจารณา</p><p className="mt-1 font-mono text-2xl font-bold text-[#B42318]">31 <span className="font-sans text-sm font-normal">ใบสมัคร</span></p></Link>
-                <Link href="/conditer/applications" className="rounded-xl bg-[#E5FAED] p-4 transition hover:bg-[#D1F5DD]"><p className="text-sm text-[#16733B]">อนุมัติการสมัครแล้ว</p><p className="mt-1 font-mono text-2xl font-bold text-[#16733B]">278 <span className="font-sans text-sm font-normal">ใบสมัคร</span></p></Link>
+                <Link href="/conditer/companies" className="rounded-xl bg-[#C97700] p-4 text-white transition hover:bg-[#A86300]"><p className="text-sm text-white/80">บริษัทรออนุมัติ</p><p className="mt-1 font-mono text-2xl font-bold">15 <span className="font-sans text-sm font-normal">แห่ง</span></p></Link>
+                <Link href="/conditer/jobs/create" className="rounded-xl bg-[#3D348B] p-4 text-white transition hover:bg-[#5146AA]"><p className="text-sm text-white/80">ตำแหน่งงานรอตรวจ</p><p className="mt-1 font-mono text-2xl font-bold">4 <span className="font-sans text-sm font-normal">ตำแหน่ง</span></p></Link>
+                <Link href="/conditer/applications" className="rounded-xl bg-[#C63B32] p-4 text-white transition hover:bg-[#A92F28]"><p className="text-sm text-white/80">ใบสมัครรอพิจารณา</p><p className="mt-1 font-mono text-2xl font-bold">31 <span className="font-sans text-sm font-normal">ใบสมัคร</span></p></Link>
+                <Link href="/conditer/applications" className="rounded-xl bg-[#17834B] p-4 text-white transition hover:bg-[#126A3D]"><p className="text-sm text-white/80">อนุมัติการสมัครแล้ว</p><p className="mt-1 font-mono text-2xl font-bold">278 <span className="font-sans text-sm font-normal">ใบสมัคร</span></p></Link>
               </div>
               <Link href="/conditer/applications" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#3D348B] hover:text-[#7678ED]">ดูรายการสมัครทั้งหมด <span aria-hidden="true">→</span></Link>
             </section>
