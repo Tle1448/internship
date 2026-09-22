@@ -160,75 +160,79 @@ export default function StudentDashboard() {
   async function loadStudentData() {
     setLoadingProfile(true);
 
-    const userId = await getCurrentStudentId();
+    try {
+      const userId = await getCurrentStudentId();
 
-    if (!userId) {
-      console.error('ไม่พบผู้ใช้ปัจจุบัน (mock)');
+      if (!userId) {
+        console.error('ไม่พบผู้ใช้ปัจจุบัน (userId เป็นค่าว่างหรือ null)');
+        setLoadingProfile(false);
+        return;
+      }
+
+      const {
+        data: profile,
+        error: profileError,
+      } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) {
+        console.error(
+          'โหลดโปรไฟล์ไม่สำเร็จ:',
+          JSON.stringify(profileError, null, 2)
+        );
+      }
+
+      const {
+        data: record,
+        error: recordError,
+      } = await supabase
+        .from('internship_records')
+        .select('*')
+        .eq('student_id', userId)
+        .order('updated_at', {
+          ascending: false,
+        })
+        .limit(1)
+        .maybeSingle();
+
+      if (recordError) {
+        console.error(
+          'โหลด internship record ไม่สำเร็จ:',
+          JSON.stringify(recordError, null, 2)
+        );
+      }
+
+      const loaded: ProfileData = {
+        id: userId,
+        name: profile?.full_name ?? '',
+        studentId: profile?.student_code ?? '',
+        faculty: profile?.faculty ?? '',
+        major: profile?.major ?? '',
+        year: profile?.year?.toString() ?? '',
+        gpa: profile?.gpa?.toString() ?? '',
+        credits: profile?.credits?.toString() ?? '',
+        skills:
+          record?.skills ??
+          profile?.skills ??
+          [],
+        resumeName:
+          profile?.resume_name ?? '',
+        resumeUrl:
+          profile?.resume_url ?? null,
+      };
+
+      setProfileData(loaded);
+      setInternshipRecordId(
+        record?.id ?? null
+      );
+    } catch (err) {
+      console.error('เกิดข้อผิดพลาดในการโหลดข้อมูลนักศึกษา:', JSON.stringify(err, null, 2));
+    } finally {
       setLoadingProfile(false);
-      return;
     }
-
-    const {
-      data: profile,
-      error: profileError,
-    } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (profileError) {
-      console.error(
-        'โหลดโปรไฟล์ไม่สำเร็จ:',
-        profileError
-      );
-    }
-
-    const {
-      data: record,
-      error: recordError,
-    } = await supabase
-      .from('internship_records')
-      .select('*')
-      .eq('student_id', userId)
-      .order('updated_at', {
-        ascending: false,
-      })
-      .limit(1)
-      .maybeSingle();
-
-    if (recordError) {
-      console.error(
-        'โหลด internship record ไม่สำเร็จ:',
-        recordError
-      );
-    }
-
-    const loaded: ProfileData = {
-      id: userId,
-      name: profile?.full_name ?? '',
-      studentId: profile?.student_code ?? '',
-      faculty: profile?.faculty ?? '',
-      major: profile?.major ?? '',
-      year: profile?.year?.toString() ?? '',
-      gpa: profile?.gpa?.toString() ?? '',
-      credits: profile?.credits?.toString() ?? '',
-      skills:
-        record?.skills ??
-        profile?.skills ??
-        [],
-      resumeName:
-        profile?.resume_name ?? '',
-      resumeUrl:
-        profile?.resume_url ?? null,
-    };
-
-    setProfileData(loaded);
-    setInternshipRecordId(
-      record?.id ?? null
-    );
-
-    setLoadingProfile(false);
   }
 
   // =========================================================
@@ -283,6 +287,7 @@ export default function StudentDashboard() {
           );
 
         if (uploadError) {
+          console.error('Storage Upload Error:', JSON.stringify(uploadError, null, 2));
           throw uploadError;
         }
 
@@ -337,6 +342,7 @@ export default function StudentDashboard() {
         );
 
       if (profileUpdateError) {
+        console.error('Profiles Update Error:', JSON.stringify(profileUpdateError, null, 2));
         throw profileUpdateError;
       }
 
@@ -361,6 +367,7 @@ export default function StudentDashboard() {
           );
 
         if (recordUpdateError) {
+          console.error('Internship Records Update Error:', JSON.stringify(recordUpdateError, null, 2));
           throw recordUpdateError;
         }
       } else {
@@ -383,6 +390,7 @@ export default function StudentDashboard() {
           .single();
 
         if (insertError) {
+          console.error('Internship Records Insert Error:', JSON.stringify(insertError, null, 2));
           throw insertError;
         }
 
@@ -413,7 +421,7 @@ export default function StudentDashboard() {
         if (logError) {
           console.error(
             'บันทึก log ไม่สำเร็จ:',
-            logError
+            JSON.stringify(logError, null, 2)
           );
         }
       }
@@ -426,14 +434,16 @@ export default function StudentDashboard() {
 
       setIsEditProfileOpen(false);
     } catch (err: any) {
-      console.error(
-        'บันทึกโปรไฟล์ไม่สำเร็จ:',
-        err
-      );
+      console.error('บันทึกโปรไฟล์ไม่สำเร็จ (Detailed Error):', JSON.stringify(err, null, 2));
+      console.error('Original Error Object:', err);
+
+      const errorMessage =
+        err?.message ||
+        err?.error_description ||
+        (typeof err === 'object' ? JSON.stringify(err) : String(err));
 
       setSaveError(
-        err.message ??
-          'เกิดข้อผิดพลาดในการบันทึกข้อมูล'
+        `เกิดข้อผิดพลาดในการบันทึกข้อมูล: ${errorMessage}`
       );
     } finally {
       setSaving(false);
@@ -582,7 +592,7 @@ export default function StudentDashboard() {
       } catch (err: any) {
         console.error(
           'ส่งข้อมูลบริษัทไม่สำเร็จ:',
-          err
+          JSON.stringify(err, null, 2)
         );
 
         setExternalError(
@@ -641,7 +651,7 @@ export default function StudentDashboard() {
     } catch (err: any) {
       console.error(
         'สมัครงานไม่สำเร็จ:',
-        err
+        JSON.stringify(err, null, 2)
       );
 
       setApplyError(
@@ -1388,7 +1398,7 @@ export default function StudentDashboard() {
             >
 
               {saveError && (
-                <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs">
+                <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs break-all">
                   {saveError}
                 </div>
               )}
