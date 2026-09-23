@@ -344,6 +344,10 @@
 .advisor-details .task-pagination .button { min-width: 82px; padding: 8px 12px; }
 
 /* Dashboard uses the same compact controls and status language as the student directory. */
+.advisor-details .page-heading { margin: 6px 0 20px; }
+.advisor-details .stats { gap: 14px; margin-bottom: 18px; }
+.advisor-details .filter-card { margin-bottom: 18px; }
+.advisor-details .appointment-banner { margin-top: 18px; }
 .advisor-details .filter-controls { display: grid; grid-template-columns: minmax(220px, 1.35fr) repeat(4, minmax(150px, 1fr)); align-items: end; }
 .advisor-details .filter-controls .search-field { width: 100%; }
 .advisor-details .filter-field { display: grid; min-width: 0; gap: 5px; color: #5d5769; font-size: 11px; font-weight: 600; }
