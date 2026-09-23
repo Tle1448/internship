@@ -348,6 +348,26 @@
 .advisor-details .stats { gap: 14px; margin-bottom: 18px; }
 .advisor-details .filter-card { margin-bottom: 18px; }
 .advisor-details .appointment-banner { margin-top: 18px; }
+.advisor-details .advisor-profile-page { width: 100%; max-width: none; }
+.advisor-details .advisor-profile-identity { display: flex; align-items: center; gap: 18px; margin-bottom: 18px; padding: 24px; }
+.advisor-details .advisor-profile-avatar { display: grid; width: 64px; height: 64px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #efecfa; color: var(--violet); font-size: 24px; font-weight: 700; }
+.advisor-details .advisor-profile-name { min-width: 0; }
+.advisor-details .advisor-profile-name > span { color: #777281; font-size: 12px; }
+.advisor-details .advisor-profile-name h2 { margin: 3px 0; color: #24232b; font-size: 22px; }
+.advisor-details .advisor-profile-name p { margin: 0; color: #625d70; font-size: 13px; }
+.advisor-details .advisor-profile-role { margin-left: auto; text-align: right; }
+.advisor-details .advisor-profile-role span { display: block; color: #777281; font-size: 12px; }
+.advisor-details .advisor-profile-role strong { display: inline-block; margin-top: 5px; color: var(--violet); font-size: 15px; }
+.advisor-details .advisor-profile-details { margin-bottom: 18px; }
+.advisor-details .advisor-profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 32px; margin: 22px 0 0; }
+.advisor-details .advisor-profile-grid div { min-width: 0; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.advisor-details .advisor-profile-grid dt { color: #777281; font-size: 12px; }
+.advisor-details .advisor-profile-grid dd { margin: 6px 0 0; overflow-wrap: anywhere; color: #302c38; font-size: 14px; font-weight: 600; }
+.advisor-details .advisor-profile-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 22px; }
+.advisor-details .advisor-profile-form label { color: #625d70; font-size: 12px; font-weight: 600; }
+.advisor-details .advisor-profile-form input { display: block; box-sizing: border-box; width: 100%; margin-top: 7px; border: 1px solid #cbd2df; border-radius: 8px; background: #fff; color: #302c38; font: inherit; font-size: 14px; padding: 11px 12px; }
+.advisor-details .advisor-profile-form input:focus { outline: 2px solid #ddd8ff; border-color: var(--bright); }
+.advisor-details .advisor-profile-form-actions { display: flex; justify-content: flex-end; gap: 10px; grid-column: 1 / -1; padding-top: 4px; }
 .advisor-details .filter-controls { display: grid; grid-template-columns: minmax(220px, 1.35fr) repeat(4, minmax(150px, 1fr)); align-items: end; }
 .advisor-details .filter-controls .search-field { width: 100%; }
 .advisor-details .filter-field { display: grid; min-width: 0; gap: 5px; color: #5d5769; font-size: 11px; font-weight: 600; }
@@ -393,6 +413,12 @@
   .advisor-details .detail-context-actions { width: 100%; margin-left: 0; }
   .advisor-details .detail-environment { margin-left: auto; }
   .advisor-details .student-switcher { width: 100%; grid-template-columns: 1fr; }
+  .advisor-details .advisor-profile-identity { align-items: flex-start; flex-wrap: wrap; }
+  .advisor-details .advisor-profile-role { margin-left: 82px; text-align: left; }
+  .advisor-details .advisor-profile-grid { grid-template-columns: 1fr; gap: 14px; }
+  .advisor-details .advisor-profile-form { grid-template-columns: 1fr; }
+  .advisor-details .advisor-profile-form-actions { flex-direction: column-reverse; }
+  .advisor-details .advisor-profile-form-actions .button { width: 100%; }
   .advisor-details .detail-card,.advisor-details .evaluation-section { padding: 20px; }
   .advisor-details .placement-bottom,.advisor-details .evaluation-grid { grid-template-columns: 1fr; }
   .advisor-details .evaluation-heading h1,.advisor-details .list-heading h1 { font-size: 27px; }

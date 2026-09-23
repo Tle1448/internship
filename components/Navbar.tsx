@@ -218,6 +218,7 @@ export default function Navbar() {
             <div className="flex items-center gap-3">
               {isStudent && <NotificationBell role="student" />}
               {isConditer && <NotificationBell role="coordinator" />}
+              {isAdvisor && <NotificationBell role="advisor" />}
 
               <div className="relative border-l border-slate-200 pl-3" ref={dropdownRef}>
                 <button

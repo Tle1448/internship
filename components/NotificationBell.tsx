@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { getCurrentStudentId } from "@/lib/currentUser";
+import { useAuth } from "@/components/AuthProvider";
 
 // ---------- Icon ----------
 function BellIcon({ className = "" }: { className?: string }) {
@@ -33,11 +34,12 @@ interface NotificationItem {
 }
 
 interface NotificationBellProps {
-  role: "student" | "coordinator";
+  role: "student" | "coordinator" | "advisor";
 }
 
 // ---------- Component ----------
 export default function NotificationBell({ role }: NotificationBellProps) {
+  const { user } = useAuth();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -53,11 +55,11 @@ export default function NotificationBell({ role }: NotificationBellProps) {
     setLoading(true);
 
     try {
-      if (role === "coordinator") {
+      if (role === "coordinator" || role === "advisor") {
         const { data, error } = await supabase
           .from("notifications")
           .select("*")
-          .eq("recipient_type", "coordinator")
+          .eq("recipient_type", role)
           .order("created_at", { ascending: false })
           .limit(30);
 
@@ -87,7 +89,7 @@ export default function NotificationBell({ role }: NotificationBellProps) {
     } finally {
       setLoading(false);
     }
-  }, [role]);
+  }, [role, user?.id]);
 
   // โหลดครั้งแรก + poll ทุก 30 วินาที เพื่อความสด (ยังไม่ใช้ Supabase Realtime)
   useEffect(() => {
