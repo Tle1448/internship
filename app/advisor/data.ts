@@ -37,13 +37,13 @@ type RecordRow = {
 type ProfileRow = { id: string; full_name: string | null; user_code: string | null; major: string | null };
 
 export const placementStatusLabels: Record<PlacementStatus, string> = {
-  approved: "Approved",
-  pending: "Pending review",
+  approved: "อนุมัติครบถ้วน",
+  pending: "รอตรวจสอบ",
 };
 
 export const progressHealthLabels: Record<ProgressHealth, string> = {
-  on_track: "On track",
-  attention: "Needs attention",
+  on_track: "ตามแผน",
+  attention: "ต้องติดตาม",
 };
 
 export function progressPercent(student: Student) {
