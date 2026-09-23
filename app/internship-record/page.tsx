@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type DragEvent, type ChangeEvent } from "r
 import StudentSidebar from "@/components/StudentSidebar";
 import { supabase } from "@/lib/supabase";
 import { getCurrentStudentId } from "@/lib/currentUser"; // TODO: เปลี่ยนเป็น auth จริงทีหลัง
+import InternshipTabs from "@/components/InternshipTabs";
 
 // ---------- Types ----------
 interface Application {
@@ -362,6 +363,9 @@ export default function InternshipRecordPage() {
 
       <main className="flex-1 space-y-6 px-4 py-6 md:px-8 pb-20">
         <div className="mx-auto max-w-5xl space-y-6">
+
+          {/* แท็บสลับหน้า: อัปเดทหลักฐาน <-> บันทึกประจำสัปดาห์ */}
+          <InternshipTabs />
 
           {successBanner && (
             <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 shadow-sm transition">
