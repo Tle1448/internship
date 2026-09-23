@@ -9,10 +9,12 @@ import {
   LogOut,
   Users,
 } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function ConditerSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { logout } = useAuth();
 
   const menuItems = [
     {
@@ -32,14 +34,20 @@ export default function ConditerSidebar() {
     },
   ];
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     const confirmed = window.confirm(
       "คุณต้องการออกจากระบบใช่หรือไม่?"
     );
 
     if (!confirmed) return;
 
-    router.push("/login");
+    try {
+      await logout();
+      router.replace("/login");
+      router.refresh();
+    } catch {
+      alert("ไม่สามารถออกจากระบบได้");
+    }
   };
 
   return (

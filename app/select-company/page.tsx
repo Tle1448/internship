@@ -23,6 +23,13 @@ interface CurrentApplication {
   status: 'pending' | 'approved' | 'rejected' | 'cancelled';
 }
 
+const applicationStatusLabels: Record<CurrentApplication['status'], string> = {
+  pending: 'รอการพิจารณา',
+  approved: 'ผ่านการอนุมัติ',
+  rejected: 'ไม่ผ่านการอนุมัติ',
+  cancelled: 'ยกเลิกใบสมัคร',
+};
+
 // ข้อมูลตัวอย่างสำหรับแสดงผล (Mock Data) หลายบริษัทเพื่อให้ดูสมจริง
 const MOCK_JOBS: JobPosition[] = [
   {
@@ -74,7 +81,9 @@ export default function SelectCompanyPage() {
       // พยายามดึงข้อมูลจริงจาก Supabase (ถ้ามี)
       const { data: jobList, error: jobError } = await supabase
         .from('jobs')
-        .select('*');
+        .select('*')
+        .eq('status', 'open')
+        .is('archived_at', null);
 
       if (!jobError && jobList && jobList.length > 0) {
         setJobs(jobList); // ถ้ามีข้อมูลใน DB ให้ใช้ข้อมูลจริง
@@ -84,7 +93,7 @@ export default function SelectCompanyPage() {
         .from('job_applications')
         .select('id, job_id, company_name, job_title, status')
         .eq('student_id', userId)
-        .in('status', ['pending', 'approved'])
+        .in('status', ['pending', 'approved', 'rejected', 'cancelled'])
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -198,6 +207,7 @@ export default function SelectCompanyPage() {
                 {currentApplication.status === 'approved' ? 'ใบสมัครผ่านการอนุมัติ' : 'ใบสมัครกำลังรอพิจารณา'}
               </span>
               <h2 className="text-base font-bold">{currentApplication.company_name}</h2>
+              <p className="text-xs font-semibold text-white">สถานะล่าสุด: {applicationStatusLabels[currentApplication.status]}</p>
               <p className="text-xs text-indigo-200">ตำแหน่ง: {currentApplication.job_title || 'ยังไม่ระบุตำแหน่ง'}</p>
             </div>
             <Building2 className="w-10 h-10 text-indigo-300 opacity-80" />
