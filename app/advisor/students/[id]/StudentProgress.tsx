@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Student } from "../../data";
 import { type WeeklyRecord } from "../../detail-data";
-import AdvisorShell, { StudentSummary } from "../../components/AdvisorShell";
+import AdvisorShell from "../../components/AdvisorShell";
 import Icon from "../../components/Icon";
+import StudentHeader from "../../components/StudentHeader";
 import { supabase } from "@/lib/supabase";
 
 type RecordFilter = "all" | WeeklyRecord["status"];
@@ -13,6 +14,7 @@ type RecordFilter = "all" | WeeklyRecord["status"];
 const statusCopy = {
   approved: "อนุมัติแล้ว",
   pending: "รออาจารย์ลงนามนิเทศ",
+  revision: "ส่งกลับแก้ไข",
   upcoming: "ยังไม่ถึงกำหนดส่ง",
 } as const;
 
@@ -216,7 +218,7 @@ export default function StudentProgress({ student, embedded = false }: { student
         <Link className="button primary" href={`/advisor/evaluations/${student.id}`}><Icon name="file" />บันทึกการนิเทศงาน</Link>
       </div>
       {message && <p className="feedback" role="status">{message}</p>}
-      <StudentSummary student={student} currentWeek={currentWeek} totalWeeks={TOTAL_WEEKS} />
+      <StudentHeader student={student} />
 
       <section className="detail-card placement-card">
         <div className="placement-top">
@@ -357,5 +359,5 @@ export default function StudentProgress({ student, embedded = false }: { student
     </>
   );
 
-  return embedded ? content : <AdvisorShell student={student} active="progress">{content}</AdvisorShell>;
+  return embedded ? content : <AdvisorShell student={student} active="students" studentSection="progress">{content}</AdvisorShell>;
 }
