@@ -8,7 +8,6 @@ import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import { getCurrentStudentId } from "@/lib/currentUser";
 
-// ---------- Icons (inline SVG, ไม่ต้องพึ่ง dependency เพิ่ม) ----------
 // ---------- Config ----------
 interface NavItem {
   label: string;
@@ -60,9 +59,10 @@ export default function Navbar() {
 
   const currentPath = pathname ? pathname.toLowerCase() : "";
 
-  // เช็กว่าอยู่ในหน้านักศึกษา (คำนวณไว้ตั้งแต่ต้น เพื่อใช้ใน useEffect ด้านล่างได้)
+  // เช็กว่าอยู่ในหน้านักศึกษา (รวมหน้าเลือกบริษัท /select-company ด้วยแล้ว)
   const isStudentPath =
     currentPath.startsWith("/pagestudent") ||
+    currentPath.startsWith("/select-company") ||
     currentPath.startsWith("/internship-record") ||
     currentPath.startsWith("/jobs") ||
     currentPath.startsWith("/documents") ||
@@ -79,7 +79,7 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // โหลดชื่อ-รหัสนักศึกษาจริงจาก profiles ตาม currentStudentId (mock login ด้วยรหัส นศ)
+  // โหลดชื่อ-รหัสนักศึกษาจริงจาก profiles ตาม currentStudentId
   useEffect(() => {
     if (!isStudentPath) {
       return;
@@ -119,7 +119,7 @@ export default function Navbar() {
     };
   }, [isStudentPath]);
 
-  // 1. ถ้าอยู่หน้า Login ให้คืนค่าเป็น null ทันที เพื่อป้องกัน Navbar เรนเดอร์ชนกับหน้า Login หรือเกิด 404
+  // 1. ถ้าอยู่หน้า Login ให้คืนค่าเป็น null ทันที
   if (currentPath === "/login" || currentPath.startsWith("/login")) {
     return null;
   }
@@ -145,8 +145,6 @@ export default function Navbar() {
   const isLoggedIn = Boolean(user) && (isAdmin || isAdvisor || isStudent || isConditer);
 
   // 3. กำหนดข้อมูลโปรไฟล์ผู้ใช้งาน
-  //    ฝั่งนักศึกษา: ถ้ายังไม่มีชื่อ (full_name ว่าง) ให้โชว์แค่รหัสนักศึกษาไปก่อน
-  //    พอกรอกโปรไฟล์แล้วมีชื่อ จะเปลี่ยนมาโชว์ชื่อแทนอัตโนมัติ
   const studentDisplayName =
     studentProfile?.name && studentProfile.name.trim().length > 0
       ? studentProfile.name
@@ -175,7 +173,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white">
       <div className="flex w-full items-center justify-between gap-4 px-4 py-2.5">
 
-        {/* Logo (ด้านซ้าย) - ถ้าอยู่หน้า Conditer ให้กดแล้ววิ่งไป /conditer/companies */}
+        {/* Logo (ด้านซ้าย) */}
         <Link href={isConditer ? "/conditer/companies" : "/"} className="flex shrink-0 items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-900 text-sm font-bold text-white">
             WU
@@ -191,7 +189,6 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Right side: ยังไม่มีระบบล็อกอิน จึงโชว์ปุ่มเข้าสู่ระบบแทนข้อมูลผู้ใช้ */}
         {/* Nav tabs (ซ่อนเมื่ออยู่หน้า Home, Admin, Advisor หรือหน้านักศึกษา) */}
         {!isHomePage && !isAdmin && !isAdvisor && !isStudent && (
           <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
@@ -219,8 +216,6 @@ export default function Navbar() {
         <div className="flex shrink-0 items-center gap-3">
           {isLoggedIn ? (
             <div className="flex items-center gap-3">
-              {/* กระดิ่งแจ้งเตือน: ใช้งานได้ทั้งฝั่งนักศึกษาและฝั่ง Coordinator
-                  (Admin / Advisor ยังไม่มีระบบแจ้งเตือนผูกไว้ จึงไม่แสดง) */}
               {isStudent && <NotificationBell role="student" />}
               {isConditer && <NotificationBell role="coordinator" />}
 

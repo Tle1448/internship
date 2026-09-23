@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { 
   LayoutDashboard, 
   FileText, 
-  Bell 
+  Bell,
+  Building2
 } from "lucide-react";
 
 interface MenuCategory {
@@ -29,6 +30,11 @@ export default function StudentSidebar() {
           label: "หน้าแรก",
           href: "/pagestudent",
           icon: <LayoutDashboard className="w-5 h-5" />,
+        },
+        {
+          label: "เลือกบริษัทฝึกงาน",
+          href: "/select-company",
+          icon: <Building2 className="w-5 h-5" />,
         },
         {
           label: "อัปเดต",
