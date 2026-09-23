@@ -208,7 +208,7 @@ export default function StudentDashboard() {
       const loaded: ProfileData = {
         id: userId,
         name: profile?.full_name ?? '',
-        studentId: profile?.student_code ?? '',
+        studentId: profile?.user_code ?? '',
         faculty: profile?.faculty ?? '',
         major: profile?.major ?? '',
         year: profile?.year?.toString() ?? '',
@@ -291,14 +291,9 @@ export default function StudentDashboard() {
           throw uploadError;
         }
 
-        const {
-          data: publicUrlData,
-        } = supabase.storage
-          .from('resumes')
-          .getPublicUrl(filePath);
-
-        resumeUrl =
-          publicUrlData.publicUrl;
+        // The resumes bucket is private. Persist the object path and create a
+        // signed URL only when a user explicitly opens/downloads the file.
+        resumeUrl = filePath;
 
         resumeName =
           resumeFile.name;
@@ -311,9 +306,6 @@ export default function StudentDashboard() {
         .update({
           full_name:
             tempProfile.name,
-
-          student_code:
-            tempProfile.studentId,
 
           faculty:
             tempProfile.faculty,
@@ -1438,14 +1430,9 @@ export default function StudentDashboard() {
                     value={
                       tempProfile.studentId
                     }
-                    onChange={(e) =>
-                      setTempProfile({
-                        ...tempProfile,
-                        studentId:
-                          e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-900/20 focus:border-indigo-900"
+                    readOnly
+                    aria-readonly="true"
+                    className="w-full px-3 py-2 border border-slate-200 bg-slate-100 text-slate-500 rounded-lg cursor-not-allowed"
                     required
                   />
 

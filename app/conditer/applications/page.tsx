@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Building2,
   CalendarDays,
@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import ConditerSidebar from "@/components/ConditerSidebar";
+import { supabase } from "@/lib/supabase";
 
 type ApplicationStatus =
   | "pending"
@@ -21,7 +22,7 @@ type ApplicationStatus =
   | "rejected";
 
 type Application = {
-  id: number;
+  id: string;
   studentName: string;
   studentId: string;
   faculty: string;
@@ -38,99 +39,6 @@ type Application = {
   reason: string;
 };
 
-const initialApplications: Application[] = [
-  {
-    id: 1,
-    studentName: "นายพิรพัฒน์ เลาหะสราญ",
-    studentId: "67124651",
-    faculty: "สำนักวิชาวิศวกรรมศาสตร์",
-    major: "วิศวกรรมคอมพิวเตอร์",
-    company: "TechCorp Solutions Co., Ltd.",
-    position: "Full Stack Developer Intern",
-    location: "กรุงเทพมหานคร",
-    submittedDate: "18 ก.ย. 2026",
-    startDate: "1 มิ.ย. 2027",
-    endDate: "31 ส.ค. 2027",
-    status: "pending",
-    email: "pirapat@example.com",
-    phone: "08x-xxx-xxxx",
-    reason:
-      "สนใจพัฒนาทักษะด้าน Web Application และต้องการเรียนรู้การทำงานจริงในสาย Software Development",
-  },
-  {
-    id: 2,
-    studentName: "นางสาวณัฐชา ใจดี",
-    studentId: "67124672",
-    faculty: "สำนักวิชาวิศวกรรมศาสตร์",
-    major: "วิศวกรรมคอมพิวเตอร์",
-    company: "Creative Digital Co., Ltd.",
-    position: "UI/UX Designer Intern",
-    location: "กรุงเทพมหานคร",
-    submittedDate: "17 ก.ย. 2026",
-    startDate: "1 มิ.ย. 2027",
-    endDate: "31 ส.ค. 2027",
-    status: "approved",
-    email: "natcha@example.com",
-    phone: "08x-xxx-xxxx",
-    reason:
-      "ต้องการพัฒนาทักษะด้าน UI/UX Design และการออกแบบระบบ",
-  },
-  {
-    id: 3,
-    studentName: "นายกิตติพงษ์ สมชาย",
-    studentId: "67124701",
-    faculty: "สำนักวิชาวิศวกรรมศาสตร์",
-    major: "วิศวกรรมคอมพิวเตอร์",
-    company: "Global Finance Group",
-    position: "Software Engineer Intern",
-    location: "กรุงเทพมหานคร",
-    submittedDate: "16 ก.ย. 2026",
-    startDate: "1 มิ.ย. 2027",
-    endDate: "31 ส.ค. 2027",
-    status: "approved",
-    email: "kittipong@example.com",
-    phone: "08x-xxx-xxxx",
-    reason:
-      "ต้องการเรียนรู้การพัฒนา Software และระบบที่เกี่ยวข้องกับธุรกิจการเงิน",
-  },
-  {
-    id: 4,
-    studentName: "นางสาวพิมพ์ชนก แสงทอง",
-    studentId: "67124718",
-    faculty: "สำนักวิชาสารสนเทศศาสตร์",
-    major: "เทคโนโลยีสารสนเทศ",
-    company: "Bright Future Education",
-    position: "Software Developer Intern",
-    location: "นครศรีธรรมราช",
-    submittedDate: "15 ก.ย. 2026",
-    startDate: "1 มิ.ย. 2027",
-    endDate: "31 ส.ค. 2027",
-    status: "rejected",
-    email: "pimchanok@example.com",
-    phone: "08x-xxx-xxxx",
-    reason:
-      "ต้องการฝึกประสบการณ์ด้านการพัฒนา Software และระบบสารสนเทศ",
-  },
-  {
-    id: 5,
-    studentName: "นายธนกฤต วัฒนะ",
-    studentId: "67124730",
-    faculty: "สำนักวิชาวิศวกรรมศาสตร์",
-    major: "วิศวกรรมคอมพิวเตอร์",
-    company: "Green Energy Systems",
-    position: "Data Engineer Intern",
-    location: "ระยอง",
-    submittedDate: "14 ก.ย. 2026",
-    startDate: "1 มิ.ย. 2027",
-    endDate: "31 ส.ค. 2027",
-    status: "pending",
-    email: "thanakrit@example.com",
-    phone: "08x-xxx-xxxx",
-    reason:
-      "สนใจด้าน Data Engineering และต้องการเรียนรู้การจัดการข้อมูลในระบบจริง",
-  },
-];
-
 const statusConfig = {
   pending: {
     label: "รออนุมัติ",
@@ -146,9 +54,24 @@ const statusConfig = {
   },
 };
 
+function firstRelation<T>(value: T | T[] | null): T | null {
+  return Array.isArray(value) ? value[0] ?? null : value;
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "-";
+  return new Date(value).toLocaleDateString("th-TH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export default function ApplicationsPage() {
-  const [applications, setApplications] =
-    useState<Application[]>(initialApplications);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pageError, setPageError] = useState("");
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
 
@@ -158,6 +81,75 @@ export default function ApplicationsPage() {
 
   const [selectedApplication, setSelectedApplication] =
     useState<Application | null>(null);
+
+  const fetchApplications = useCallback(async () => {
+    setLoading(true);
+    setPageError("");
+
+    const { data, error } = await supabase
+      .from("job_applications")
+      .select(`
+        id,
+        company_name,
+        job_title,
+        status,
+        reason,
+        submitted_at,
+        student:profiles!job_applications_student_id_fkey(
+          full_name,
+          user_code,
+          faculty,
+          major,
+          email,
+          phone
+        ),
+        job:jobs!job_applications_job_id_fkey(
+          location,
+          start_date,
+          end_date
+        )
+      `)
+      .in("status", ["pending", "approved", "rejected"])
+      .order("submitted_at", { ascending: false });
+
+    if (error) {
+      setApplications([]);
+      setPageError(`โหลดรายการสมัครไม่สำเร็จ: ${error.message}`);
+      setLoading(false);
+      return;
+    }
+
+    const mapped = (data ?? []).map((row) => {
+      const student = firstRelation(row.student);
+      const job = firstRelation(row.job);
+
+      return {
+        id: row.id,
+        studentName: student?.full_name ?? "ไม่ระบุชื่อ",
+        studentId: student?.user_code ?? "-",
+        faculty: student?.faculty ?? "-",
+        major: student?.major ?? "-",
+        company: row.company_name,
+        position: row.job_title,
+        location: job?.location ?? "-",
+        submittedDate: formatDate(row.submitted_at),
+        startDate: formatDate(job?.start_date),
+        endDate: formatDate(job?.end_date),
+        status: row.status as ApplicationStatus,
+        email: student?.email ?? "-",
+        phone: student?.phone ?? "-",
+        reason: row.reason ?? "ไม่มีหมายเหตุ",
+      } satisfies Application;
+    });
+
+    setApplications(mapped);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void fetchApplications(), 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchApplications]);
 
   const filteredApplications = useMemo(() => {
     const keyword = search.toLowerCase().trim();
@@ -198,13 +190,27 @@ export default function ApplicationsPage() {
     (item) => item.status === "rejected"
   ).length;
 
-  const approveApplication = (id: number) => {
+  const updateApplicationStatus = async (id: string, status: ApplicationStatus) => {
+    setUpdatingId(id);
+    setPageError("");
+
+    const { error } = await supabase
+      .from("job_applications")
+      .update({ status })
+      .eq("id", id);
+
+    if (error) {
+      setPageError(`บันทึกผลการพิจารณาไม่สำเร็จ: ${error.message}`);
+      setUpdatingId(null);
+      return;
+    }
+
     setApplications((current) =>
       current.map((application) =>
         application.id === id
           ? {
               ...application,
-              status: "approved",
+              status,
             }
           : application
       )
@@ -214,55 +220,16 @@ export default function ApplicationsPage() {
       current?.id === id
         ? {
             ...current,
-            status: "approved",
+            status,
           }
         : current
     );
+    setUpdatingId(null);
   };
 
-  const rejectApplication = (id: number) => {
-    setApplications((current) =>
-      current.map((application) =>
-        application.id === id
-          ? {
-              ...application,
-              status: "rejected",
-            }
-          : application
-      )
-    );
-
-    setSelectedApplication((current) =>
-      current?.id === id
-        ? {
-            ...current,
-            status: "rejected",
-          }
-        : current
-    );
-  };
-
-  const cancelDecision = (id: number) => {
-    setApplications((current) =>
-      current.map((application) =>
-        application.id === id
-          ? {
-              ...application,
-              status: "pending",
-            }
-          : application
-      )
-    );
-
-    setSelectedApplication((current) =>
-      current?.id === id
-        ? {
-            ...current,
-            status: "pending",
-          }
-        : current
-    );
-  };
+  const approveApplication = (id: string) => void updateApplicationStatus(id, "approved");
+  const rejectApplication = (id: string) => void updateApplicationStatus(id, "rejected");
+  const cancelDecision = (id: string) => void updateApplicationStatus(id, "pending");
 
   return (
     <div className="min-h-screen bg-[#F7F6FB]">
@@ -279,6 +246,12 @@ export default function ApplicationsPage() {
               ตรวจสอบและพิจารณาสถานที่ฝึกงานที่นักศึกษาเลือก
             </p>
           </div>
+
+          {pageError && (
+            <p role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {pageError}
+            </p>
+          )}
 
           {/* Stats */}
           <div className="mb-5 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -403,6 +376,13 @@ export default function ApplicationsPage() {
                 </thead>
 
                 <tbody>
+                  {loading && (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-10 text-center text-sm text-[#89859A]">
+                        กำลังโหลดรายการสมัคร...
+                      </td>
+                    </tr>
+                  )}
                   {filteredApplications.map(
                     (application) => {
                       const status =
@@ -479,24 +459,26 @@ export default function ApplicationsPage() {
                                 "pending" && (
                                 <>
                                   <button
+                                    disabled={updatingId === application.id}
                                     onClick={() =>
                                       approveApplication(
                                         application.id
                                       )
                                     }
-                                    className="flex h-9 items-center gap-1.5 rounded-lg bg-[#E8F8EF] px-3 text-xs font-semibold text-[#159447] hover:bg-[#D9F3E5]"
+                                    className="flex h-9 items-center gap-1.5 rounded-lg bg-[#E8F8EF] px-3 text-xs font-semibold text-[#159447] hover:bg-[#D9F3E5] disabled:cursor-wait disabled:opacity-50"
                                   >
                                     <Check size={15} />
                                     อนุมัติ
                                   </button>
 
                                   <button
+                                    disabled={updatingId === application.id}
                                     onClick={() =>
                                       rejectApplication(
                                         application.id
                                       )
                                     }
-                                    className="flex h-9 items-center gap-1.5 rounded-lg bg-[#FDECEC] px-3 text-xs font-semibold text-[#E94B4B] hover:bg-[#FBE0E0]"
+                                    className="flex h-9 items-center gap-1.5 rounded-lg bg-[#FDECEC] px-3 text-xs font-semibold text-[#E94B4B] hover:bg-[#FBE0E0] disabled:cursor-wait disabled:opacity-50"
                                   >
                                     <X size={15} />
                                     ไม่อนุมัติ
@@ -507,12 +489,13 @@ export default function ApplicationsPage() {
                               {application.status !==
                                 "pending" && (
                                 <button
+                                  disabled={updatingId === application.id}
                                   onClick={() =>
                                     cancelDecision(
                                       application.id
                                     )
                                   }
-                                  className="flex h-9 items-center gap-1.5 rounded-lg border border-[#DDD9E8] bg-white px-3 text-xs font-semibold text-[#6B667B] hover:border-[#7678ED] hover:bg-[#F4F3FC] hover:text-[#3D348B]"
+                                  className="flex h-9 items-center gap-1.5 rounded-lg border border-[#DDD9E8] bg-white px-3 text-xs font-semibold text-[#6B667B] hover:border-[#7678ED] hover:bg-[#F4F3FC] hover:text-[#3D348B] disabled:cursor-wait disabled:opacity-50"
                                 >
                                   <RotateCcw size={15} />
                                   ยกเลิก
@@ -661,7 +644,7 @@ export default function ApplicationsPage() {
 
               <div>
                 <p className="mb-2 text-xs font-bold text-[#403C52]">
-                  เหตุผลที่เลือกสถานที่ฝึกงาน
+                  หมายเหตุการพิจารณา
                 </p>
 
                 <div className="rounded-xl bg-[#FAF9FC] p-4 text-sm leading-6 text-[#696579]">
@@ -705,24 +688,26 @@ export default function ApplicationsPage() {
                 "pending" && (
                 <>
                   <button
+                    disabled={updatingId === selectedApplication.id}
                     onClick={() =>
                       rejectApplication(
                         selectedApplication.id
                       )
                     }
-                    className="flex items-center justify-center gap-2 rounded-xl bg-[#E94B4B] px-5 py-3 text-sm font-semibold text-white"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-[#E94B4B] px-5 py-3 text-sm font-semibold text-white disabled:cursor-wait disabled:opacity-50"
                   >
                     <X size={17} />
                     ไม่อนุมัติ
                   </button>
 
                   <button
+                    disabled={updatingId === selectedApplication.id}
                     onClick={() =>
                       approveApplication(
                         selectedApplication.id
                       )
                     }
-                    className="flex items-center justify-center gap-2 rounded-xl bg-[#159447] px-5 py-3 text-sm font-semibold text-white"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-[#159447] px-5 py-3 text-sm font-semibold text-white disabled:cursor-wait disabled:opacity-50"
                   >
                     <Check size={17} />
                     อนุมัติ
@@ -733,12 +718,13 @@ export default function ApplicationsPage() {
               {selectedApplication.status !==
                 "pending" && (
                 <button
+                  disabled={updatingId === selectedApplication.id}
                   onClick={() =>
                     cancelDecision(
                       selectedApplication.id
                     )
                   }
-                  className="flex items-center justify-center gap-2 rounded-xl bg-[#3D348B] px-5 py-3 text-sm font-semibold text-white"
+                  className="flex items-center justify-center gap-2 rounded-xl bg-[#3D348B] px-5 py-3 text-sm font-semibold text-white disabled:cursor-wait disabled:opacity-50"
                 >
                   <RotateCcw size={17} />
                   ยกเลิกการพิจารณา

@@ -24,18 +24,23 @@ interface InternshipRecordInfo {
   companyName: string | null;
   position: string | null;
   status: string | null;
-  evidenceFiles: string[]; // เก็บเป็น public URL เต็มๆ
+  evidenceFiles: { name: string; url: string }[];
 }
 
-// ดึงชื่อไฟล์ที่อ่านง่ายออกมาจาก public URL
-function fileNameFromUrl(url: string) {
+function fileNameFromPath(path: string) {
   try {
-    const parts = url.split("/");
+    const parts = path.split("/");
     const last = parts[parts.length - 1];
     return decodeURIComponent(last.replace(/^\d+_/, ""));
   } catch {
-    return url;
+    return path;
   }
+}
+
+function normalizeStoragePath(value: string, bucket: string) {
+  const marker = `/storage/v1/object/public/${bucket}/`;
+  const markerIndex = value.indexOf(marker);
+  return markerIndex >= 0 ? decodeURIComponent(value.slice(markerIndex + marker.length)) : value;
 }
 
 const recordStatusCopy: Record<string, { label: string; className: string }> = {
@@ -72,31 +77,26 @@ export default function StudentProgress({ student, embedded = false }: { student
   async function fetchWeeklyDataFromSupabase() {
     setLoading(true);
     try {
-      // ดึงข้อมูลจริงจากตาราง progress_updates ของนักศึกษานี้
       const { data: updates, error } = await supabase
-        .from("progress_updates")
-        .select("*")
+        .from("weekly_logs")
+        .select("id, week, title, content, submitted_at, status, advisor_comment")
         .eq("student_id", student.id)
-        .order("created_at", { ascending: false });
+        .order("week", { ascending: false });
 
       if (error) throw error;
 
       if (updates && updates.length > 0) {
-        const mappedRecords: WeeklyRecord[] = updates.map((u: any, index: number) => {
-          // ดึงหมายเลขสัปดาห์จากข้อความโน้ต เช่น [สัปดาห์ที่ 8] หรือใช้ค่ารัน
-          const weekMatch = u.note?.match(/\[สัปดาห์ที่\s*(\d+)\]/);
-          const weekNum = weekMatch ? parseInt(weekMatch[1], 10) : u.week_number || index + 1;
-
-          return {
-            id: u.id,
-            week: weekNum,
-            title: u.title || u.note.split(":")[0]?.replace(/\[.*?\]/, "").trim() || `บันทึกการปฏิบัติงานสัปดาห์ที่ ${weekNum}`,
-            content: u.content || u.note,
-            date: new Date(u.created_at || Date.now()).toLocaleDateString("th-TH", { year: 'numeric', month: 'short', day: 'numeric' }),
-            status: (u.status === "approved" ? "approved" : "pending") as WeeklyRecord["status"],
-            comment: u.advisor_feedback || u.comment,
-          };
-        });
+        const mappedRecords: WeeklyRecord[] = updates.map((u) => ({
+          id: u.id,
+          week: u.week,
+          title: u.title || `บันทึกการปฏิบัติงานสัปดาห์ที่ ${u.week}`,
+          content: u.content,
+          date: u.submitted_at
+            ? new Date(u.submitted_at).toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" })
+            : "ยังไม่ส่ง",
+          status: u.status as WeeklyRecord["status"],
+          comment: u.advisor_comment ?? undefined,
+        }));
 
         setRecords(mappedRecords);
       } else {
@@ -125,11 +125,21 @@ export default function StudentProgress({ student, embedded = false }: { student
       if (error) throw error;
 
       if (data) {
+        const evidenceFiles = await Promise.all(
+          ((data.evidence_files ?? []) as string[]).map(async (storedValue) => {
+            const path = normalizeStoragePath(storedValue, "internship-evidence");
+            const { data: signed } = await supabase.storage
+              .from("internship-evidence")
+              .createSignedUrl(path, 3600);
+            return { name: fileNameFromPath(path), url: signed?.signedUrl ?? "#" };
+          }),
+        );
+
         setRecordInfo({
           companyName: data.company_name ?? null,
           position: data.position ?? null,
           status: data.status ?? null,
-          evidenceFiles: data.evidence_files ?? [],
+          evidenceFiles,
         });
       } else {
         setRecordInfo(null);
@@ -159,13 +169,15 @@ export default function StudentProgress({ student, embedded = false }: { student
       
       // อัปเดตสถานะใน Supabase หากมี id
       if ((targetRecord as any)?.id) {
-        await supabase
-          .from("progress_updates")
+        const { error } = await supabase
+          .from("weekly_logs")
           .update({ 
             status: "approved", 
-            advisor_feedback: "ตรวจสอบและลงนามโดยอาจารย์ที่ปรึกษาเรียบร้อยแล้ว" 
+            advisor_comment: "ตรวจสอบและลงนามโดยอาจารย์ที่ปรึกษาเรียบร้อยแล้ว"
           })
           .eq("id", (targetRecord as any).id);
+
+        if (error) throw error;
       }
 
       const next = records.map((record) => 
@@ -253,16 +265,16 @@ export default function StudentProgress({ student, embedded = false }: { student
           <p className="text-xs text-slate-400">นักศึกษายังไม่ได้อัปโหลดไฟล์หลักฐานใดๆ</p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {recordInfo.evidenceFiles.map((url, idx) => (
+            {recordInfo.evidenceFiles.map((file, idx) => (
               <a
                 key={idx}
-                href={url}
+                href={file.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-700 hover:border-indigo-300 hover:bg-indigo-50 transition"
               >
                 <Icon name="file" size={14} />
-                {fileNameFromUrl(url)}
+                {file.name}
               </a>
             ))}
           </div>

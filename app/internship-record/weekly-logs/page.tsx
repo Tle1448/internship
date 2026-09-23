@@ -28,6 +28,16 @@ interface WeeklyLog {
   advisor_feedback?: string;
 }
 
+interface WeeklyLogRow {
+  id: string;
+  week: number;
+  title: string;
+  content: string;
+  status: 'pending' | 'approved' | 'revision' | 'upcoming';
+  submitted_at: string | null;
+  advisor_comment: string | null;
+}
+
 interface StudentProfile {
   name: string;
   studentId: string;
@@ -57,6 +67,7 @@ export default function StudentWeeklyLogsPage() {
 
   // ฟอร์มสำหรับเขียนบันทึกสัปดาห์ใหม่
   const [weekNumber, setWeekNumber] = useState<number>(1);
+  const [canSubmitWeeklyLog, setCanSubmitWeeklyLog] = useState(false);
   const [weekTitle, setWeekTitle] = useState('');
   const [weekContent, setWeekContent] = useState('');
 
@@ -71,6 +82,7 @@ export default function StudentWeeklyLogsPage() {
     setLoading(true);
     const userId = await getCurrentStudentId();
     if (!userId) {
+      setCanSubmitWeeklyLog(false);
       setLoading(false);
       return;
     }
@@ -96,46 +108,45 @@ export default function StudentWeeklyLogsPage() {
 
     setStudentInfo({
       name: profile?.full_name ?? 'ยังไม่ระบุชื่อ',
-      studentId: profile?.student_code ?? 'ยังไม่ระบุรหัสนศ.',
+      studentId: profile?.user_code ?? 'ยังไม่ระบุรหัสนศ.',
       major: [profile?.faculty, profile?.major].filter(Boolean).join(' • ') || 'ยังไม่ระบุสาขาวิชา',
       company: record?.company_name ?? 'ยังไม่ระบุบริษัท',
       position: record?.position ?? 'ยังไม่ระบุตำแหน่ง',
     });
 
-    // โหลดบันทึกที่เคยส่งไปแล้วจริงจาก progress_updates เพื่อคำนวณเลขสัปดาห์ถัดไป
+    // weekly_logs is the single source of truth for submitted and reviewed logs.
     if (record) {
-      const { data: pastUpdates } = await supabase
-        .from('progress_updates')
-        .select('*')
+      const { data: rows, error: logsError } = await supabase
+        .from('weekly_logs')
+        .select('id, week, title, content, status, submitted_at, advisor_comment')
         .eq('record_id', record.id)
-        .order('created_at', { ascending: false });
+        .order('week', { ascending: true });
 
-      if (pastUpdates && pastUpdates.length > 0) {
-        let maxWeek = 0;
-
-        const mapped: WeeklyLog[] = pastUpdates.map((u: any) => {
-          const weekMatch = u.note?.match(/\[สัปดาห์ที่\s*(\d+)\]/);
-          const weekNum = weekMatch ? parseInt(weekMatch[1], 10) : 0;
-          if (weekNum > maxWeek) maxWeek = weekNum;
-
-          const noteText = u.note?.replace(/^\[สัปดาห์ที่\s*\d+\]\s*/, '') ?? u.note ?? '';
-
-          return {
-            id: u.id,
-            week_number: weekNum,
-            title: noteText.split(':')[0]?.trim() || `บันทึกสัปดาห์ที่ ${weekNum}`,
-            content: noteText,
-            status: (u.status === 'approved' ? 'approved' : 'pending_review') as WeeklyLog['status'],
-            submitted_at: new Date(u.created_at || Date.now()).toLocaleString('th-TH'),
-            advisor_feedback: u.advisor_feedback,
-          };
-        });
-
-        setWeeklyLogs(mapped);
-        setWeekNumber(maxWeek + 1);
+      if (logsError) {
+        setErrorMessage(logsError.message);
       } else {
-        setWeekNumber(1);
+        const weeklyRows = (rows ?? []) as WeeklyLogRow[];
+        const submittedRows = weeklyRows.filter((row) => row.status !== 'upcoming');
+        const mapped: WeeklyLog[] = submittedRows.map((row) => ({
+          id: row.id,
+          week_number: row.week,
+          title: row.title || `บันทึกสัปดาห์ที่ ${row.week}`,
+          content: row.content,
+          status: row.status === 'approved' ? 'approved' : 'pending_review',
+          submitted_at: row.submitted_at
+            ? new Date(row.submitted_at).toLocaleString('th-TH')
+            : undefined,
+          advisor_feedback: row.advisor_comment ?? undefined,
+        }));
+        const nextRow = weeklyRows.find((row) => row.status === 'upcoming');
+        const latestSubmittedWeek = submittedRows.reduce((latest, row) => Math.max(latest, row.week), 0);
+
+        setWeeklyLogs(mapped.reverse());
+        setWeekNumber(nextRow?.week ?? Math.min(latestSubmittedWeek + 1, 16));
+        setCanSubmitWeeklyLog(Boolean(nextRow) || latestSubmittedWeek < 16);
       }
+    } else {
+      setCanSubmitWeeklyLog(false);
     }
 
     setLoading(false);
@@ -152,25 +163,39 @@ export default function StudentWeeklyLogsPage() {
     setErrorMessage(null);
 
     try {
-      if (recordId && studentId) {
-        await supabase.from('progress_updates').insert({
-          record_id: recordId,
-          student_id: studentId,
-          note: `[สัปดาห์ที่ ${weekNumber}] ${weekTitle}: ${weekContent}`,
-        });
+      if (!recordId || !studentId || !canSubmitWeeklyLog) {
+        throw new Error('ยังไม่มีข้อมูลการฝึกงานสำหรับส่งบันทึกประจำสัปดาห์');
       }
 
+      const submittedAt = new Date().toISOString();
+      const { data: savedLog, error } = await supabase
+        .from('weekly_logs')
+        .upsert({
+          record_id: recordId,
+          student_id: studentId,
+          week: weekNumber,
+          title: weekTitle.trim(),
+          content: weekContent.trim(),
+          status: 'pending',
+          submitted_at: submittedAt,
+        }, { onConflict: 'record_id,week' })
+        .select('id')
+        .single();
+
+      if (error) throw error;
+
       const newLog: WeeklyLog = {
-        id: Date.now().toString(),
+        id: savedLog.id,
         week_number: weekNumber,
-        title: weekTitle,
-        content: weekContent,
+        title: weekTitle.trim(),
+        content: weekContent.trim(),
         status: 'pending_review',
-        submitted_at: 'เมื่อสักครู่นี้',
+        submitted_at: new Date(submittedAt).toLocaleString('th-TH'),
       };
 
       setWeeklyLogs([newLog, ...weeklyLogs]);
-      setWeekNumber((prev) => prev + 1);
+      setWeekNumber((prev) => Math.min(prev + 1, 16));
+      setCanSubmitWeeklyLog(weekNumber < 16);
       setWeekTitle('');
       setWeekContent('');
       setIsModalOpen(false);
@@ -210,7 +235,8 @@ export default function StudentWeeklyLogsPage() {
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2 bg-indigo-900 hover:bg-indigo-800 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-md transition-all"
+            disabled={!canSubmitWeeklyLog}
+            className="px-4 py-2 bg-indigo-900 hover:bg-indigo-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-md transition-all"
           >
             <Plus className="w-4 h-4" />
             <span>เพิ่มบันทึกประจำสัปดาห์</span>
