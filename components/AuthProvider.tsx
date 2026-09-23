@@ -7,6 +7,12 @@ import { supabase } from "@/lib/supabase";
 type AuthContextValue = { user: SessionUser | null; loading: boolean; login: (userCode: string, password: string, remember: boolean) => Promise<SessionUser>; logout: () => Promise<void> };
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function isBrowserSession(value: unknown): value is { access_token: string; refresh_token: string } {
+  if (!value || typeof value !== "object") return false;
+  const session = value as Record<string, unknown>;
+  return typeof session.access_token === "string" && typeof session.refresh_token === "string";
+}
+
 export default function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,9 +72,14 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ userCode, password, remember }),
     });
     const data: unknown = await response.json();
-    const result = data as { user?: unknown; error?: string };
-    if (!response.ok || !isSessionUser(result.user)) {
+    const result = data as { user?: unknown; session?: unknown; error?: string };
+    if (!response.ok || !isSessionUser(result.user) || !isBrowserSession(result.session)) {
       throw new Error(result.error || "เข้าสู่ระบบไม่สำเร็จ");
+    }
+
+    const { error: sessionError } = await supabase.auth.setSession(result.session);
+    if (sessionError) {
+      throw new Error("ไม่สามารถยืนยัน session บนเบราว์เซอร์ได้");
     }
 
     const sessionUser = result.user;

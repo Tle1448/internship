@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import ConditerSidebar from "@/components/ConditerSidebar";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/AuthProvider";
 
 type ApplicationStatus =
   | "pending"
@@ -68,6 +69,7 @@ function formatDate(value: string | null | undefined) {
 }
 
 export default function ApplicationsPage() {
+  const { user } = useAuth();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState("");
@@ -191,12 +193,21 @@ export default function ApplicationsPage() {
   ).length;
 
   const updateApplicationStatus = async (id: string, status: ApplicationStatus) => {
+    if (!user) {
+      setPageError("กรุณาเข้าสู่ระบบใหม่");
+      return;
+    }
+
     setUpdatingId(id);
     setPageError("");
 
     const { error } = await supabase
       .from("job_applications")
-      .update({ status })
+      .update({
+        status,
+        reviewed_by: status === "pending" ? null : user.id,
+        reviewed_at: status === "pending" ? null : new Date().toISOString(),
+      })
       .eq("id", id);
 
     if (error) {

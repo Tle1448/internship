@@ -80,5 +80,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "ไม่พบข้อมูลผู้ใช้ กรุณาติดต่อผู้ดูแลระบบ" }, { status: 403 });
   }
 
-  return NextResponse.json({ user }, { headers: { "Cache-Control": "no-store" } });
+  if (!data.session) {
+    return NextResponse.json({ error: "ไม่สามารถสร้าง session ได้" }, { status: 503 });
+  }
+
+  return NextResponse.json(
+    {
+      user,
+      session: {
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      },
+    },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
