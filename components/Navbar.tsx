@@ -97,7 +97,7 @@ export default function Navbar() {
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("full_name, student_code")
+        .select("full_name, user_code")
         .eq("id", studentId)
         .maybeSingle();
 
@@ -108,7 +108,7 @@ export default function Navbar() {
         } else {
           setStudentProfile({
             name: data?.full_name ?? "",
-            code: data?.student_code ?? "",
+            code: data?.user_code ?? "",
           });
         }
       }

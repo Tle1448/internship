@@ -12,7 +12,7 @@ export async function sessionUserForAuthUser(
 ): Promise<SessionUser | null> {
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("full_name, student_code, role")
+    .select("full_name, user_code, role")
     .eq("id", authUser.id)
     .single();
 
@@ -20,7 +20,7 @@ export async function sessionUserForAuthUser(
 
   return {
     id: authUser.id,
-    username: profile.student_code || authUser.email || authUser.id,
+    userCode: profile.user_code || authUser.id,
     name: profile.full_name || authUser.email || "ผู้ใช้งาน",
     role: profile.role as UserRole,
   };

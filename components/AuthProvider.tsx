@@ -1,10 +1,10 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { type SessionUser, type UserRole } from "@/lib/auth/types";
+import { isSessionUser, type SessionUser, type UserRole } from "@/lib/auth/types";
 import { supabase } from "@/lib/supabase";
 
-type AuthContextValue = { user: SessionUser | null; loading: boolean; login: (username: string, password: string, remember: boolean) => Promise<SessionUser>; logout: () => Promise<void> };
+type AuthContextValue = { user: SessionUser | null; loading: boolean; login: (userCode: string, password: string, remember: boolean) => Promise<SessionUser>; logout: () => Promise<void> };
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export default function AuthProvider({ children }: { children: ReactNode }) {
@@ -14,7 +14,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const loadUser = useCallback(async (userId: string, email: string | undefined): Promise<SessionUser> => {
     const { data: profile, error } = await supabase
       .from("profiles")
-      .select("full_name, student_code, role")
+      .select("full_name, user_code, role")
       .eq("id", userId)
       .single();
 
@@ -27,7 +27,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
 
     return {
       id: userId,
-      username: profile.student_code || email || userId,
+      userCode: profile.user_code || email || userId,
       name: profile.full_name || email || "ผู้ใช้งาน",
       role: profile.role as UserRole,
     };
@@ -59,18 +59,19 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     return () => { window.clearTimeout(initialRefresh); authListener.subscription.unsubscribe(); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", onVisible); window.clearInterval(timer); };
   }, [refresh]);
 
-  async function login(username: string, password: string, remember: boolean) {
-    void remember;
-    const { data, error } = await supabase.auth.signInWithPassword({ email: username, password });
-    if (error || !data.user) throw new Error("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
-
-    let sessionUser: SessionUser;
-    try {
-      sessionUser = await loadUser(data.user.id, data.user.email);
-    } catch (profileError) {
-      await supabase.auth.signOut();
-      throw profileError;
+  async function login(userCode: string, password: string, remember: boolean) {
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userCode, password, remember }),
+    });
+    const data: unknown = await response.json();
+    const result = data as { user?: unknown; error?: string };
+    if (!response.ok || !isSessionUser(result.user)) {
+      throw new Error(result.error || "เข้าสู่ระบบไม่สำเร็จ");
     }
+
+    const sessionUser = result.user;
     revision.current++;
     setUser(sessionUser); setLoading(false);
     return sessionUser;

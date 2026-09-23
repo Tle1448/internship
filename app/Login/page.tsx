@@ -8,7 +8,7 @@ import { homeForRole } from "@/lib/auth/types";
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
-  const [username, setUsername] = useState("");
+  const [userCode, setUserCode] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [remember, setRemember] = useState(false);
@@ -20,11 +20,11 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const cleanUsername = username.trim().toLowerCase();
+    const cleanUserCode = userCode.trim().toUpperCase();
     const cleanPassword = password;
 
     // 1. ตรวจสอบว่ากรอกข้อมูลครบหรือไม่
-    if (!cleanUsername || !cleanPassword) {
+    if (!cleanUserCode || !cleanPassword) {
       setError("กรุณากรอกบัญชีผู้ใช้งานและรหัสผ่านให้ครบถ้วน");
       return;
     }
@@ -33,7 +33,7 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      const user = await login(cleanUsername, cleanPassword, remember);
+      const user = await login(cleanUserCode, cleanPassword, remember);
       router.replace(homeForRole(user.role));
       router.refresh();
     } catch (loginError) {
@@ -100,13 +100,13 @@ export default function LoginPage() {
         {/* Form */}
         <form className="space-y-5" onSubmit={handleLogin}>
 
-          {/* Username Input */}
+          {/* User code input */}
           <div className="space-y-2">
             <label
-              htmlFor="username"
+              htmlFor="user-code"
               className="block text-sm font-semibold text-gray-700"
             >
-              อีเมล (Email){" "}
+              รหัสผู้ใช้งาน (User ID){" "}
               <span className="text-red-500">*</span>
             </label>
 
@@ -129,16 +129,17 @@ export default function LoginPage() {
 
               <input
                 type="text"
-                id="username"
-                value={username}
-                inputMode="email"
-                autoComplete="email"
+                id="user-code"
+                value={userCode}
+                inputMode="text"
+                autoComplete="username"
+                maxLength={9}
                 onChange={(e) => {
-                  setUsername(e.target.value);
+                  setUserCode(e.target.value);
                   if (error) setError("");
                 }}
                 className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-[#7678ED] focus:border-[#7678ED] sm:text-sm transition-colors outline-none"
-                placeholder="name@example.com"
+                placeholder="เช่น 64102105, ADV0001, ADM0001"
               />
             </div>
           </div>

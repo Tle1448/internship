@@ -162,13 +162,13 @@ export default function InternshipRecordPage() {
         {
           id: record.id,
           studentName: profile?.full_name ?? "-",
-          studentId: profile?.student_code ?? "-",
+          studentId: profile?.user_code ?? "-",
           major: [profile?.faculty, profile?.major].filter(Boolean).join(" • ") || "-",
           gpa: profile?.gpa ? `${profile.gpa} / 4.00` : "-",
           skills: record.skills ?? [],
           position: record.position ?? "ยังไม่ระบุตำแหน่ง",
           company: record.company_name ?? "ยังไม่ระบุบริษัท",
-          statusText: record.status ?? "in_progress",
+          statusText: record.progress_note ?? record.status ?? "in_progress",
           uploadedFiles: (record.evidence_files ?? []).map(fileNameFromUrl),
         },
       ]);
@@ -206,7 +206,7 @@ export default function InternshipRecordPage() {
         setRecordId(newRecord.id);
       }
 
-      const uploadedUrls: string[] = [];
+      const uploadedPaths: string[] = [];
 
       for (const file of Array.from(files)) {
         const filePath = `${studentId}/${Date.now()}_${file.name}`;
@@ -216,11 +216,7 @@ export default function InternshipRecordPage() {
 
         if (uploadError) throw uploadError;
 
-        const { data: publicUrlData } = supabase.storage
-          .from("internship-evidence")
-          .getPublicUrl(filePath);
-
-        uploadedUrls.push(publicUrlData.publicUrl);
+        uploadedPaths.push(filePath);
       }
 
       // ดึง evidence_files ปัจจุบันก่อน แล้วค่อย append (กันเคส record ถูกอัปเดตที่อื่นระหว่างนี้)
@@ -232,7 +228,7 @@ export default function InternshipRecordPage() {
 
       if (fetchError) throw fetchError;
 
-      const mergedFiles = [...(currentRecord?.evidence_files ?? []), ...uploadedUrls];
+      const mergedFiles = [...(currentRecord?.evidence_files ?? []), ...uploadedPaths];
 
       const { error: updateError } = await supabase
         .from("internship_records")
@@ -298,7 +294,7 @@ export default function InternshipRecordPage() {
   };
 
   // ---------------------------------------------------------------------
-  // บันทึกจริงลง internship_records.status + insert log ลง progress_updates
+  // บันทึกข้อความความคืบหน้าโดยไม่เขียนทับสถานะ workflow ของการฝึกงาน
   // -> จุดนี้คือจุดที่ฝั่ง advisor จะเห็นความเคลื่อนไหว
   // ---------------------------------------------------------------------
   const handleFinalSubmitAllUpdates = async () => {
@@ -311,7 +307,7 @@ export default function InternshipRecordPage() {
 
       const { error: updateError } = await supabase
         .from("internship_records")
-        .update({ status: app.statusText, updated_at: new Date().toISOString() })
+        .update({ progress_note: app.statusText, updated_at: new Date().toISOString() })
         .eq("id", recordId);
 
       if (updateError) throw updateError;

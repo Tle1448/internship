@@ -15,6 +15,14 @@ interface JobPosition {
   slots?: number;
 }
 
+interface CurrentApplication {
+  id: string;
+  job_id: string | null;
+  company_name: string;
+  job_title: string;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+}
+
 // ข้อมูลตัวอย่างสำหรับแสดงผล (Mock Data) หลายบริษัทเพื่อให้ดูสมจริง
 const MOCK_JOBS: JobPosition[] = [
   {
@@ -49,7 +57,7 @@ export default function SelectCompanyPage() {
   const [studentId, setStudentId] = useState<string | null>(null);
   const [jobs, setJobs] = useState<JobPosition[]>(MOCK_JOBS); // กำหนดค่าเริ่มต้นด้วย Mock Data ทันที
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [currentRecord, setCurrentRecord] = useState<any>(null);
+  const [currentApplication, setCurrentApplication] = useState<CurrentApplication | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -72,17 +80,19 @@ export default function SelectCompanyPage() {
         setJobs(jobList); // ถ้ามีข้อมูลใน DB ให้ใช้ข้อมูลจริง
       }
 
-      // เช็คข้อมูลการฝึกงานของนักศึกษาปัจจุบัน
-      const { data: record } = await supabase
-        .from('internship_records')
-        .select('*')
+      const { data: application } = await supabase
+        .from('job_applications')
+        .select('id, job_id, company_name, job_title, status')
         .eq('student_id', userId)
+        .in('status', ['pending', 'approved'])
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
-      if (record) {
-        setCurrentRecord(record);
-        if (record.job_id) {
-          setSelectedJobId(record.job_id);
+      if (application) {
+        setCurrentApplication(application as CurrentApplication);
+        if (application.job_id) {
+          setSelectedJobId(application.job_id);
         }
       }
     }
@@ -100,47 +110,44 @@ export default function SelectCompanyPage() {
       // ถ้าเป็นข้อมูลจำลอง (Mock) ให้บันทึกจำลองบนหน้าจอทันที
       if (job.id.startsWith('mock-')) {
         setSelectedJobId(job.id);
-        setCurrentRecord({
+        setCurrentApplication({
+          id: job.id,
+          job_id: job.id,
           company_name: job.company_name,
-          position: job.title,
+          job_title: job.title,
+          status: 'pending',
         });
-        setSuccessMessage(`ยืนยันการเลือกฝึกงานที่ "${job.company_name}" ตำแหน่ง "${job.title}" เรียบร้อยแล้ว!`);
+        setSuccessMessage(`ส่งใบสมัครที่ "${job.company_name}" ตำแหน่ง "${job.title}" แล้ว`);
         setTimeout(() => setSuccessMessage(null), 5000);
         setSubmitting(false);
         return;
       }
 
-      if (studentId && currentRecord) {
-        const { error } = await supabase
-          .from('internship_records')
-          .update({
-            company_name: job.company_name,
-            position: job.title,
-            job_id: job.id,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', currentRecord.id);
-
-        if (error) throw error;
-      } else if (studentId) {
-        const { data: newRecord, error } = await supabase
-          .from('internship_records')
-          .insert({
-            student_id: studentId,
-            company_name: job.company_name,
-            position: job.title,
-            job_id: job.id,
-            status: 'in_progress',
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        setCurrentRecord(newRecord);
+      if (!studentId) {
+        throw new Error('ไม่พบข้อมูลนักศึกษา กรุณาเข้าสู่ระบบใหม่');
       }
 
+      if (currentApplication?.job_id === job.id && currentApplication.status === 'pending') {
+        throw new Error('คุณส่งใบสมัครตำแหน่งนี้แล้ว และกำลังรอการพิจารณา');
+      }
+
+      const { data: newApplication, error } = await supabase
+          .from('job_applications')
+          .insert({
+            student_id: studentId,
+            job_id: job.id,
+            job_title: job.title,
+            company_name: job.company_name,
+            status: 'pending',
+          })
+          .select('id, job_id, company_name, job_title, status')
+          .single();
+
+      if (error) throw error;
+      setCurrentApplication(newApplication as CurrentApplication);
+
       setSelectedJobId(job.id);
-      setSuccessMessage(`ยืนยันการเลือกฝึกงานที่ "${job.company_name}" ตำแหน่ง "${job.title}" เรียบร้อยแล้ว!`);
+      setSuccessMessage(`ส่งใบสมัครที่ "${job.company_name}" ตำแหน่ง "${job.title}" เรียบร้อยแล้ว`);
       setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err: any) {
       setErrorMessage(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
@@ -184,14 +191,14 @@ export default function SelectCompanyPage() {
           </div>
         )}
 
-        {currentRecord?.company_name && (
+        {currentApplication?.company_name && (
           <div className="bg-indigo-900 text-white rounded-2xl p-5 shadow-md flex items-center justify-between">
             <div className="space-y-1">
               <span className="text-[11px] bg-indigo-800 text-indigo-200 px-2.5 py-0.5 rounded-full font-medium">
-                บริษัทที่คุณยืนยันสิทธิ์ฝึกงานปัจจุบัน ✓
+                {currentApplication.status === 'approved' ? 'ใบสมัครผ่านการอนุมัติ' : 'ใบสมัครกำลังรอพิจารณา'}
               </span>
-              <h2 className="text-base font-bold">{currentRecord.company_name}</h2>
-              <p className="text-xs text-indigo-200">ตำแหน่ง: {currentRecord.position || 'ยังไม่ระบุตำแหน่ง'}</p>
+              <h2 className="text-base font-bold">{currentApplication.company_name}</h2>
+              <p className="text-xs text-indigo-200">ตำแหน่ง: {currentApplication.job_title || 'ยังไม่ระบุตำแหน่ง'}</p>
             </div>
             <Building2 className="w-10 h-10 text-indigo-300 opacity-80" />
           </div>
@@ -246,7 +253,7 @@ export default function SelectCompanyPage() {
                     }`}
                   >
                     {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                    <span>{isSelected ? 'บริษัทที่เลือกฝึกงาน' : 'เลือกยืนยันบริษัทนี้'}</span>
+                    <span>{isSelected ? 'ส่งใบสมัครแล้ว' : 'สมัครตำแหน่งนี้'}</span>
                   </button>
                 </div>
               </div>
