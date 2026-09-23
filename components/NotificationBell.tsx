@@ -33,7 +33,7 @@ interface NotificationItem {
 }
 
 interface NotificationBellProps {
-  role: "student" | "coordinator";
+  role: "student" | "coordinator" | "advisor";
 }
 
 // ---------- Component ----------
@@ -53,11 +53,11 @@ export default function NotificationBell({ role }: NotificationBellProps) {
     setLoading(true);
 
     try {
-      if (role === "coordinator") {
+      if (role === "coordinator" || role === "advisor") {
         const { data, error } = await supabase
           .from("notifications")
           .select("*")
-          .eq("recipient_type", "coordinator")
+          .eq("recipient_type", role)
           .order("created_at", { ascending: false })
           .limit(30);
 
