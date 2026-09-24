@@ -6,6 +6,7 @@ import {
   Building2,
   BriefcaseBusiness,
   ClipboardCheck,
+  FileClock,
   LogOut,
   Users,
 } from "lucide-react";
@@ -31,6 +32,11 @@ export default function ConditerSidebar() {
       label: "ยื่นคำร้องขออนุมัติ",
       href: "/conditer/applications",
       icon: ClipboardCheck,
+    },
+    {
+      label: "อัปเดตเอกสารและความคืบหน้าการสมัคร",
+      href: "/conditer/progress",
+      icon: FileClock,
     },
   ];
 
@@ -129,13 +135,7 @@ export default function ConditerSidebar() {
         </div>
 
         {/* Logout */}
-        <button
-          onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-xl border border-[#E7E4EF] bg-white px-4 py-3 text-xs font-semibold text-[#6C687B] transition hover:border-[#E94B4B] hover:bg-[#FFF6F6] hover:text-[#E94B4B]"
-        >
-          <LogOut size={17} />
-          ออกจากระบบ
-        </button>
+        
       </div>
     </aside>
   );
