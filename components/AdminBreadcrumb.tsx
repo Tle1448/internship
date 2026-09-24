@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 type AdminBreadcrumbProps = {
   current?: string;
@@ -14,13 +17,15 @@ function HomeIcon() {
 }
 
 export default function AdminBreadcrumb({ current, isRoot = false }: AdminBreadcrumbProps) {
+  const router = useRouter();
+  const [parent, detail] = current?.split(" › ") ?? [];
   return (
     <nav aria-label="ตำแหน่งหน้าปัจจุบัน" className="flex items-center gap-3 text-sm text-[#77758D]">
       <Link href="/admin/dashboard" aria-label="ภาพรวมระบบ" className="rounded text-[#9290A4] transition hover:text-[#3D348B] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3D348B]">
         <HomeIcon />
       </Link>
       {isRoot ? <span className="font-semibold text-[#3D348B]" aria-current="page">ภาพรวมระบบ</span> : <Link href="/admin/dashboard" className="transition hover:text-[#3D348B]">ภาพรวมระบบ</Link>}
-      {current && <><span aria-hidden="true" className="text-[#AAA8B7]">›</span><span className="font-semibold text-[#3D348B]" aria-current="page">{current}</span></>}
+      {current && <>{parent && detail ? <><span aria-hidden="true" className="text-[#AAA8B7]">›</span><button type="button" onClick={() => router.push("/admin/student?view=list")} className="text-[#77758D] transition hover:text-[#3D348B]">{parent}</button><span aria-hidden="true" className="text-[#AAA8B7]">›</span><span className="font-semibold text-[#3D348B]" aria-current="page">{detail}</span></> : <><span aria-hidden="true" className="text-[#AAA8B7]">›</span><span className="font-semibold text-[#3D348B]" aria-current="page">{current}</span></>}</>}
     </nav>
   );
 }

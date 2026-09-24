@@ -103,7 +103,7 @@ export default function UsersPage() {
     <div lang="th" className="min-h-screen bg-[#F8F9FA] text-black md:flex">
       <AdminSidebar active="users" />
 
-      <div className="min-w-0 flex-1 md:ml-[260px]">
+      <div className="min-w-0 flex-1 md:ml-[285px]">
         <header className="px-5 py-6 lg:px-10">
           <AdminBreadcrumb current="จัดการผู้ใช้งาน" />
           <h1 className="mt-5 text-2xl font-bold lg:text-[30px]">จัดการผู้ใช้งาน</h1>
