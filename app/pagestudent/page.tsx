@@ -71,6 +71,7 @@ interface ProfileData {
   skills: string[];
   resumeName: string;
   resumeUrl: string | null;
+  avatarUrl: string | null;
 }
 
 const EMPTY_PROFILE: ProfileData = {
@@ -85,12 +86,20 @@ const EMPTY_PROFILE: ProfileData = {
   skills: [],
   resumeName: '',
   resumeUrl: null,
+  avatarUrl: null,
 };
 
 export default function StudentDashboard() {
   const router = useRouter();
 
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+
+  // =========================================================
+  // Search & Filters
+  // =========================================================
+  const [searchQuery, setSearchQuery] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState('all');
 
   const [profileData, setProfileData] =
     useState<ProfileData>(EMPTY_PROFILE);
@@ -112,6 +121,13 @@ export default function StudentDashboard() {
 
   const [resumeFile, setResumeFile] =
     useState<File | null>(null);
+
+
+  const [studentPhotoPreview, setStudentPhotoPreview] =
+    useState<string | null>(null);
+
+  const [studentPhotoUploading, setStudentPhotoUploading] =
+    useState(false);
 
   const [saving, setSaving] =
     useState(false);
@@ -205,6 +221,17 @@ export default function StudentDashboard() {
         );
       }
 
+      let avatarUrl = profile?.avatar_url ?? null;
+
+      if (avatarUrl) {
+        const { data: avatarData } =
+          await supabase.storage
+            .from('resumes')
+            .createSignedUrl(avatarUrl, 60 * 60 * 24 * 7);
+
+        avatarUrl = avatarData?.signedUrl ?? null;
+      }
+
       const loaded: ProfileData = {
         id: userId,
         name: profile?.full_name ?? '',
@@ -222,6 +249,7 @@ export default function StudentDashboard() {
           profile?.resume_name ?? '',
         resumeUrl:
           profile?.resume_url ?? null,
+        avatarUrl,
       };
 
       setProfileData(loaded);
@@ -246,6 +274,7 @@ export default function StudentDashboard() {
 
     setNewSkillInput('');
     setResumeFile(null);
+    setStudentPhotoPreview(profileData.avatarUrl ?? null);
     setSaveError(null);
 
     setIsEditProfileOpen(true);
@@ -485,6 +514,106 @@ export default function StudentDashboard() {
   };
 
   // =========================================================
+  // อัปโหลดรูปนักศึกษาและอัปเดตหน้าเว็บทันที
+  // =========================================================
+
+  const handleStudentPhotoChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setSaveError('กรุณาเลือกไฟล์รูปภาพเท่านั้น');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setSaveError('ขนาดรูปต้องไม่เกิน 5MB');
+      return;
+    }
+
+    setSaveError(null);
+    setStudentPhotoUploading(true);
+
+    try {
+      // แสดงรูปใหม่ทันทีบนหน้าเว็บก่อน ไม่ต้องรอการบันทึกข้อมูลอื่น
+      const localPreview = URL.createObjectURL(file);
+      setStudentPhotoPreview(localPreview);
+      setProfileData((prev) => ({
+        ...prev,
+        avatarUrl: localPreview,
+      }));
+      setTempProfile((prev) => ({
+        ...prev,
+        avatarUrl: localPreview,
+      }));
+
+      // ใช้ bucket เดิมที่โปรเจกต์มีอยู่แล้ว เพื่อไม่กระทบโค้ด Supabase เดิม
+      const filePath =
+        `${profileData.id}/avatar_${Date.now()}_${file.name}`;
+
+      const { error: uploadError } =
+        await supabase.storage
+          .from('resumes')
+          .upload(filePath, file, {
+            upsert: true,
+          });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data: signedData, error: signedError } =
+        await supabase.storage
+          .from('resumes')
+          .createSignedUrl(filePath, 60 * 60 * 24 * 7);
+
+      if (signedError || !signedData?.signedUrl) {
+        throw signedError || new Error('สร้าง URL รูปภาพไม่สำเร็จ');
+      }
+
+      // อัปเดตรูปที่แสดงจริงเป็น URL จาก Supabase หลังอัปโหลดสำเร็จ
+      setStudentPhotoPreview(signedData.signedUrl);
+      setProfileData((prev) => ({
+        ...prev,
+        avatarUrl: signedData.signedUrl,
+      }));
+      setTempProfile((prev) => ({
+        ...prev,
+        avatarUrl: signedData.signedUrl,
+      }));
+
+      // บันทึก path ของรูปไว้ใน profiles เพื่อให้รูปยังอยู่หลัง refresh
+      // ถ้าในตาราง profiles มีคอลัมน์ avatar_url อยู่
+      const { error: avatarDbError } =
+        await supabase
+          .from('profiles')
+          .update({
+            avatar_url: filePath,
+          })
+          .eq('id', profileData.id);
+
+      if (avatarDbError) {
+        console.warn(
+          'บันทึก path รูปลง profiles ไม่สำเร็จ แต่รูปยังแสดงบนเว็บแล้ว:',
+          avatarDbError
+        );
+      }
+    } catch (err: any) {
+      console.error('อัปโหลดรูปนักศึกษาไม่สำเร็จ:', err);
+      setSaveError(
+        err?.message || 'อัปโหลดรูปนักศึกษาไม่สำเร็จ'
+      );
+    } finally {
+      setStudentPhotoUploading(false);
+    }
+  };
+
+  // =========================================================
   // เปลี่ยนไฟล์ผลการศึกษา
   // =========================================================
 
@@ -661,7 +790,7 @@ export default function StudentDashboard() {
 
   const jobs: Job[] = [
     {
-      id: 'scb-techx',
+      id: '11111111-1111-1111-1111-111111111111',
       title:
         'Software Engineer Intern (Frontend / Fullstack - Co-op 2025)',
       company:
@@ -723,7 +852,7 @@ export default function StudentDashboard() {
     },
 
     {
-      id: 'line-man',
+      id: '22222222-2222-2222-2222-222222222222',
       title:
         'Full-Stack Developer Intern',
       company:
@@ -779,7 +908,7 @@ export default function StudentDashboard() {
     },
 
     {
-      id: 'kbtg',
+      id: '33333333-3333-3333-3333-333333333333',
       title:
         'Associate UI/UX Designer (Intern)',
       company:
@@ -834,7 +963,7 @@ export default function StudentDashboard() {
     },
 
     {
-      id: 'agoda',
+      id: '44444444-4444-4444-4444-444444444444',
       title:
         'Associate Frontend Engineer',
       company:
@@ -889,7 +1018,7 @@ export default function StudentDashboard() {
     },
 
     {
-      id: 'ais',
+      id: '55555555-5555-5555-5555-555555555555',
       title:
         'Data Engineer & Platform Intern',
       company:
@@ -944,7 +1073,7 @@ export default function StudentDashboard() {
     },
 
     {
-      id: 'garena',
+      id: '66666666-6666-6666-6666-666666666666',
       title:
         'Backend Engineer Intern (Cloud)',
       company:
@@ -1000,6 +1129,161 @@ export default function StudentDashboard() {
   ];
 
   // =========================================================
+  // Search & Filter Logic
+  // =========================================================
+
+  const normalizeSearch = (value: string) =>
+    value.trim().toLowerCase();
+
+  const searchText = normalizeSearch(appliedSearch);
+
+  // จัดอันดับผลค้นหาให้คำที่ตรงกับคำค้นขึ้นก่อน
+  // เช่น ค้นหา "A" งานที่ชื่อขึ้นต้นด้วย A จะอยู่บนสุด
+  const getSearchScore = (job: Job, query: string) => {
+    if (!query) return 0;
+
+    const title = normalizeSearch(job.title);
+    const company = normalizeSearch(job.company);
+    const tags = job.tags.map((tag) => normalizeSearch(tag));
+    const location = normalizeSearch(job.location);
+
+    if (title.startsWith(query)) return 100;
+    if (company.startsWith(query)) return 90;
+    if (tags.some((tag) => tag.startsWith(query))) return 80;
+    if (location.startsWith(query)) return 70;
+    if (title.includes(query)) return 60;
+    if (company.includes(query)) return 50;
+    if (tags.some((tag) => tag.includes(query))) return 40;
+    if (location.includes(query)) return 30;
+
+    return 10;
+  };
+
+  const filteredJobs = jobs.filter((job) => {
+    const searchableText = [
+      job.title,
+      job.company,
+      job.location,
+      job.workType,
+      job.salary,
+      ...job.tags,
+      ...job.responsibilities,
+      ...job.qualifications,
+      ...job.perks,
+    ]
+      .join(' ')
+      .toLowerCase();
+
+    const matchesSearch =
+      !searchText || searchableText.includes(searchText);
+
+    const matchesFilter =
+      activeFilter === 'all' ||
+      (activeFilter === 'software' &&
+        [
+          'software',
+          'developer',
+          'engineer',
+          'frontend',
+          'backend',
+          'full-stack',
+          'fullstack',
+          'react',
+          'node',
+          'typescript',
+          'next.js',
+          'golang',
+          'cloud',
+        ].some((keyword) =>
+          searchableText.includes(keyword)
+        )) ||
+      (activeFilter === 'uiux' &&
+        [
+          'ui/ux',
+          'designer',
+          'design',
+          'figma',
+          'user research',
+          'design system',
+          'product design',
+        ].some((keyword) =>
+          searchableText.includes(keyword)
+        )) ||
+      (activeFilter === 'data' &&
+        [
+          'data',
+          'python',
+          'kafka',
+          'postgresql',
+          'ai',
+          'machine learning',
+        ].some((keyword) =>
+          searchableText.includes(keyword)
+        )) ||
+      (activeFilter === 'allowance' &&
+        job.salary.trim() !== '');
+
+    return matchesSearch && matchesFilter;
+  });
+
+  const sortedFilteredJobs = [...filteredJobs].sort((a, b) => {
+    if (!searchText) return 0;
+
+    const scoreDiff =
+      getSearchScore(b, searchText) -
+      getSearchScore(a, searchText);
+
+    if (scoreDiff !== 0) return scoreDiff;
+
+    return a.title.localeCompare(b.title, 'en', {
+      sensitivity: 'base',
+    });
+  });
+
+  // แนะนำชื่อตำแหน่ง/บริษัททันทีที่เริ่มพิมพ์
+  const searchSuggestions = searchQuery.trim()
+    ? jobs
+        .filter((job) => {
+          const query = normalizeSearch(searchQuery);
+
+          return (
+            job.title.toLowerCase().includes(query) ||
+            job.company.toLowerCase().includes(query) ||
+            job.tags.some((tag) =>
+              tag.toLowerCase().includes(query)
+            ) ||
+            job.location.toLowerCase().includes(query)
+          );
+        })
+        .sort((a, b) => {
+          const scoreDiff =
+            getSearchScore(b, normalizeSearch(searchQuery)) -
+            getSearchScore(a, normalizeSearch(searchQuery));
+
+          if (scoreDiff !== 0) return scoreDiff;
+
+          return a.title.localeCompare(b.title, 'en', {
+            sensitivity: 'base',
+          });
+        })
+        .slice(0, 6)
+    : [];
+
+  const handleSearch = () => {
+    setAppliedSearch(searchQuery);
+  };
+
+  const handleFilterClick = (filter: string) => {
+    setActiveFilter(filter);
+    setAppliedSearch(searchQuery);
+  };
+
+  const handleSuggestionClick = (job: Job) => {
+    setSearchQuery(job.title);
+    setAppliedSearch(job.title);
+  };
+
+  // =========================================================
   // Loading
   // =========================================================
 
@@ -1036,7 +1320,15 @@ export default function StudentDashboard() {
 
                 <div className="w-20 h-20 rounded-full bg-slate-200 overflow-hidden border-2 border-indigo-900 flex items-center justify-center">
 
-                  <User className="w-12 h-12 text-slate-400" />
+                  {profileData.avatarUrl ? (
+                    <img
+                      src={profileData.avatarUrl}
+                      alt="รูปนักศึกษา"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-12 h-12 text-slate-400" />
+                  )}
 
                 </div>
 
@@ -1176,144 +1468,166 @@ export default function StudentDashboard() {
                 ค้นหาตำแหน่งงาน & องค์กรพันธมิตรสหกิจศึกษา
               </h2>
 
-              <p className="text-xs text-slate-500">
-                ระบบคัดสรรงานที่เหมาะสมกับทักษะของคุณ
-                (AI Skill Matching)
-              </p>
+              
 
             </div>
-
-            <span className="text-xs text-slate-500">
-              ตำแหน่งงานเปิดรับ:
-
-              <strong className="text-indigo-900">
-                {' '}142
-              </strong>{' '}
-              ตำแหน่ง
-            </span>
 
           </div>
 
           {/* Search */}
 
-          <div className="flex gap-2">
+          <div className="relative">
+            <div className="flex gap-2">
 
-            <div className="relative flex-1">
+              <div className="relative flex-1">
 
-              <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
 
-              <input
-                type="text"
-                placeholder="ค้นหาตามตำแหน่งงาน, ชื่อบริษัท, คำค้น เช่น React, Node.js หรือสถานที่ เช่น กรุงเทพฯ, เชียงใหม่..."
-                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setAppliedSearch(e.target.value);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearch();
+                    }
+                  }}
+                  placeholder="ค้นหาตามตำแหน่งงาน, ชื่อบริษัท, คำค้น เช่น React, Node.js หรือสถานที่ เช่น กรุงเทพฯ, เชียงใหม่..."
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSearch}
+                className="px-5 py-2 bg-indigo-900 text-white rounded-lg text-xs font-medium hover:bg-indigo-800 transition-colors"
+              >
+                ค้นหา
+              </button>
 
             </div>
 
-            <button className="px-5 py-2 bg-indigo-900 text-white rounded-lg text-xs font-medium hover:bg-indigo-800">
-              ค้นหา
-            </button>
+            {/* Search suggestions */}
+            {searchSuggestions.length > 0 && (
+              <div className="absolute left-0 right-16 top-full mt-1 z-30 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
 
-          </div>
+                {searchSuggestions.map((job) => (
+                  <button
+                    key={job.id}
+                    type="button"
+                    onClick={() =>
+                      handleSuggestionClick(job)
+                    }
+                    className="w-full text-left px-4 py-3 hover:bg-indigo-50 border-b last:border-b-0 border-slate-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
 
-          {/* Filters */}
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-slate-800 truncate">
+                          {job.title}
+                        </p>
 
-          <div className="flex flex-wrap gap-2 text-xs">
+                        <p className="text-[10px] text-slate-500 truncate">
+                          {job.company} • {job.location}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
 
-            <button className="px-3 py-1.5 bg-indigo-900 text-white rounded-full font-medium">
-              ตำแหน่งทั้งหมด
-            </button>
-
-            <button className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-full hover:bg-slate-50">
-              Software & Web Dev
-            </button>
-
-            <button className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-full hover:bg-slate-50">
-              UI/UX & Product Design
-            </button>
-
-            <button className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-full hover:bg-slate-50">
-              Data Engineering & AI
-            </button>
-
-            <button className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-full hover:bg-slate-50">
-              มีเบี้ยเลี้ยง
-            </button>
-
+              </div>
+            )}
           </div>
 
           {/* Jobs Cards */}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredJobs.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
-            {jobs.map((job) => (
-              <div
-                key={job.id}
-                onClick={() =>
-                  setSelectedJob(job)
-                }
-                className="bg-white p-4 rounded-xl border border-slate-200 hover:border-indigo-900 hover:shadow-md cursor-pointer transition-all flex flex-col justify-between group"
-              >
+              {sortedFilteredJobs.map((job) => (
+                <div
+                  key={job.id}
+                  onClick={() =>
+                    setSelectedJob(job)
+                  }
+                  className="bg-white p-4 rounded-xl border border-slate-200 hover:border-indigo-900 hover:shadow-md cursor-pointer transition-all flex flex-col justify-between group"
+                >
 
-                <div>
+                  <div>
 
-                  <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-start">
 
-                    <span className="inline-flex items-center text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full">
+                      <span className="inline-flex items-center text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full">
 
-                      <Sparkles className="w-3 h-3 mr-1" />
+                        <Sparkles className="w-3 h-3 mr-1" />
 
-                      ตรงกับทักษะ {job.match}
+                        ตรงกับทักษะ {job.match}
+
+                      </span>
+
+                    </div>
+
+                    <h3 className="font-bold text-sm text-slate-900 mt-2 line-clamp-1 group-hover:text-indigo-900 transition-colors">
+                      {job.title}
+                    </h3>
+
+                    <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
+                      {job.company}
+                    </p>
+
+                    <div className="flex flex-wrap gap-1 mt-3">
+
+                      {job.tags.map(
+                        (tag, idx) => (
+                          <span
+                            key={idx}
+                            className="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded"
+                          >
+                            {tag}
+                          </span>
+                        )
+                      )}
+
+                    </div>
+
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
+
+                    <span className="font-bold text-amber-600">
+                      {job.salary}
+                    </span>
+
+                    <span className="text-indigo-900 font-medium text-[11px] group-hover:translate-x-0.5 transition-transform flex items-center">
+
+                      ดูรายละเอียด
+
+                      <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
 
                     </span>
 
                   </div>
 
-                  <h3 className="font-bold text-sm text-slate-900 mt-2 line-clamp-1 group-hover:text-indigo-900 transition-colors">
-                    {job.title}
-                  </h3>
-
-                  <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
-                    {job.company}
-                  </p>
-
-                  <div className="flex flex-wrap gap-1 mt-3">
-
-                    {job.tags.map(
-                      (tag, idx) => (
-                        <span
-                          key={idx}
-                          className="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded"
-                        >
-                          {tag}
-                        </span>
-                      )
-                    )}
-
-                  </div>
-
                 </div>
+              ))}
 
-                <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
-
-                  <span className="font-bold text-amber-600">
-                    {job.salary}
-                  </span>
-
-                  <span className="text-indigo-900 font-medium text-[11px] group-hover:translate-x-0.5 transition-transform flex items-center">
-
-                    ดูรายละเอียด
-
-                    <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
-
-                  </span>
-
-                </div>
-
-              </div>
-            ))}
-
-          </div>
+            </div>
+          ) : (
+            <div className="bg-white border border-dashed border-slate-300 rounded-xl py-10 text-center">
+              <Search className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+              <p className="text-sm font-semibold text-slate-700">
+                ไม่พบตำแหน่งงาน
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                ลองเปลี่ยนคำค้นหรือเลือกตัวกรองอื่น
+              </p>
+            </div>
+          )}
 
         </section>
 
@@ -1394,6 +1708,55 @@ export default function StudentDashboard() {
                   {saveError}
                 </div>
               )}
+
+              {/* รูปนักศึกษา */}
+
+              <div className="pb-1">
+
+                <label className="block font-medium text-slate-700 mb-2">
+                  รูปนักศึกษา
+                </label>
+
+                <div className="flex items-center gap-4">
+
+                  <div className="w-20 h-20 rounded-full bg-slate-100 border-2 border-indigo-900 overflow-hidden flex items-center justify-center shrink-0">
+                    {studentPhotoPreview ? (
+                      <img
+                        src={studentPhotoPreview}
+                        alt="ตัวอย่างรูปนักศึกษา"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User className="w-9 h-9 text-slate-400" />
+                    )}
+                  </div>
+
+                  <div className="flex-1">
+                    <label className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-900 hover:bg-indigo-800 text-white rounded-lg cursor-pointer font-medium transition-colors">
+                      <Upload className="w-4 h-4" />
+                      <span>
+                        {studentPhotoUploading
+                          ? 'กำลังอัปโหลด...'
+                          : 'แนบรูปนักศึกษา'}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp"
+                        onChange={handleStudentPhotoChange}
+                        className="hidden"
+                        disabled={studentPhotoUploading || saving}
+                      />
+                    </label>
+
+                    <p className="text-[10px] text-slate-400 mt-1.5">
+                      รองรับ JPG, PNG, WEBP ขนาดไม่เกิน 5MB
+                    </p>
+
+                  </div>
+
+                </div>
+
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
