@@ -4,7 +4,6 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 
 export default function AdminDashboardActions() {
-  const [isCycleDialogOpen, setIsCycleDialogOpen] = useState(false);
   const [notice, setNotice] = useState("");
 
   function exportReport() {
@@ -17,10 +16,10 @@ export default function AdminDashboardActions() {
     setNotice("ดาวน์โหลดรายงานแล้ว");
   }
 
-  return <><div className="flex gap-3"><Link href="/admin/users" className="inline-flex h-10 items-center rounded-lg bg-[#3D348B] px-5 text-xs font-semibold text-white transition-colors hover:bg-[#7678ED]">+ เพิ่มผู้ใช้งาน</Link><button type="button" onClick={() => setIsCycleDialogOpen(true)} className="h-10 rounded-lg bg-[#F7B801] px-5 text-xs font-semibold text-black transition-colors hover:bg-[#E6A900]">ตั้งค่ารอบการสมัคร</button><button type="button" onClick={exportReport} className="h-10 rounded-lg border border-[#EAEAEA] bg-white px-5 text-xs font-semibold text-black transition-colors hover:bg-[#7678ED]/10">ส่งออกรายงาน</button></div>{notice && <div role="status" className="fixed bottom-5 right-5 z-50 rounded-lg bg-[#443B92] px-4 py-3 text-sm font-semibold text-white shadow-lg">{notice}<button type="button" onClick={() => setNotice("")} className="ml-3 text-white/80 hover:text-white" aria-label="ปิดข้อความ">×</button></div>}{isCycleDialogOpen && <ApplicationCycleDialog onClose={() => setIsCycleDialogOpen(false)} onSaved={(name) => { setIsCycleDialogOpen(false); setNotice(`บันทึกรอบสมัคร ${name} แล้ว`); }} />}</>;
+  return <><div className="flex gap-3"><Link href="/admin/users" className="inline-flex h-10 items-center rounded-lg bg-[#3D348B] px-5 text-xs font-semibold text-white transition-colors hover:bg-[#7678ED]">+ เพิ่มผู้ใช้งาน</Link><button type="button" onClick={() => document.getElementById("application-rounds")?.scrollIntoView({ behavior: "smooth", block: "center" })} className="h-10 rounded-lg bg-[#F7B801] px-5 text-xs font-semibold text-black transition-colors hover:bg-[#E6A900]">ตั้งค่ารอบการสมัคร</button><button type="button" onClick={exportReport} className="h-10 rounded-lg border border-[#EAEAEA] bg-white px-5 text-xs font-semibold text-black transition-colors hover:bg-[#7678ED]/10">ส่งออกรายงาน</button></div>{notice && <div role="status" className="fixed bottom-5 right-5 z-50 rounded-lg bg-[#443B92] px-4 py-3 text-sm font-semibold text-white shadow-lg">{notice}<button type="button" onClick={() => setNotice("")} className="ml-3 text-white/80 hover:text-white" aria-label="ปิดข้อความ">×</button></div>}</>;
 }
 
-function ApplicationCycleDialog({ onClose, onSaved }: { onClose: () => void; onSaved: (name: string) => void }) {
+export function ApplicationCycleDialog({ onClose, onSaved }: { onClose: () => void; onSaved: (name: string) => void }) {
   const [academicYear, setAcademicYear] = useState("2569");
   const [semester, setSemester] = useState("ภาคการศึกษาที่ 1");
   const [opensOn, setOpensOn] = useState("2026-10-01");

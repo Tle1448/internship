@@ -1,6 +1,7 @@
 ﻿import AdminSidebar from "@/components/AdminSidebar";
 import AdminBreadcrumb from "@/components/AdminBreadcrumb";
 import AdminDashboardActions from "@/components/AdminDashboardActions";
+import ApplicationRoundOverview from "@/components/ApplicationRoundOverview";
 import DeadlineOverview from "@/components/DeadlineOverview";
 import React from "react";
 import Link from "next/link";
@@ -12,7 +13,7 @@ export default function AdminDashboardPage() {
       <AdminSidebar active="dashboard" />
 
       {/* พื้นที่เนื้อหาหลัก */}
-      <div className="flex min-w-0 flex-grow flex-col md:ml-[260px]">
+      <div className="flex min-w-0 flex-grow flex-col md:ml-[285px]">
 
         {/* เนื้อหาหน้าภาพรวมระบบ */}
         <main className="flex max-w-[1440px] flex-col p-8">
@@ -160,31 +161,10 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            {/* กำหนดการรอบสมัคร */}
-            <div className="min-w-0 bg-white border border-[#EAEAEA] rounded-xl p-6">
-              <div className="mb-5">
-                <div className="text-base font-bold">
-                  📅 กำหนดการรอบสมัคร
-                </div>
-                <div className="text-xs text-black">
-                  กำหนดการเปิดรับสมัครตามเกณฑ์ C6
-                </div>
-              </div>
-              <div className="p-4 bg-white rounded-lg border border-[#EAEAEA]">
-                <div className="text-sm font-bold mb-2">
-                  รอบปัจจุบัน: ภาคการศึกษา 2/2569 รอบปกติ
-                </div>
-                <div className="text-xs text-black mb-3">
-                  วันเริ่มต้น: 1 พ.ย. 2569 — วันสิ้นสุด: 30 พ.ย. 2569
-                </div>
-                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#F7B801] text-black inline-block">
-                  เปิดรับสมัคร (เหลือเวลา 10 วัน)
-                </span>
-              </div>
-            </div>
+            <ApplicationRoundOverview />
           </div>
 
-          <section aria-labelledby="admin-actions-title" className="order-1 mb-8 grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+          <section aria-labelledby="admin-actions-title" className="order-1 mb-8 grid gap-5 lg:grid-cols-2">
             <div className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>

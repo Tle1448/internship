@@ -26,7 +26,7 @@ const blank: Draft = {
   color: "violet",
   sort_order: 0,
 };
-const terms = ["1/2569", "2/2569", "ฤดูร้อน/2569"],
+const defaultTerms = ["1/2569", "2/2569", "ฤดูร้อน/2569"],
   colors = {
     violet: "bg-[#514A88]",
     orange: "bg-[#E98E22]",
@@ -34,6 +34,7 @@ const terms = ["1/2569", "2/2569", "ฤดูร้อน/2569"],
   };
 export default function DeadlineOverview() {
   const [term, setTerm] = useState("2/2569"),
+    [availableTerms, setAvailableTerms] = useState(defaultTerms),
     [items, setItems] = useState<D[]>([]),
     [page, setPage] = useState(1),
     [selected, setSelected] = useState<D | null>(null),
@@ -41,14 +42,23 @@ export default function DeadlineOverview() {
     [editId, setEditId] = useState<string | null>(null),
     [saveError, setSaveError] = useState<string | null>(null);
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from("dashboard_deadlines")
-      .select(
-        "id,academic_term,audience,title,summary,detail,due_date,destination,color,sort_order",
-      )
-      .eq("academic_term", term)
-      .order("due_date");
+    const [{ data }, { data: termData }] = await Promise.all([
+      supabase
+        .from("dashboard_deadlines")
+        .select(
+          "id,academic_term,audience,title,summary,detail,due_date,destination,color,sort_order",
+        )
+        .eq("academic_term", term)
+        .order("due_date"),
+      supabase.from("dashboard_deadlines").select("academic_term"),
+    ]);
     setItems((data ?? []) as D[]);
+    setAvailableTerms([
+      ...new Set([
+        ...defaultTerms,
+        ...(termData ?? []).map((item) => item.academic_term),
+      ]),
+    ]);
   }, [term]);
   useEffect(() => {
     const t = window.setTimeout(() => void load(), 0);
@@ -91,7 +101,7 @@ export default function DeadlineOverview() {
     }
   };
   return (
-    <section className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm sm:p-6">
+    <section className="rounded-xl border border-[#EAEAEA] bg-white p-4 shadow-sm sm:p-5">
       <div className="flex justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold">กำหนดส่งที่ใกล้ถึง</h2>
@@ -104,7 +114,7 @@ export default function DeadlineOverview() {
                 setPage(1);
               }}
             >
-              {terms.map((x) => (
+              {availableTerms.map((x) => (
                 <option key={x}>{x}</option>
               ))}
             </select>
@@ -117,22 +127,29 @@ export default function DeadlineOverview() {
           + เพิ่มกำหนดส่ง
         </button>
       </div>
-      <ol className="mt-5 space-y-2">
+      <ol className="mt-3 space-y-1">
         {shown.map((x) => (
-          <li key={x.id} className="flex gap-3 rounded-lg p-2">
+          <li key={x.id} className="flex gap-3 rounded-lg px-2 py-1">
             <i className={`mt-2 size-2 rounded-full ${colors[x.color]}`} />
-            <div className="flex-1">
-              <button onClick={() => setSelected(x)} className="text-left">
-                <span className="mr-2 rounded-full border px-2 py-0.5 text-[10px]">
+            <button
+              onClick={() => setSelected(x)}
+              className="group flex-1 rounded-lg px-1 py-0.5 text-left outline-none transition hover:bg-[#F1F0FF] focus-visible:ring-2 focus-visible:ring-[#7678ED]"
+              aria-label={`ดูหรือแก้ไข ${x.title}`}
+            >
+              <span className="flex items-center gap-2">
+                <span className="rounded-full border px-2 py-0.5 text-[10px]">
                   {x.audience}
                 </span>
                 <b>{x.title}</b>
-              </button>
-              <p className="mt-1 text-xs text-[#555]">{x.summary}</p>
-              <p className="text-xs text-[#555]">
+                <span className="ml-auto text-xs font-medium text-[#3D348B] opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
+                  ✎ คลิกเพื่อดู/แก้ไข
+                </span>
+              </span>
+              <span className="mt-0.5 block text-xs text-[#555]">{x.summary}</span>
+              <span className="block text-xs text-[#555]">
                 {new Date(`${x.due_date}T00:00:00`).toLocaleDateString("th-TH")}
-              </p>
-            </div>
+              </span>
+            </button>
             <Link href={x.destination}>›</Link>
           </li>
         ))}
