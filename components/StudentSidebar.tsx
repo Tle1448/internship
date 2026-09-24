@@ -6,7 +6,8 @@ import {
   LayoutDashboard, 
   FileText, 
   Bell,
-  Building2
+  Building2,
+  CalendarDays
 } from "lucide-react";
 
 interface MenuCategory {
@@ -40,6 +41,11 @@ export default function StudentSidebar() {
           label: "อัปเดต",
           href: "/internship-record",
           icon: <FileText className="w-5 h-5" />,
+        },
+        {
+          label: "นัดหมายนิเทศ",
+          href: "/supervision-appointments",
+          icon: <CalendarDays className="w-5 h-5" />,
         },
         {
           label: "แจ้งเตือน",

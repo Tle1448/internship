@@ -951,6 +951,84 @@ tr:hover {
   font-size: 13px;
   padding: 0 6px;
 }
+.appointment-feedback {
+  margin-top: 24px;
+  margin-bottom: -12px;
+}
+.appointment-modal {
+  width: min(650px,calc(100vw - 32px));
+  overflow-y: auto;
+}
+.appointment-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.appointment-form-error {
+  margin: -5px 0 0;
+  color: #b42318;
+  font-size: 12px;
+}
+.appointment-list {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+.appointment-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.appointment-list-heading h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.appointment-list-heading span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.appointment-list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.appointment-list article>div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.appointment-list article span,.appointment-list article small {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.appointment-list article>div:last-child {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.appointment-action {
+  border: 0;
+  background: transparent;
+  color: var(--violet);
+  padding: 7px;
+  font-weight: 600;
+}
+.appointment-action.danger {
+  color: #c83c3c;
+}
+.appointment-empty {
+  margin: 0;
+  padding: 24px 0 8px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 13px;
+}
 .checkbox-label {
   display: flex;
   gap: 9px;
@@ -1086,6 +1164,16 @@ tr:hover {
   }
 }
 @media(max-width:800px) {
+  .appointment-form-actions,.appointment-list article {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .appointment-form-actions .button {
+    justify-content: center;
+  }
+  .appointment-list article>div:last-child {
+    justify-content: flex-end;
+  }
   .topbar {
     height: 72px;
     padding: 0 16px;

@@ -22,7 +22,7 @@ export default function EvaluationForm({ student }: { student: Student }) {
   const [saving, setSaving] = useState(false);
   const total = useMemo(() => form.scores.reduce((sum, score) => sum + score, 0), [form.scores]);
   const load = useCallback(async () => {
-    const { data, error } = await supabase.from("evaluations").select("id, date, mode, topics, notes, scores, feedback").eq("record_id", student.recordId).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+    const { data, error } = await supabase.from("evaluations").select("id, date, mode, topics, notes, scores, feedback").eq("record_id", student.recordId).is("archived_at", null).order("updated_at", { ascending: false }).limit(1).maybeSingle();
     if (error) setMessage(error.message);
     else if (data) { setEvaluationId(data.id); setForm({ date: data.date, mode: data.mode as EvaluationFormState["mode"], topics: data.topics || initialForm.topics, notes: data.notes || "", scores: data.scores || initialForm.scores, feedback: data.feedback || "" }); }
   }, [student.recordId]);
@@ -36,10 +36,6 @@ export default function EvaluationForm({ student }: { student: Student }) {
     if (response.error) { setSaving(false); setMessage(response.error.message); return; }
     const id = evaluationId || ("data" in response && response.data ? response.data.id : null);
     if (id) setEvaluationId(id);
-    if (status === "submitted" && id) {
-      const history = await supabase.from("evaluation_history").insert({ evaluation_id: id, student_id: student.userId, advisor_id: user.id, total_score: total, grade: gradeFor(total) });
-      if (!history.error) await supabase.from("internship_records").update({ evaluation_status: "completed" }).eq("id", student.recordId);
-    }
     setSaving(false);
     setMessage(status === "draft" ? "Draft saved to Supabase." : "Evaluation submitted to Supabase.");
   }
