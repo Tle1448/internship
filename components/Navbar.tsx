@@ -189,8 +189,8 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Nav tabs (ซ่อนเมื่ออยู่หน้า Home, Admin, Advisor หรือหน้านักศึกษา) */}
-        {!isHomePage && !isAdmin && !isAdvisor && !isStudent && (
+        {/* Nav tabs (ซ่อนเมื่ออยู่หน้า Home, Admin, Advisor, Conditer หรือหน้านักศึกษา — ทุกหน้าพวกนี้มี sidebar ของตัวเองแล้ว) */}
+        {!isHomePage && !isAdmin && !isAdvisor && !isConditer && !isStudent && (
           <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
             {navItems.map((item) => {
               const active = pathname === item.href;
