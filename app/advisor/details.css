@@ -302,6 +302,12 @@
 .advisor-details .evaluation-footer { padding: 16px 20px; margin-top: 20px; border-color: #e2dff0; background: white; box-shadow: 0 5px 14px rgba(39, 32, 78, .08); }
 .advisor-details .evaluation-footer > span { font-weight: 600; }
 .advisor-details .save-feedback { display: inline-flex; align-items: center; gap: 6px; margin: 7px 0 0; color: #267047; font-size: 12px; font-weight: 600; }
+.advisor-details .supervision-save-button { min-width: 172px; }
+.advisor-details .supervision-cancel-button { min-width: 96px; min-height: 46px; }
+.advisor-details .supervision-save-button.is-saved { background: #18794e; border-color: #18794e; }
+.advisor-details .supervision-save-button.is-saved:hover { background: #14663f; }
+.advisor-details .button-spinner { width: 16px; height: 16px; border: 2px solid #ffffff66; border-top-color: white; border-radius: 50%; animation: advisor-button-spin .7s linear infinite; }
+@keyframes advisor-button-spin { to { transform: rotate(360deg); } }
 
 /* Advisor list pages reuse the existing detail shell while presenting many students first. */
 .advisor-details .advisor-list-page { width: 100%; max-width: none; }

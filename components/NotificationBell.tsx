@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getCurrentStudentId } from "@/lib/currentUser";
 
@@ -30,14 +31,28 @@ interface NotificationItem {
   is_read: boolean;
   created_at: string;
   application_id: string | null;
+  job_application_id: string | null;
+  supervision_appointment_id: string | null;
 }
 
 interface NotificationBellProps {
   role: "student" | "coordinator" | "advisor";
 }
 
+function notificationHref(item: NotificationItem, role: NotificationBellProps["role"]) {
+  if (item.supervision_appointment_id) return "/supervision-appointments";
+  if (role === "advisor") return "/advisor/students";
+  if (role === "coordinator") {
+    const placementNotice = item.title.includes("สถานที่ฝึกงาน") || item.title.includes("หลักฐาน") || item.title.includes("ยืนยัน");
+    return placementNotice ? "/conditer/placements" : "/conditer/applications";
+  }
+  if (item.application_id || item.job_application_id) return "/select-company";
+  return "/notifications";
+}
+
 // ---------- Component ----------
 export default function NotificationBell({ role }: NotificationBellProps) {
+  const router = useRouter();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -149,6 +164,12 @@ export default function NotificationBell({ role }: NotificationBellProps) {
     }
   };
 
+  const handleNotificationClick = async (item: NotificationItem) => {
+    if (!item.is_read) await handleMarkAsRead(item.id);
+    setIsOpen(false);
+    router.push(notificationHref(item, role));
+  };
+
   return (
     <div className="relative" ref={wrapperRef}>
       <button
@@ -187,13 +208,12 @@ export default function NotificationBell({ role }: NotificationBellProps) {
           ) : (
             <ul className="divide-y divide-slate-100">
               {items.map((n) => (
-                <li
-                  key={n.id}
-                  onClick={() => !n.is_read && handleMarkAsRead(n.id)}
-                  className={`px-4 py-3 text-xs cursor-pointer transition hover:bg-slate-50 ${
-                    !n.is_read ? "bg-indigo-50/40" : ""
-                  }`}
-                >
+                <li key={n.id}>
+                  <button
+                    type="button"
+                    onClick={() => void handleNotificationClick(n)}
+                    className={`w-full px-4 py-3 text-left text-xs cursor-pointer transition hover:bg-slate-50 ${!n.is_read ? "bg-indigo-50/40" : "bg-white"}`}
+                  >
                   <div className="flex items-start justify-between gap-2">
                     <p
                       className={`font-semibold ${
@@ -213,6 +233,7 @@ export default function NotificationBell({ role }: NotificationBellProps) {
                   <p className="text-[10px] text-slate-400 mt-1">
                     {new Date(n.created_at).toLocaleString("th-TH")}
                   </p>
+                  </button>
                 </li>
               ))}
             </ul>

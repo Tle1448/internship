@@ -87,6 +87,8 @@ export function useAdvisorStudents() {
       .from("internship_records")
       .select("id, student_id, company_name, position, province, project, current_week, progress_percent, placement_status, progress_health, supervision_status, evaluation_status")
       .eq("advisor_id", user.id)
+      .eq("placement_status", "approved")
+      .eq("status", "in_progress")
       .order("updated_at", { ascending: false });
     if (recordError) {
       setError(recordError.message);

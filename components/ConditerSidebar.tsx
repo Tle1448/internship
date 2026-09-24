@@ -8,6 +8,7 @@ import {
   ClipboardCheck,
   FileClock,
   LogOut,
+  UserRoundCheck,
   Users,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
@@ -29,9 +30,14 @@ export default function ConditerSidebar() {
       icon: BriefcaseBusiness,
     },
     {
-      label: "ยื่นคำร้องขออนุมัติ",
+      label: "ติดตามการสมัคร",
       href: "/conditer/applications",
       icon: ClipboardCheck,
+    },
+    {
+      label: "ยืนยันที่ฝึกงาน",
+      href: "/conditer/placements",
+      icon: UserRoundCheck,
     },
     {
       label: "อัปเดตเอกสารและความคืบหน้าการสมัคร",
