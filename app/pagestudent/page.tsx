@@ -816,48 +816,33 @@ export default function StudentDashboard() {
 
     try {
       const {
-        data: databaseJob,
-        error: jobError,
+        error,
       } = await supabase
-        .from('jobs')
-        .select('id, title, company_name')
-        .eq(
-          'title',
-          selectedJob.title
-        )
-        .eq(
-          'company_name',
-          selectedJob.company
-        )
-        .eq('status', 'open')
-        .is('archived_at', null)
-        .maybeSingle();
+        .from('job_applications')
+        .insert({
+          student_id:
+            profileData.id,
 
-      if (jobError) {
-        throw jobError;
-      }
+          job_id:
+            selectedJob.id,
 
-      if (!databaseJob) {
-        throw new Error(
-          'ประกาศนี้ยังไม่มีข้อมูลในระบบ กรุณาเลือกประกาศอื่นหรือติดต่อ Coordinator'
-        );
-      }
+          job_title:
+            selectedJob.title,
 
-      const {
-        error: insertError,
-      } = await supabase
-        .rpc('start_job_application', {
-          job_id: databaseJob.id,
-          external_submission_id: null,
+          company_name:
+            selectedJob.company,
+
+          status:
+            'pending',
         });
 
-      if (insertError) {
-        throw insertError;
+      if (error) {
+        throw error;
       }
 
       setSelectedJob(null);
 
-      router.push('/select-company');
+      router.push('/coordinator');
     } catch (err: any) {
       console.error(
         'สมัครงานไม่สำเร็จ:',
