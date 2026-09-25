@@ -30,7 +30,7 @@ export type Student = {
 type RecordRow = {
   id: string; student_id: string; company_name: string | null; position: string | null;
   province: string | null; project: string | null; current_week: number | null;
-  progress_percent: number | null; placement_status: PlacementStatus | null;
+  placement_status: PlacementStatus | null;
   progress_health: ProgressHealth | null; supervision_status: WorkflowStatus | null;
   evaluation_status: WorkflowStatus | null;
 };
@@ -62,7 +62,7 @@ function toStudent(record: RecordRow, profile: ProfileRow): Student {
     role: record.position || "-",
     major: profile.major || "-",
     currentWeek: record.current_week || 1,
-    progress: record.progress_percent ?? 0,
+    progress: 0,
     placementStatus: record.placement_status || "pending",
     progressHealth: record.progress_health || "on_track",
     supervisionStatus: record.supervision_status || "pending",
@@ -87,7 +87,7 @@ export function useAdvisorStudents() {
     setLoading(true);
     const { data: records, error: recordError } = await supabase
       .from("internship_records")
-      .select("id, student_id, company_name, position, province, project, current_week, progress_percent, placement_status, progress_health, supervision_status, evaluation_status")
+      .select("id, student_id, company_name, position, province, project, current_week, placement_status, progress_health, supervision_status, evaluation_status")
       .eq("advisor_id", userId)
       .eq("placement_status", "approved")
       .eq("status", "in_progress")
@@ -105,18 +105,25 @@ export function useAdvisorStudents() {
       setLoading(false);
       return;
     }
-    const { data: profiles, error: profileError } = await supabase
-      .from("profiles")
-      .select("id, full_name, user_code, major")
-      .in("id", rows.map((row) => row.student_id));
-    if (profileError) {
-      setError(profileError.message);
+    const [profileResult, progressResult] = await Promise.all([
+      supabase.from("profiles").select("id, full_name, user_code, major").in("id", rows.map((row) => row.student_id)),
+      supabase.from("progress_reports").select("record_id, project_progress, submitted_at").in("record_id", rows.map((row) => row.id)).eq("status", "approved").order("submitted_at", { ascending: false }),
+    ]);
+    if (profileResult.error || progressResult.error) {
+      setError(profileResult.error?.message ?? progressResult.error?.message ?? "Unable to load student data.");
       setStudents([]);
     } else {
-      const profileById = new Map((profiles as ProfileRow[] || []).map((profile) => [profile.id, profile]));
+      const profileById = new Map(((profileResult.data ?? []) as ProfileRow[]).map((profile) => [profile.id, profile]));
+      const progressByRecord = new Map<string, number>();
+      for (const report of progressResult.data ?? []) {
+        if (!progressByRecord.has(report.record_id)) progressByRecord.set(report.record_id, report.project_progress);
+      }
       setStudents(rows.flatMap((record) => {
         const profile = profileById.get(record.student_id);
-        return profile ? [toStudent(record, profile)] : [];
+        if (!profile) return [];
+        const student = toStudent(record, profile);
+        student.progress = progressByRecord.get(record.id) ?? 0;
+        return [student];
       }));
       setError("");
     }

@@ -5,9 +5,9 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Building2,
   CalendarRange,
+  ClipboardList,
   BriefcaseBusiness,
   ClipboardCheck,
-  FileClock,
   LogOut,
   UserRoundCheck,
   Users,
@@ -41,15 +41,11 @@ export default function ConditerSidebar() {
       icon: UserRoundCheck,
     },
     {
-      label: "อัปเดตเอกสารและความคืบหน้าการสมัคร",
-      href: "/conditer/progress",
-      icon: FileClock,
-    },
-    {
       label: "รอบติดตามความก้าวหน้า",
       href: "/conditer/progress-periods",
       icon: CalendarRange,
     },
+    { label: "เกณฑ์ประเมินผล", href: "/conditer/evaluation-criteria", icon: ClipboardList },
   ];
 
   const handleLogout = async () => {

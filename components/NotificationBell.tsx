@@ -34,6 +34,8 @@ interface NotificationItem {
   job_application_id: string | null;
   supervision_appointment_id: string | null;
   progress_report_id: string | null;
+  internship_record_id: string | null;
+  evaluation_id: string | null;
 }
 
 interface NotificationBellProps {
@@ -41,10 +43,22 @@ interface NotificationBellProps {
 }
 
 function notificationHref(item: NotificationItem, role: NotificationBellProps["role"]) {
-  if (item.supervision_appointment_id) return "/supervision-appointments";
-  if (item.progress_report_id) return role === "advisor" ? "/advisor/tasks" : "/internship-record/weekly-logs";
-  if (role === "advisor") return "/advisor/students";
+  if (item.supervision_appointment_id) return role === "advisor" && item.internship_record_id
+    ? `/advisor/students/record/${item.internship_record_id}?view=supervision&appointment_id=${item.supervision_appointment_id}`
+    : `/supervision-appointments?appointment_id=${item.supervision_appointment_id}`;
+  if (item.progress_report_id) return role === "advisor"
+    ? (item.internship_record_id ? `/advisor/students/record/${item.internship_record_id}?view=progress&report_id=${item.progress_report_id}` : "/advisor/tasks")
+    : `/internship-record/weekly-logs?report_id=${item.progress_report_id}`;
+  if (item.evaluation_id && role === "student") return "/internship-record/results";
+  if (role === "student" && item.title.includes("ผลการนิเทศ")) {
+    return item.internship_record_id
+      ? `/supervision-appointments?internship_id=${item.internship_record_id}`
+      : "/supervision-appointments";
+  }
+  if (role === "student" && item.internship_record_id) return "/internship-record/weekly-logs";
+  if (role === "advisor") return item.internship_record_id ? `/advisor/students/record/${item.internship_record_id}` : "/advisor/students";
   if (role === "coordinator") {
+    if (item.internship_record_id) return `/conditer/students/${item.internship_record_id}`;
     const placementNotice = item.title.includes("สถานที่ฝึกงาน") || item.title.includes("หลักฐาน") || item.title.includes("ยืนยัน");
     return placementNotice ? "/conditer/placements" : "/conditer/applications";
   }

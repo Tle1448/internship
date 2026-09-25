@@ -17,6 +17,8 @@ type Notification = {
   job_application_id: string | null;
   supervision_appointment_id: string | null;
   progress_report_id: string | null;
+  internship_record_id: string | null;
+  evaluation_id: string | null;
 };
 
 export default function NotificationsPage() {
@@ -38,7 +40,7 @@ export default function NotificationsPage() {
     setLoading(true);
     const { data, error: fetchError } = await supabase
       .from("notifications")
-      .select("id, title, message, is_read, created_at, application_id, job_application_id, supervision_appointment_id, progress_report_id")
+      .select("id, title, message, is_read, created_at, application_id, job_application_id, supervision_appointment_id, progress_report_id, internship_record_id, evaluation_id")
       .eq("recipient_type", "student")
       .eq("recipient_id", studentId)
       .order("created_at", { ascending: false });
@@ -79,11 +81,21 @@ export default function NotificationsPage() {
   async function openNotification(item: Notification) {
     if (!item.is_read) await markRead(item.id);
     if (item.supervision_appointment_id) {
-      router.push("/supervision-appointments");
+      router.push(`/supervision-appointments?appointment_id=${item.supervision_appointment_id}`);
     } else if (item.progress_report_id) {
+      router.push(`/internship-record/weekly-logs?report_id=${item.progress_report_id}`);
+    } else if (item.evaluation_id) {
+      router.push(`/internship-record/results?evaluation_id=${item.evaluation_id}`);
+    } else if (item.title.includes("ผลการนิเทศ")) {
+      router.push(item.internship_record_id
+        ? `/supervision-appointments?internship_id=${item.internship_record_id}`
+        : "/supervision-appointments");
+    } else if (item.internship_record_id) {
       router.push("/internship-record/weekly-logs");
     } else if (item.application_id || item.job_application_id) {
       router.push("/select-company");
+    } else if (item.title.includes("ความคืบหน้าการฝึกงาน")) {
+      router.push("/internship-record");
     }
   }
 
@@ -109,7 +121,7 @@ export default function NotificationsPage() {
                 <button key={item.id} type="button" onClick={() => void openNotification(item)} className={"flex w-full items-start gap-4 border-b border-slate-100 p-5 text-left last:border-b-0 hover:bg-slate-50 " + (!item.is_read ? "bg-indigo-50/40" : "bg-white")}>
                   <span className={"mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full " + (!item.is_read ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-500")}><Bell size={16} /></span>
                   <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="text-sm font-semibold text-slate-900">{item.title}</span>{!item.is_read && <span className="h-2 w-2 rounded-full bg-indigo-600" />}</span><span className="mt-1 block text-sm leading-6 text-slate-600">{item.message}</span><span className="mt-2 block text-xs text-slate-400">{new Date(item.created_at).toLocaleString("th-TH")}</span></span>
-                  {item.supervision_appointment_id || item.progress_report_id || item.application_id || item.job_application_id ? <ChevronRight size={18} className="mt-1 shrink-0 text-slate-400" /> : item.is_read && <Check size={16} className="mt-1 shrink-0 text-emerald-600" />}
+                  {item.supervision_appointment_id || item.progress_report_id || item.evaluation_id || item.application_id || item.job_application_id || item.internship_record_id || item.title.includes("ความคืบหน้าการฝึกงาน") ? <ChevronRight size={18} className="mt-1 shrink-0 text-slate-400" /> : item.is_read && <Check size={16} className="mt-1 shrink-0 text-emerald-600" />}
                 </button>
               ))}
             </div>

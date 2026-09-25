@@ -325,51 +325,7 @@ export default function InternshipRecordPage() {
   // -> จุดนี้คือจุดที่ฝั่ง conditer จะเห็นความเคลื่อนไหว
   // ---------------------------------------------------------------------
   const handleFinalSubmitAllUpdates = async () => {
-    if (applications.length === 0 || !studentId || !recordId) return;
-    setIsSubmitting(true);
-    setErrorBanner(null);
-
-    try {
-      const app = applications[0];
-
-      const { error: updateError } = await supabase
-        .from("internship_records")
-        .update({ progress_note: app.statusText, updated_at: new Date().toISOString() })
-        .eq("id", recordId);
-
-      if (updateError) throw updateError;
-
-      const { error: logError } = await supabase.from("progress_updates").insert({
-        record_id: recordId,
-        student_id: studentId,
-        note: app.statusText,
-      });
-
-      if (logError) throw logError;
-
-      const now = new Date();
-      const timeStr = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")} น.`;
-
-      setSubmittedLogs((prev) => [
-        {
-          id: String(Date.now()),
-          timestamp: timeStr,
-          company: app.company,
-          position: app.position,
-          note: app.statusText,
-          filesCount: app.uploadedFiles?.length || 0,
-        },
-        ...prev,
-      ]);
-
-      setSuccessBanner("บันทึกและส่งข้อมูลอัปเดตให้อาจารย์ที่ปรึกษาสำเร็จแล้ว!");
-      setTimeout(() => setSuccessBanner(null), 5000);
-    } catch (err: any) {
-      console.error("บันทึกการอัปเดตไม่สำเร็จ:", err);
-      setErrorBanner(err.message ?? "บันทึกการอัปเดตไม่สำเร็จ");
-    } finally {
-      setIsSubmitting(false);
-    }
+    window.location.assign("/internship-record/weekly-logs");
   };
 
   if (loading) {

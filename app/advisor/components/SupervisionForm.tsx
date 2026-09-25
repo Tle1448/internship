@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
@@ -62,6 +63,7 @@ function appointmentLabel(appointment: Appointment) {
 }
 
 export default function SupervisionForm({ student }: { student: Student }) {
+  const requestedAppointmentId = useSearchParams().get("appointment_id");
   const { user } = useAuth();
   const [form, setForm] = useState<FormState>(emptyForm);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -127,11 +129,11 @@ export default function SupervisionForm({ student }: { student: Student }) {
 
     const available = (data ?? []) as Appointment[];
     setAppointments(available);
-    const next = available.find(
+    const next = available.find((item) => item.id === requestedAppointmentId) ?? available.find(
       (item) => item.status === "scheduled" && new Date(item.scheduled_at).getTime() > Date.now(),
     ) ?? available.find((item) => item.status === "scheduled");
     await selectAppointment(next?.id ?? "", available);
-  }, [selectAppointment, student.recordId]);
+  }, [requestedAppointmentId, selectAppointment, student.recordId]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => void load(), 0);
@@ -209,13 +211,13 @@ export default function SupervisionForm({ student }: { student: Student }) {
       setMessage(response.error.message);
       return;
     }
-    if (!recordId && "data" in response && response.data) setRecordId(response.data.id);
+    const savedRecordId = recordId || ("data" in response ? response.data?.id : null);
+    if (savedRecordId) setRecordId(savedRecordId);
     if (form.appointmentId) {
       setAppointments((current) => current.map((item) => item.id === form.appointmentId
         ? { ...item, status: "completed" }
         : item));
     }
-    setRecordId(null);
     setForm((current) => ({
       ...current,
       topics: current.topics.map(() => false),

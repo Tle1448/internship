@@ -122,6 +122,8 @@
 .advisor-details .score-input-row { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
 .advisor-details .score-input-row input[type=number] { box-sizing: border-box; width: 104px; min-height: 46px; margin: 0; border: 1px solid #aaa3bb; border-radius: 8px; padding: 8px 12px; background: white; color: #302a3a; font: inherit; font-size: 20px; font-weight: 700; }
 .advisor-details .score-input-row input[type=number]:focus { border-color: var(--violet); outline: 3px solid #ded8fb; }
+.advisor-details .score-input-row input[type=number]:disabled { background: #f1f2f6; color: #777080; cursor: not-allowed; }
+.advisor-details .evaluation-locked-notice { display: flex; align-items: center; gap: 8px; margin: 0 0 18px; border: 1px solid #b8dfc8; border-radius: 8px; padding: 10px 12px; background: #edf8f1; color: #18794e; font-size: 13px; font-weight: 600; }
 .advisor-details .score-input-row span { color: #6f6979; font-size: 13px; font-weight: 600; white-space: nowrap; }
 .advisor-details .score-total { display: flex; align-items: center; justify-content: space-between; gap: 20px; background: #eeebfc; padding: 23px; border-radius: 11px; margin: 25px 0; color: var(--violet); }
 .advisor-details .score-total strong { font-size: 12px; }
