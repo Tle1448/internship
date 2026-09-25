@@ -1,4 +1,4 @@
-import { gradeFor, scoreCriteria } from "./detail-data";
+import { gradeFor, scoreCriteria } from "./evaluation-template";
 
 export type EvaluationRecord = { date: string; mode: "onsite" | "online"; topics: boolean[]; notes: string; scores: number[]; feedback: string };
 export type EvaluationHistoryEntry = { savedAt: string; total: number; grade: string };

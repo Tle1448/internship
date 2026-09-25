@@ -24,7 +24,7 @@ export default function AdvisorShell({ student, active, children, title, student
   ];
   const studentLinks = student ? [
     { key: "overview", label: "ภาพรวม", href: `/advisor/students/${student.id}` },
-    { key: "progress", label: "Weekly Logs", href: `/advisor/students/${student.id}/progress` },
+    { key: "progress", label: "บันทึกความก้าวหน้า", href: `/advisor/students/${student.id}/progress` },
     { key: "supervision", label: "บันทึกนิเทศ", href: `/advisor/students/${student.id}/supervision` },
     { key: "evaluation", label: "แบบประเมิน", href: `/advisor/students/${student.id}/evaluation` },
     { key: "history", label: "ประวัติ", href: `/advisor/students/${student.id}/history` },
