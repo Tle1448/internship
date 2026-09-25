@@ -9,7 +9,6 @@ import {
   User,
   Bell,
   Upload,
-  Sparkles,
   Building2,
   Briefcase,
   ChevronRight,
@@ -122,7 +121,6 @@ export default function StudentDashboard() {
   const [resumeFile, setResumeFile] =
     useState<File | null>(null);
 
-
   const [studentPhotoPreview, setStudentPhotoPreview] =
     useState<string | null>(null);
 
@@ -156,9 +154,14 @@ export default function StudentDashboard() {
   });
 
   // =========================================================
+  // Jobs from Database
+  // =========================================================
+  const [jobsFromDB, setJobsFromDB] = useState<Job[]>([]);
+  const [loadingJobs, setLoadingJobs] = useState(false);
+
+  // =========================================================
   // สมัครงาน
   // =========================================================
-
   const [applying, setApplying] =
     useState(false);
 
@@ -171,6 +174,7 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     loadStudentData();
+    loadJobsFromDatabase();
   }, []);
 
   async function loadStudentData() {
@@ -264,6 +268,83 @@ export default function StudentDashboard() {
   }
 
   // =========================================================
+  // โหลดข้อมูลประกาศงานจาก Supabase
+  // =========================================================
+
+  async function loadJobsFromDatabase() {
+    setLoadingJobs(true);
+    try {
+      const { data: jobsData, error: jobsError } = await supabase
+        .from('jobs')
+        .select(`
+          id,
+          company_id,
+          title,
+          location,
+          department,
+          positions,
+          work_type,
+          description,
+          qualifications,
+          welfare,
+          start_date,
+          end_date,
+          status,
+          archived_at,
+          companies(name, contact_name, contact_email, contact_phone)
+        `)
+        .eq('status', 'open')
+        .is('archived_at', null)
+        .order('created_at', { ascending: false });
+
+      if (jobsError) {
+        console.error('ดึงข้อมูลประกาศงานไม่สำเร็จ:', jobsError);
+        return;
+      }
+
+      // แปลงข้อมูลจาก database format เป็น Job interface
+      const transformedJobs: Job[] = (jobsData || []).map((job: any) => {
+        const qualificationsArray = Array.isArray(job.qualifications)
+          ? job.qualifications
+          : typeof job.qualifications === 'string'
+          ? [job.qualifications]
+          : [];
+
+        return {
+          id: job.id,
+          title: job.title || 'ไม่ระบุตำแหน่ง',
+          company: job.companies?.name || 'ไม่ระบุบริษัท',
+          match: '85%',
+          tags: qualificationsArray.slice(0, 3),
+          salary: job.welfare || 'ติดต่อสอบถาม',
+          location: job.location || 'ไม่ระบุสถานที่',
+          workType: job.work_type || 'ไม่ระบุ',
+          description: job.description || '',
+          responsibilities: job.description
+            ? job.description.split('\n').filter((line: string) => line.trim())
+            : [],
+          qualifications: qualificationsArray,
+          perks: job.welfare ? [job.welfare] : [],
+          timeline: {
+            open: job.start_date || 'ติดต่อสอบถาม',
+            interview: 'ติดต่อสอบถาม',
+            start: job.end_date || 'ติดต่อสอบถาม',
+          },
+          hrName: job.companies?.contact_name || undefined,
+          contactPhone: job.companies?.contact_phone || undefined,
+          contactEmail: job.companies?.contact_email || undefined,
+        };
+      });
+
+      setJobsFromDB(transformedJobs);
+    } catch (err) {
+      console.error('เกิดข้อผิดพลาดในการดึงข้อมูลประกาศงาน:', err);
+    } finally {
+      setLoadingJobs(false);
+    }
+  }
+
+  // =========================================================
   // เปิด Modal แก้ไขโปรไฟล์
   // =========================================================
 
@@ -320,8 +401,6 @@ export default function StudentDashboard() {
           throw uploadError;
         }
 
-        // The resumes bucket is private. Persist the object path and create a
-        // signed URL only when a user explicitly opens/downloads the file.
         resumeUrl = filePath;
 
         resumeName =
@@ -514,7 +593,7 @@ export default function StudentDashboard() {
   };
 
   // =========================================================
-  // อัปโหลดรูปนักศึกษาและอัปเดตหน้าเว็บทันที
+  // อัปโหลดรูปนักศึกษา
   // =========================================================
 
   const handleStudentPhotoChange = async (
@@ -540,7 +619,6 @@ export default function StudentDashboard() {
     setStudentPhotoUploading(true);
 
     try {
-      // แสดงรูปใหม่ทันทีบนหน้าเว็บก่อน ไม่ต้องรอการบันทึกข้อมูลอื่น
       const localPreview = URL.createObjectURL(file);
       setStudentPhotoPreview(localPreview);
       setProfileData((prev) => ({
@@ -552,7 +630,6 @@ export default function StudentDashboard() {
         avatarUrl: localPreview,
       }));
 
-      // ใช้ bucket เดิมที่โปรเจกต์มีอยู่แล้ว เพื่อไม่กระทบโค้ด Supabase เดิม
       const filePath =
         `${profileData.id}/avatar_${Date.now()}_${file.name}`;
 
@@ -576,7 +653,6 @@ export default function StudentDashboard() {
         throw signedError || new Error('สร้าง URL รูปภาพไม่สำเร็จ');
       }
 
-      // อัปเดตรูปที่แสดงจริงเป็น URL จาก Supabase หลังอัปโหลดสำเร็จ
       setStudentPhotoPreview(signedData.signedUrl);
       setProfileData((prev) => ({
         ...prev,
@@ -587,8 +663,6 @@ export default function StudentDashboard() {
         avatarUrl: signedData.signedUrl,
       }));
 
-      // บันทึก path ของรูปไว้ใน profiles เพื่อให้รูปยังอยู่หลัง refresh
-      // ถ้าในตาราง profiles มีคอลัมน์ avatar_url อยู่
       const { error: avatarDbError } =
         await supabase
           .from('profiles')
@@ -785,350 +859,6 @@ export default function StudentDashboard() {
   };
 
   // =========================================================
-  // Jobs
-  // =========================================================
-
-  const jobs: Job[] = [
-    {
-      id: '11111111-1111-1111-1111-111111111111',
-      title:
-        'Software Engineer Intern (Frontend / Fullstack - Co-op 2025)',
-      company:
-        'SCB TechX Co., Ltd.',
-      badge:
-        'SCBX Group',
-      match:
-        '98%',
-      tags: [
-        'TypeScript',
-        'React',
-        'Next.js',
-        'Cloud',
-      ],
-      salary:
-        '18,000 - 22,000 / เดือน',
-      location:
-        'กรุงเทพมหานคร (พญาไท)',
-      workType:
-        'Hybrid (เข้าออฟฟิศ 2 วัน/สัปดาห์)',
-      responsibilities: [
-        'ร่วมพัฒนาและดูแลเว็บแอปพลิเคชันนวัตกรรม FinTech ด้วย React, Next.js, TypeScript และ Node.js',
-        'ทำงานร่วมกับ Senior Software Engineers, Tech Leads และ Product Designers ในการแปล Figma Mockup เป็นระบบ Production ที่มีประสิทธิภาพ',
-        'เขียน Unit Test และ Integration Test เพื่อควบคุมคุณภาพของซอฟต์แวร์',
-        'เข้าร่วมกระบวนการทำงานแบบ Agile Development, Sprint Planning, Daily Stand-up และ Code Review อย่างเป็นระบบ',
-        'ศึกษาและประยุกต์ใช้เทคโนโลยีใหม่ เช่น Cloud-Native (AWS, Kubernetes, Docker) ในโครงการสหกิจศึกษา',
-      ],
-      qualifications: [
-        'นิสิต/นักศึกษา ชั้นปีที่ 3 หรือ 4 สาขาวิชาวิศวกรรมคอมพิวเตอร์, วิทยาการคอมพิวเตอร์ หรือสาขาที่เกี่ยวข้อง',
-        'เกรดเฉลี่ยสะสม (GPAX) ไม่ต่ำกว่า 2.75 และผ่านการทดสอบความพร้อมทางวิชาการตามเกณฑ์ของมหาวิทยาลัย',
-        'มีความรู้พื้นฐานในการพัฒนาเว็บด้วย HTML5, CSS3, Modern JavaScript (ES6+) และ React/TypeScript',
-        'เข้าใจหลักการทำงานของ RESTful API และการเชื่อมต่อข้อมูลกับระบบ Backend',
-        'มีผลงานหรือโครงงานที่เคยพัฒนาที่สามารถนำเสนอได้ (GitHub / Portfolio จะได้รับการพิจารณาเป็นพิเศษ)',
-      ],
-      perks: [
-        'ประกันอุบัติเหตุและสุขภาพกลุ่ม',
-        'โน้ตบุ๊กประสิทธิภาพสูงสำหรับการทำงาน',
-        'คอร์สเรียนออนไลน์เสริมทักษะฟรี',
-        'ขนมและเครื่องดื่มฟรีตลอดวันในออฟฟิศ',
-      ],
-      timeline: {
-        open:
-          '1 ม.ค. - 28 ก.พ. 2025',
-        interview:
-          '15 มี.ค. - 15 เม.ย. 2025',
-        start:
-          '1 มิ.ย. - 30 ก.ย. 2025',
-      },
-      hrName:
-        'คุณศุภโชค สุวรรณมณี',
-      hrRole:
-        'People Experience & University Relations',
-      contactPhone:
-        '02-XXX-XXXX',
-      contactEmail:
-        'hr@company.com',
-      contactLine:
-        '@company_hr',
-    },
-
-    {
-      id: '22222222-2222-2222-2222-222222222222',
-      title:
-        'Full-Stack Developer Intern',
-      company:
-        'LINE Thailand (LINE MAN Wongnai)',
-      badge:
-        'LINE Group',
-      match:
-        '95%',
-      tags: [
-        'React',
-        'Node.js',
-        'GraphQL',
-      ],
-      salary:
-        '12,000 / เดือน',
-      location:
-        'กรุงเทพมหานคร (เอกมัย)',
-      workType:
-        'On-site',
-      responsibilities: [
-        'ร่วมพัฒนาฟีเจอร์ใหม่บนแพลตฟอร์ม LINE MAN และ Wongnai',
-        'พัฒนา Microservices และ API ด้วย Node.js และ TypeScript',
-        'ร่วมออกแบบ UI/UX และพัฒนาหน้าเว็บด้วย React.js',
-        'ทำงานร่วมกับทีม Product Manager และ QA ในระบบ Agile',
-      ],
-      qualifications: [
-        'นักศึกษาชั้นปีที่ 3-4 สาขาวิทยาการคอมพิวเตอร์ หรือสาขาที่เกี่ยวข้อง',
-        'เข้าใจหลักการพัฒนา Full-stack Web Application',
-        'มีความสนใจในระบบที่มีผู้ใช้งานจำนวนมาก (High Traffic Systems)',
-      ],
-      perks: [
-        'อาหารกลางวันและสวัสดิการพนักงานฟรี',
-        'อุปกรณ์แล็ปท็อปสำหรับการทำงาน',
-      ],
-      timeline: {
-        open:
-          '1 ม.ค. - 15 มี.ค. 2025',
-        interview:
-          '20 มี.ค. - 30 เม.ย. 2025',
-        start:
-          '1 มิ.ย. - 31 ต.ค. 2025',
-      },
-      hrName:
-        'คุณภาวิณี ศรีสุข',
-      hrRole:
-        'Talent Acquisition Specialist',
-      contactPhone:
-        '02-XXX-XXXX',
-      contactEmail:
-        'hr@company.com',
-      contactLine:
-        '@company_hr',
-    },
-
-    {
-      id: '33333333-3333-3333-3333-333333333333',
-      title:
-        'Associate UI/UX Designer (Intern)',
-      company:
-        'Kasikorn Business-Technology Group (KBTG)',
-      badge:
-        'KBank Group',
-      match:
-        '91%',
-      tags: [
-        'Figma',
-        'User Research',
-        'Design System',
-      ],
-      salary:
-        '15,000 / เดือน',
-      location:
-        'นนทบุรี (แจ้งวัฒนะ)',
-      workType:
-        'Hybrid',
-      responsibilities: [
-        'ออกแบบ Wireframe, Prototype และ User Interface สำหรับแอปพลิเคชันการเงิน',
-        'ทำ User Research และ Usability Testing ร่วมกับทีม UX',
-        'ดูแลและอัปเดต Design System ขององค์กร',
-      ],
-      qualifications: [
-        'นักศึกษา สาขาปฏิสัมพันธ์มนุษย์กับคอมพิวเตอร์ (HCI), สถาปัตยกรรม หรือการออกแบบสื่อดิจิทัล',
-        'เชี่ยวชาญการใช้เครื่องมือ Figma และ Adobe Creative Suite',
-        'มี Portfolio แสดงผลงาน UX/UI อย่างชัดเจน',
-      ],
-      perks: [
-        'เบี้ยเลี้ยงประจำเดือน',
-        'การเทรนนิ่งจากทีม UX/UI ผู้เชี่ยวชาญ',
-      ],
-      timeline: {
-        open:
-          '15 ม.ค. - 31 มี.ค. 2025',
-        interview:
-          '1 เม.ย. - 30 เม.ย. 2025',
-        start:
-          '1 มิ.ย. - 30 ก.ย. 2025',
-      },
-      hrName:
-        'คุณกิตติศักดิ์ เจริญพร',
-      hrRole:
-        'Campus Recruitment Lead',
-      contactPhone:
-        '02-XXX-XXXX',
-      contactEmail:
-        'hr@company.com',
-      contactLine:
-        '@company_hr',
-    },
-
-    {
-      id: '44444444-4444-4444-4444-444444444444',
-      title:
-        'Associate Frontend Engineer',
-      company:
-        'Agoda Services Co., Ltd.',
-      badge:
-        'Global Tech',
-      match:
-        '88%',
-      tags: [
-        'React',
-        'TypeScript',
-        'Large Scale UI',
-      ],
-      salary:
-        '27,000 / เดือน',
-      location:
-        'กรุงเทพมหานคร (เซ็นทรัลเวิลด์)',
-      workType:
-        'Hybrid',
-      responsibilities: [
-        'ร่วมสร้างสรรค์ประสบการณ์ใช้งานเว็บไซต์ท่องเที่ยวระดับโลก',
-        'พัฒนา UI Component ที่รองรับการแสดงผลหลายภาษา และประสิทธิภาพสูง',
-        'ทำ A/B Testing เพื่อปรับปรุง Conversion Rate',
-      ],
-      qualifications: [
-        'สื่อสารภาษาอังกฤษได้ดีเยี่ยม (บรรยากาศการทำงานนานาชาติ)',
-        'เชี่ยวชาญ React.js, TypeScript, HTML5/CSS3',
-        'มีใจรักในการพัฒนา Web Performance',
-      ],
-      perks: [
-        'ค่าตอบแทนสูงพิเศษ 27,000 บาท/เดือน',
-        'ส่วนลดโรงแรมและตั๋วเครื่องบินสำหรับ Agoda Staff',
-      ],
-      timeline: {
-        open:
-          '1 ม.ค. - 15 เม.ย. 2025',
-        interview:
-          '1 พ.ค. - 15 พ.ค. 2025',
-        start:
-          '1 มิ.ย. - 31 ต.ค. 2025',
-      },
-      hrName:
-        'Ms. Sarah Jenkins',
-      hrRole:
-        'Global University Recruiting Manager',
-      contactPhone:
-        '02-XXX-XXXX',
-      contactEmail:
-        'hr@company.com',
-      contactLine:
-        '@company_hr',
-    },
-
-    {
-      id: '55555555-5555-5555-5555-555555555555',
-      title:
-        'Data Engineer & Platform Intern',
-      company:
-        'AIS (Advanced Info Service)',
-      badge:
-        'SET Top 10',
-      match:
-        '85%',
-      tags: [
-        'Python',
-        'Kafka',
-        'PostgreSQL',
-      ],
-      salary:
-        '17,000 / เดือน',
-      location:
-        'กรุงเทพมหานคร (พญาไท)',
-      workType:
-        'On-site',
-      responsibilities: [
-        'ออกแบบและสร้าง Data Pipeline ในการประมวลผลข้อมูล Big Data',
-        'ดูแลและปรับปรุงประสิทธิภาพของฐานข้อมูล PostgreSQL และ Kafka',
-        'ทำงานร่วมกับ Data Scientist และ Business Analyst',
-      ],
-      qualifications: [
-        'นักศึกษา สาขาวิศวกรรมคอมพิวเตอร์, วิทยาการข้อมูล หรือสาขาที่เกี่ยวข้อง',
-        'มีความรู้ด้าน SQL, Python และระบบ Data Warehouse',
-        'มีความเข้าใจเบื้องต้นเกี่ยวกับ Cloud Infrastructure (AWS/GCP)',
-      ],
-      perks: [
-        'ส่วนลดค่าแพ็กเกจอินเทอร์เน็ต AIS',
-        'สวัสดิการรถรับส่งพนักงาน',
-      ],
-      timeline: {
-        open:
-          '1 ม.ค. - 30 มี.ค. 2025',
-        interview:
-          '1 เม.ย. - 20 เม.ย. 2025',
-        start:
-          '1 มิ.ย. - 30 ก.ย. 2025',
-      },
-      hrName:
-        'คุณธนภัทร รัตนเวช',
-      hrRole:
-        'Data Talent Acquisition',
-      contactPhone:
-        '02-XXX-XXXX',
-      contactEmail:
-        'hr@company.com',
-      contactLine:
-        '@company_hr',
-    },
-
-    {
-      id: '66666666-6666-6666-6666-666666666666',
-      title:
-        'Backend Engineer Intern (Cloud)',
-      company:
-        'Garena Online Co., Ltd.',
-      badge:
-        'Sea Group',
-      match:
-        '82%',
-      tags: [
-        'GoLang',
-        'Docker',
-        'PostgreSQL',
-      ],
-      salary:
-        '20,000 / เดือน',
-      location:
-        'กรุงเทพมหานคร (พระราม 9)',
-      workType:
-        'On-site',
-      responsibilities: [
-        'พัฒนาและดูแลระบบ Backend รองรับเกมออนไลน์ระดับโลก',
-        'เขียนโปรแกรมด้วยภาษา Go (Golang) และทำงานกับ Docker/Kubernetes',
-        'เพิ่มประสิทธิภาพระบบและความแม่นยำของฐานข้อมูล',
-      ],
-      qualifications: [
-        'นิสิต/นักศึกษา สาขาวิศวกรรมคอมพิวเตอร์ หรือวิทยาการคอมพิวเตอร์',
-        'เข้าใจระบบ Data Structures, Algorithms และ Computer Networks เป็นอย่างดี',
-        'สนใจการพัฒนาโปรแกรมด้วยภาษา Go',
-      ],
-      perks: [
-        'เบี้ยเลี้ยง 20,000 บาท/เดือน',
-        'เครดิตฟรีเกมในเครือ Garena และขนมทานเล่นในออฟฟิศ',
-      ],
-      timeline: {
-        open:
-          '10 ม.ค. - 31 มี.ค. 2025',
-        interview:
-          '1 เม.ย. - 30 เม.ย. 2025',
-        start:
-          '1 มิ.ย. - 30 ก.ย. 2025',
-      },
-      hrName:
-        'คุณณัฐพล วงศ์สว่าง',
-      hrRole:
-        'Tech Campus Recruiter',
-      contactPhone:
-        '02-XXX-XXXX',
-      contactEmail:
-        'hr@company.com',
-      contactLine:
-        '@company_hr',
-    },
-  ];
-
-  // =========================================================
   // Search & Filter Logic
   // =========================================================
 
@@ -1137,8 +867,6 @@ export default function StudentDashboard() {
 
   const searchText = normalizeSearch(appliedSearch);
 
-  // จัดอันดับผลค้นหาให้คำที่ตรงกับคำค้นขึ้นก่อน
-  // เช่น ค้นหา "A" งานที่ชื่อขึ้นต้นด้วย A จะอยู่บนสุด
   const getSearchScore = (job: Job, query: string) => {
     if (!query) return 0;
 
@@ -1158,6 +886,9 @@ export default function StudentDashboard() {
 
     return 10;
   };
+
+  // ✅ ใช้ jobsFromDB แทน hardcoded jobs
+  const jobs = jobsFromDB;
 
   const filteredJobs = jobs.filter((job) => {
     const searchableText = [
@@ -1240,7 +971,6 @@ export default function StudentDashboard() {
     });
   });
 
-  // แนะนำชื่อตำแหน่ง/บริษัททันทีที่เริ่มพิมพ์
   const searchSuggestions = searchQuery.trim()
     ? jobs
         .filter((job) => {
@@ -1287,13 +1017,13 @@ export default function StudentDashboard() {
   // Loading
   // =========================================================
 
-  if (loadingProfile) {
+  if (loadingProfile || loadingJobs) {
     return (
       <div className="flex min-h-[calc(100vh-61px)] items-center justify-center bg-slate-100">
         <Loader2 className="w-6 h-6 animate-spin text-indigo-900" />
 
         <span className="ml-2 text-sm text-slate-500">
-          กำลังโหลดข้อมูลนักศึกษา...
+          กำลังโหลดข้อมูล...
         </span>
       </div>
     );
@@ -1339,9 +1069,6 @@ export default function StudentDashboard() {
               </div>
 
               <div>
-
-                {/* ชื่อผู้ใช้ */}
-                {/* ลบป้าย "ผ่านการทดสอบสหกิจศึกษาแล้ว" ออกแล้ว */}
 
                 <div className="flex items-center">
 
@@ -1400,8 +1127,6 @@ export default function StudentDashboard() {
                 </div>
 
               </div>
-
-              {/* ปุ่มจัดการโปรไฟล์ */}
 
               <div className="flex flex-col border-l border-slate-200 pl-6">
 
@@ -1468,7 +1193,10 @@ export default function StudentDashboard() {
                 ค้นหาตำแหน่งงาน & องค์กรพันธมิตรสหกิจศึกษา
               </h2>
 
-              
+              <p className="text-xs text-slate-500">
+                ระบบคัดสรรงานที่เหมาะสมกับทักษะของคุณ
+                (AI Skill Matching)
+              </p>
 
             </div>
 
@@ -1559,18 +1287,6 @@ export default function StudentDashboard() {
                 >
 
                   <div>
-
-                    <div className="flex justify-between items-start">
-
-                      <span className="inline-flex items-center text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full">
-
-                        <Sparkles className="w-3 h-3 mr-1" />
-
-                        ตรงกับทักษะ {job.match}
-
-                      </span>
-
-                    </div>
 
                     <h3 className="font-bold text-sm text-slate-900 mt-2 line-clamp-1 group-hover:text-indigo-900 transition-colors">
                       {job.title}
@@ -1752,6 +1468,9 @@ export default function StudentDashboard() {
                       รองรับ JPG, PNG, WEBP ขนาดไม่เกิน 5MB
                     </p>
 
+                    <p className="text-[10px] text-emerald-600 mt-0.5">
+                      เลือกรูปแล้ว รูปบนหน้าเว็บจะอัปเดตทันที
+                    </p>
                   </div>
 
                 </div>
