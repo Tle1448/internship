@@ -5,17 +5,10 @@ import AdminBreadcrumb from "@/components/AdminBreadcrumb";
 import AdminDeleteConfirmationModal from "@/components/adminDeleteConfirmationModal";
 import AdminDeletedUsersTable from "@/components/adminDeletedUsersTable";
 import UserEditModal, { type EditableUser, type UserRole } from "@/components/UserEditModal";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Role = UserRole;
-type User = EditableUser;
-
-const initialUsers: User[] = [
-  { id: "65114289", name: "นายสมชาย ใจดี", email: "somchai.na@wu.ac.th", role: "Student", department: "วิศวกรรมคอมพิวเตอร์", status: "Active" },
-  { id: "CO-8021", name: "ดร.ประสาน สุขใจ", email: "prasan.su@wu.ac.th", role: "Coordinator", department: "เทคโนโลยีสารสนเทศ", status: "Active" },
-  { id: "AD-5501", name: "ผศ.ดร.วิชาการ ดีเลิศ", email: "wichakan.de@wu.ac.th", role: "Advisor", department: "วิศวกรรมคอมพิวเตอร์", status: "Active" },
-  { id: "65118942", name: "นางสาววิภาดา ภักดี", email: "wiphada.ph@wu.ac.th", role: "Student", department: "เทคโนโลยีสารสนเทศ", status: "Active" },
-];
+type User = EditableUser & { authId?: string };
 const roles: Role[] = ["Student", "Coordinator", "Advisor", "Admin"];
 const roleBadgeColors: Record<Role, string> = {
   Student: "bg-[#E0E7FF] text-[#3730A3]",
@@ -28,10 +21,11 @@ const statusLabels: Record<User["status"], string> = { Active: "ใช้งา�
 const inputClass = "w-full rounded-lg border border-[#EAEAEA] bg-white px-4 py-2.5 outline-none focus:border-[#7678ED] focus:ring-2 focus:ring-[#7678ED]/30";
 const primaryClass = "cursor-pointer rounded-[10px] bg-[#3D348B] px-6 py-3.5 font-semibold text-white transition hover:bg-[#5146AA] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#7678ED]";
 const usersPerPage = 6;
-const addedStudentsStorageKey = "wu-internship-added-students";
+const roleFromDatabase: Record<string, Role> = { student: "Student", coordinator: "Coordinator", advisor: "Advisor", admin: "Admin" };
+const roleForDatabase: Record<Role, string> = { Student: "student", Coordinator: "coordinator", Advisor: "advisor", Admin: "admin" };
 
 export default function UsersPage() {
-  const [users, setUsers] = useState(initialUsers);
+  const [users, setUsers] = useState<User[]>([]);
   const [deletedUserIds, setDeletedUserIds] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [role, setRole] = useState<Role | "All">("All");
@@ -63,22 +57,27 @@ export default function UsersPage() {
     setIsAdding(user === null);
   }
 
-  function saveNewUser(user: User): string | void {
-    if (users.some((item) => item.id.toLowerCase() === user.id.toLowerCase() || item.email.toLowerCase() === user.email.toLowerCase())) {
-      return "รหัสผู้ใช้หรืออีเมลนี้มีอยู่แล้ว โปรดตรวจสอบรายการผู้ใช้และผู้ใช้งานที่ลบแล้ว";
-    }
-    setUsers((current) => [...current, user]);
-    if (user.role === "Student") {
-      const savedStudents = JSON.parse(window.localStorage.getItem(addedStudentsStorageKey) ?? "[]") as User[];
-      window.localStorage.setItem(addedStudentsStorageKey, JSON.stringify([...savedStudents.filter((student) => student.id !== user.id), user]));
-    }
-    setQuery("");
-    setRole("All");
+  async function loadUsers() {
+    const response = await fetch("/api/admin/users", { cache: "no-store" });
+    const payload = await response.json() as { users?: Array<{ id: string; user_code: string | null; full_name: string | null; email: string | null; role: string; faculty: string | null; major: string | null; is_active: boolean }> };
+    if (!response.ok) return;
+    setUsers((payload.users ?? []).map((user) => ({ authId: user.id, id: user.user_code ?? user.id, name: user.full_name ?? "-", email: user.email ?? "-", role: roleFromDatabase[user.role] ?? "Student", school: user.faculty ?? "", department: user.major ?? "-", status: user.is_active ? "Active" : "Inactive" })));
   }
 
-  function deleteUser(user: User) {
+  useEffect(() => { void loadUsers(); }, []);
+
+  async function saveNewUser(user: User): Promise<string | void> {
+    const response = await fetch("/api/admin/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userCode: user.id, fullName: user.name, email: user.email, password: user.password, role: roleForDatabase[user.role], faculty: user.school, major: user.department, isActive: user.status === "Active" }) });
+    const payload = await response.json() as { error?: string };
+    if (!response.ok) return payload.error ?? "บันทึกผู้ใช้งานไม่สำเร็จ";
+    setQuery(""); setRole("All"); await loadUsers();
+  }
+
+  async function deleteUser(user: User) {
+    if (user.authId) await fetch(`/api/admin/users?id=${encodeURIComponent(user.authId)}`, { method: "DELETE" });
     setDeletedUserIds((current) => current.includes(user.id) ? current : [...current, user.id]);
     setUserToDelete(null);
+    await loadUsers();
   }
 
   function restoreUser(user: User) {
@@ -164,7 +163,7 @@ export default function UsersPage() {
         <AdminDeleteConfirmationModal
           user={userToDelete}
           onCancel={() => setUserToDelete(null)}
-          onConfirm={() => deleteUser(userToDelete)}
+          onConfirm={() => { void deleteUser(userToDelete); }}
         />
       )}
 
@@ -173,11 +172,13 @@ export default function UsersPage() {
           key={editing.id}
           user={editing}
           onClose={() => setEditing(null)}
-          onSave={(updated) => {
-            if (users.some((user) => user.id !== updated.id && user.email.toLowerCase() === updated.email.toLowerCase())) {
-              return "อีเมลนี้มีอยู่ในระบบแล้ว";
-            }
-            setUsers((current) => current.map((user) => user.id === updated.id ? updated : user));
+          onSave={async (updated) => {
+            const original = users.find((user) => user.id === updated.id);
+            if (!original?.authId) return "ไม่พบรหัสบัญชีในระบบ";
+            const response = await fetch("/api/admin/users", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: original.authId, userCode: updated.id, fullName: updated.name, email: updated.email, role: roleForDatabase[updated.role], faculty: updated.school, major: updated.department, isActive: updated.status === "Active" }) });
+            const payload = await response.json() as { error?: string };
+            if (!response.ok) return payload.error ?? "บันทึกผู้ใช้งานไม่สำเร็จ";
+            await loadUsers();
           }}
         />
       )}

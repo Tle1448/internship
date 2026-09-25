@@ -3,11 +3,13 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 
-export default function AdminDashboardActions() {
+type DashboardReport = { students: number; companies: number; openJobs: number; pendingDocuments: number };
+
+export default function AdminDashboardActions({ report }: { report: DashboardReport }) {
   const [notice, setNotice] = useState("");
 
   function exportReport() {
-    const rows = [["รายงานภาพรวมระบบ", ""], ["รายการ", "จำนวน", "หน่วย"], ["นักศึกษาทั้งหมด", "450", "คน"], ["สถานประกอบการ", "86", "แห่ง"], ["ตำแหน่งงานเปิดรับ", "42", "ตำแหน่ง"], ["เอกสารรอตรวจสอบ", "28", "ฉบับ"]];
+    const rows = [["รายงานภาพรวมระบบ", ""], ["รายการ", "จำนวน", "หน่วย"], ["นักศึกษาทั้งหมด", String(report.students), "คน"], ["สถานประกอบการ", String(report.companies), "แห่ง"], ["ตำแหน่งงานเปิดรับ", String(report.openJobs), "ตำแหน่ง"], ["เอกสารรอตรวจสอบ", String(report.pendingDocuments), "ฉบับ"]];
     const csv = `\uFEFF${rows.map((row) => row.map((value) => `"${value}"`).join(",")).join("\n")}`;
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const link = Object.assign(document.createElement("a"), { href: url, download: "รายงานภาพรวมระบบ.csv" });
