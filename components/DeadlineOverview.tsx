@@ -28,10 +28,28 @@ const blank: Draft = {
 };
 const defaultTerms = ["1/2569", "2/2569", "ฤดูร้อน/2569"],
   colors = {
-    violet: "bg-[#514A88]",
-    orange: "bg-[#E98E22]",
-    "deep-orange": "bg-[#DF612A]",
+    violet: "bg-[#3D348B]",
+    orange: "bg-[#F18701]",
+    "deep-orange": "bg-[#F35B04]",
   };
+const allowedDestinations = [
+  "/admin/dashboard",
+  "/admin/student",
+  "/admin/companies",
+  "/admin/jobs",
+  "/admin/users",
+  "/advisor",
+  "/advisor/students",
+  "/advisor/tasks",
+  "/conditer",
+  "/conditer/companies",
+  "/conditer/jobs/create",
+  "/conditer/applications",
+] as const;
+const getAllowedDestination = (destination: string) =>
+  allowedDestinations.includes(destination as (typeof allowedDestinations)[number])
+    ? destination
+    : "/admin/dashboard";
 export default function DeadlineOverview() {
   const [term, setTerm] = useState("2/2569"),
     [availableTerms, setAvailableTerms] = useState(defaultTerms),
@@ -81,9 +99,10 @@ export default function DeadlineOverview() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!draft) return;
+    const safeDraft = { ...draft, destination: getAllowedDestination(draft.destination) };
     const q = editId
-      ? supabase.from("dashboard_deadlines").update(draft).eq("id", editId)
-      : supabase.from("dashboard_deadlines").insert(draft);
+      ? supabase.from("dashboard_deadlines").update(safeDraft).eq("id", editId)
+      : supabase.from("dashboard_deadlines").insert(safeDraft);
     const { error } = await q;
     if (error) {
       setSaveError(error.message);
@@ -150,7 +169,7 @@ export default function DeadlineOverview() {
                 {new Date(`${x.due_date}T00:00:00`).toLocaleDateString("th-TH")}
               </span>
             </button>
-            <Link href={x.destination}>›</Link>
+            <Link href={getAllowedDestination(x.destination)}>›</Link>
           </li>
         ))}
       </ol>
@@ -173,7 +192,7 @@ export default function DeadlineOverview() {
           <div className="mt-6 flex justify-end gap-3">
             <button
               onClick={() => del(selected)}
-              className="rounded-lg bg-[#DF612A] px-4 py-2 text-white"
+              className="rounded-lg bg-[#F35B04] px-4 py-2 text-white"
             >
               ลบ
             </button>
@@ -204,7 +223,7 @@ function Modal({ children }: { children: React.ReactNode }) {
   );
 }
 function EditorModal({ draft, setDraft, edit, error, onClose, onSave }: { draft: Draft; setDraft: (value: Draft) => void; edit: boolean; error: string | null; onClose: () => void; onSave: (event: React.FormEvent) => void }) {
-  return <div role="dialog" aria-modal="true" aria-labelledby="deadline-editor-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"><form onSubmit={onSave} className="flex h-[min(800px,calc(100dvh-2rem))] w-full max-w-[800px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"><header className="flex items-start gap-3 border-b border-gray-100 bg-[#F5F5F6] px-5 py-6 sm:px-6"><span className="flex size-10 items-center justify-center rounded-lg bg-[#3D348B] text-xl text-white" aria-hidden="true">📅</span><div className="flex-1"><h3 id="deadline-editor-title" className="text-lg font-bold text-[#3D348B]">{edit ? "แก้ไขกำหนดส่ง" : "เพิ่มกำหนดส่ง"}</h3><p className="mt-0.5 text-xs text-gray-500">กำหนดกลุ่มเป้าหมาย รายละเอียด และวันครบกำหนด</p></div><button type="button" onClick={onClose} aria-label="ปิด" className="rounded-md px-2 py-1 text-xl text-gray-500 hover:bg-gray-200">×</button></header><div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-6"><Fields d={draft} set={setDraft} />{error && <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">บันทึกไม่สำเร็จ: {error}</p>}</div><footer className="flex shrink-0 justify-end gap-3 border-t border-gray-100 bg-[#F5F5F6] px-5 py-5 sm:px-6"><button type="button" onClick={onClose} className="rounded-lg border border-gray-200 bg-white px-5 py-3 text-sm font-semibold">ยกเลิก</button><button className="rounded-lg bg-[#3D348B] px-5 py-3 text-sm font-semibold text-white hover:bg-[#5146AA]">บันทึกกำหนดส่ง</button></footer></form></div>;
+  return <div role="dialog" aria-modal="true" aria-labelledby="deadline-editor-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"><form onSubmit={onSave} className="flex h-[min(800px,calc(100dvh-2rem))] w-full max-w-[800px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"><header className="flex items-start gap-3 border-b border-gray-100 bg-[#F5F5F6] px-5 py-6 sm:px-6"><span className="flex size-10 items-center justify-center rounded-lg bg-[#3D348B] text-white" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="size-5"><path d="M5 21V4m0 1h10l-1.5 3L15 11H5" /></svg></span><div className="flex-1"><h3 id="deadline-editor-title" className="text-lg font-bold text-[#3D348B]">{edit ? "แก้ไขกำหนดส่ง" : "เพิ่มกำหนดส่ง"}</h3><p className="mt-0.5 text-xs text-gray-500">กำหนดกลุ่มเป้าหมาย รายละเอียด และวันครบกำหนด</p></div><button type="button" onClick={onClose} aria-label="ปิด" className="rounded-md px-2 py-1 text-xl text-gray-500 hover:bg-gray-200">×</button></header><div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-6"><Fields d={draft} set={setDraft} />{error && <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">บันทึกไม่สำเร็จ: {error}</p>}</div><footer className="flex shrink-0 justify-end gap-3 border-t border-gray-100 bg-[#F5F5F6] px-5 py-5 sm:px-6"><button type="button" onClick={onClose} className="rounded-lg border border-gray-200 bg-white px-5 py-3 text-sm font-semibold">ยกเลิก</button><button className="rounded-lg bg-[#3D348B] px-5 py-3 text-sm font-semibold text-white hover:bg-[#5146AA]">บันทึกกำหนดส่ง</button></footer></form></div>;
 }
 function Fields({ d, set }: { d: Draft; set: (x: Draft) => void }) {
   const u = (k: keyof Draft, v: string) => set({ ...d, [k]: v });
@@ -271,9 +290,17 @@ function Fields({ d, set }: { d: Draft; set: (x: Draft) => void }) {
           className="mt-1.5 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm font-normal outline-none focus:border-[#7678ED]"
         >
           <option value="/admin/jobs">จัดการตำแหน่งงาน</option>
-          <option value="/admin/documents">ตรวจเอกสาร</option>
+          <option value="/admin/companies">จัดการสถานประกอบการ</option>
           <option value="/admin/student">จัดการนักศึกษา</option>
+          <option value="/admin/users">จัดการผู้ใช้</option>
           <option value="/admin/dashboard">หน้า Dashboard</option>
+          <option value="/advisor">ภาพรวมอาจารย์นิเทศ</option>
+          <option value="/advisor/students">นักศึกษาในความดูแล</option>
+          <option value="/advisor/tasks">งานอาจารย์นิเทศ</option>
+          <option value="/conditer">ภาพรวมผู้ประสานงาน</option>
+          <option value="/conditer/companies">รายการสถานประกอบการ</option>
+          <option value="/conditer/jobs/create">สร้างประกาศงาน</option>
+          <option value="/conditer/applications">พิจารณาใบสมัคร</option>
         </select>
       </label>
       <label className="text-xs font-semibold text-gray-600">
