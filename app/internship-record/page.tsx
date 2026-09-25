@@ -466,12 +466,8 @@ export default function InternshipRecordPage() {
             <div className="flex-1">
               <p className="text-sm font-semibold text-amber-800">Feedback ล่าสุดจาก advisor</p>
               <p className="mt-1 text-sm text-amber-900">
-                &ldquo;โปรดตรวจสอบรายละเอียดเอกสารสัญญาฝึกงานฉบับล่าสุด และให้อาจารย์ที่ปรึกษาลงนามก่อนวันที่ 25 มิ.ย.&rdquo;
+                &ldquo;กรุณาตรวจสอบข้อมูลก่อนยืนยัน&rdquo;
               </p>
-              <div className="mt-2 flex items-center justify-between text-xs text-amber-700">
-                <span>โดย อ.ดร. มานะ (Advisor)</span>
-                <span>19 มิ.ย. 2568</span>
-              </div>
             </div>
           </section>
 
@@ -493,9 +489,6 @@ export default function InternshipRecordPage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="font-bold text-slate-900 text-sm">{app.studentName}</p>
-                            <span className="text-[11px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium border border-emerald-200">
-                              ผ่านการตรวจสอบสมรรถนะแล้ว ✓
-                            </span>
                           </div>
                           <p className="text-xs text-slate-500 mt-0.5">{app.major}</p>
                           <p className="text-xs text-slate-400">รหัสนักศึกษา: {app.studentId}</p>
