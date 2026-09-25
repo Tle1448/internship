@@ -87,6 +87,7 @@ export default function ConditerProgressPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [historyLogs, setHistoryLogs] = useState<ProgressUpdateLog[]>([]);
   const [fileUrls, setFileUrls] = useState<Record<string, string>>({});
+  const [missingFiles, setMissingFiles] = useState<Set<string>>(new Set());
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -130,9 +131,27 @@ export default function ConditerProgressPage() {
       }
     }
 
-    const mapped: ProgressRow[] = (records ?? []).map((r: any) => {
+    const mapped: ProgressRow[] = [];
+
+    for (const r of records ?? []) {
       const profile = profilesById[r.student_id];
-      return {
+      const rawPaths: string[] = r.evidence_files ?? [];
+
+      // เช็คว่าแต่ละไฟล์ยังอยู่จริงใน Storage ไหม ถ้าใครถูกลบไปแล้ว
+      // ตัดออกจากรายการที่โชว์ + sync กลับเข้า DB ให้ตรงกันทันที (self-heal)
+      const existing: string[] = [];
+      for (const path of rawPaths) {
+        const { error: fileError } = await supabase.storage
+          .from(EVIDENCE_BUCKET)
+          .createSignedUrl(path, 60);
+        if (!fileError) existing.push(path);
+      }
+
+      if (existing.length !== rawPaths.length) {
+        await supabase.from("internship_records").update({ evidence_files: existing }).eq("id", r.id);
+      }
+
+      mapped.push({
         recordId: r.id,
         studentId: r.student_id,
         studentName: profile?.full_name ?? "-",
@@ -142,13 +161,10 @@ export default function ConditerProgressPage() {
         position: r.position ?? "ยังไม่ระบุตำแหน่ง",
         latestNote: r.progress_note ?? "ยังไม่มีการอัปเดต",
         lastUpdated: r.updated_at,
-        evidenceFiles: (r.evidence_files ?? []).map((path: string) => ({
-          path,
-          name: fileNameFromUrl(path),
-        })),
+        evidenceFiles: existing.map((path: string) => ({ path, name: fileNameFromUrl(path) })),
         reviewStatus: (r.review_status ?? "pending") as ReviewStatus,
-      };
-    });
+      });
+    }
 
     setRows(mapped);
     setLoading(false);
@@ -158,6 +174,7 @@ export default function ConditerProgressPage() {
     setSelectedRow(row);
     setIsModalOpen(true);
     setFileUrls({});
+    setMissingFiles(new Set());
 
     // ขอ signed URL ของไฟล์หลักฐานทุกไฟล์ (ใช้ได้ทั้งบัคเก็ตแบบ public และ private)
     if (row.evidenceFiles.length > 0) {
@@ -170,17 +187,20 @@ export default function ConditerProgressPage() {
 
           if (error) {
             console.error("สร้างลิงก์ดูไฟล์ไม่สำเร็จ:", file.path, error);
-            return null;
+            return { path: file.path, url: null, missing: true };
           }
-          return { path: file.path, url: data?.signedUrl };
+          return { path: file.path, url: data?.signedUrl ?? null, missing: false };
         })
       );
 
       const urlMap: Record<string, string> = {};
+      const missingSet = new Set<string>();
       results.forEach((r) => {
-        if (r?.url) urlMap[r.path] = r.url;
+        if (r.url) urlMap[r.path] = r.url;
+        if (r.missing) missingSet.add(r.path);
       });
       setFileUrls(urlMap);
+      setMissingFiles(missingSet);
       setLoadingFiles(false);
     }
 
@@ -420,6 +440,7 @@ export default function ConditerProgressPage() {
                   <ul className="space-y-2">
                     {selectedRow.evidenceFiles.map((file, idx) => {
                       const url = fileUrls[file.path];
+                      const isMissing = missingFiles.has(file.path);
                       return (
                         <li key={idx}>
                           <a
@@ -437,8 +458,13 @@ export default function ConditerProgressPage() {
                           >
                             <FileText size={16} className={url ? "text-[#3D348B]" : "text-[#B5B2C2]"} />
                             <span className="truncate">{file.name}</span>
-                            {loadingFiles && !url && (
+                            {loadingFiles && !url && !isMissing && (
                               <span className="ml-auto text-[10px] text-[#B5B2C2]">กำลังโหลดลิงก์...</span>
+                            )}
+                            {!loadingFiles && isMissing && (
+                              <span className="ml-auto text-[10px] font-semibold text-[#E94B4B]">
+                                ไม่พบไฟล์นี้ในระบบ
+                              </span>
                             )}
                           </a>
                         </li>
