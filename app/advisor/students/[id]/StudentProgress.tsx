@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { Student } from "../../data";
 import AdvisorShell from "../../components/AdvisorShell";
 import Icon from "../../components/Icon";
@@ -45,6 +46,7 @@ function displayDate(value: string | null) {
 }
 
 export default function StudentProgress({ student, embedded = false }: { student: Student; embedded?: boolean }) {
+  const reportId = useSearchParams().get("report_id");
   const [reports, setReports] = useState<ProgressReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<ReportFilter>("all");
@@ -76,6 +78,11 @@ export default function StudentProgress({ student, embedded = false }: { student
     const task = window.setTimeout(() => { void loadReports(); }, 0);
     return () => window.clearTimeout(task);
   }, [loadReports]);
+
+  useEffect(() => {
+    if (!reportId || !reports.some((report) => report.id === reportId)) return;
+    document.getElementById(`advisor-report-${reportId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [reportId, reports]);
 
   async function review(report: ProgressReport, status: "approved" | "revision_required") {
     const note = (feedback[report.id] ?? report.advisor_feedback ?? "").trim();
@@ -119,7 +126,7 @@ export default function StudentProgress({ student, embedded = false }: { student
         <div className="weekly-heading"><div><h2 id="progress-title">บันทึกความก้าวหน้า</h2><p>ตรวจรายงานตามรอบที่ผู้ประสานงานกำหนดและส่งความคิดเห็นกลับนักศึกษา</p></div><div className="detail-tabs" aria-label="กรองสถานะรายงาน">{filters.map((item) => <button key={item.key} type="button" className={filter === item.key ? "active" : ""} onClick={() => setFilter(item.key)}>{item.label} <span>{item.key === "all" ? reports.length : reports.filter((report) => report.status === item.key).length}</span></button>)}</div></div>
 
         {loading ? <div className="detail-card empty-state">กำลังโหลดบันทึกความก้าวหน้า...</div> : visible.length === 0 ? <div className="detail-card empty-state">ยังไม่มีบันทึกความก้าวหน้าในสถานะนี้</div> : <div className="weekly-list">{visible.map((report) => (
-          <article className="detail-card weekly-card is-open" key={report.id}>
+          <article id={`advisor-report-${report.id}`} className="detail-card weekly-card is-open" key={report.id}>
             <div className="weekly-toggle"><span className="week-number">{report.period?.sequence_no ?? "-"}</span><span className="weekly-summary"><strong>{report.period?.title ?? "รอบรายงาน"}</strong><small>ส่งเมื่อ {displayDate(report.submitted_at)}</small></span><span className={`badge ${report.status === "revision_required" ? "revision" : report.status === "submitted" ? "pending" : report.status}`}>{labels[report.status]}</span></div>
             <div className="weekly-details">
               <div className="log-summary"><strong>งานที่ดำเนินการ</strong><p>{report.work_summary || "-"}</p></div>

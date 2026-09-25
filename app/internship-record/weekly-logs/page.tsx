@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
 import { AlertCircle, Building2, CalendarDays, CheckCircle2, FileText, Loader2, Plus, RotateCcw, X } from "lucide-react";
 import InternshipTabs from "@/components/InternshipTabs";
 import StudentSidebar from "@/components/StudentSidebar";
@@ -55,6 +56,7 @@ function formatDate(value: string) {
 }
 
 export default function ProgressReportsPage() {
+  const reportId = useSearchParams().get("report_id");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [studentId, setStudentId] = useState<string | null>(null);
@@ -114,6 +116,11 @@ export default function ProgressReportsPage() {
     const task = window.setTimeout(() => { void loadData(); }, 0);
     return () => window.clearTimeout(task);
   }, [loadData]);
+
+  useEffect(() => {
+    if (!reportId || !reports.some((report) => report.id === reportId)) return;
+    document.getElementById(`progress-report-${reportId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [reportId, reports]);
 
   const reportByPeriod = useMemo(() => new Map(reports.map((report) => [report.period_id, report])), [reports]);
 
@@ -194,7 +201,7 @@ export default function ProgressReportsPage() {
               const isOverdue = !report && period.status !== "draft" && new Date(`${period.due_on}T23:59:59`) < new Date();
               const canEdit = Boolean(internship) && period.status === "open" && (!report || report.status === "draft" || report.status === "revision_required");
               return (
-                <article key={period.id} className="rounded-lg border border-slate-200 bg-white p-5">
+                <article id={report ? `progress-report-${report.id}` : undefined} key={period.id} className="rounded-lg border border-slate-200 bg-white p-5">
                   <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div className="flex min-w-0 gap-4"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 font-bold text-indigo-800">{period.sequence_no}</span><div>
                       <div className="flex flex-wrap items-center gap-2"><h3 className="font-bold text-slate-900">{period.title}</h3>{report ? <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusCopy[report.status].className}`}>{statusCopy[report.status].label}</span> : isOverdue ? <span className="rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-semibold text-red-700">เกินกำหนด</span> : <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">ยังไม่ส่ง</span>}</div>

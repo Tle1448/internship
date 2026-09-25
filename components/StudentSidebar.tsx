@@ -48,6 +48,11 @@ export default function StudentSidebar() {
           icon: <CalendarDays className="w-5 h-5" />,
         },
         {
+          label: "ผลการประเมิน",
+          href: "/internship-record/results",
+          icon: <FileText className="w-5 h-5" />,
+        },
+        {
           label: "แจ้งเตือน",
           href: "/notifications",
           icon: <Bell className="w-5 h-5" />,
@@ -65,40 +70,44 @@ export default function StudentSidebar() {
               {cat.title}
             </p>
             <nav className="space-y-1">
-              {cat.items.map((item) => {
-                const isActive = 
-                  pathname === item.href || 
-                  (item.href !== "/pagestudent" && pathname.startsWith(item.href));
+              {(() => {
+                const activeHref = cat.items
+                  .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
+                  .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                      isActive
-                        ? "bg-[#3D348B] text-white shadow-md shadow-indigo-100"
-                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      {item.icon}
-                      <span>{item.label}</span>
-                    </div>
+                return cat.items.map((item) => {
+                  const isActive = item.href === activeHref;
 
-                    {item.badge && (
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                          isActive
-                            ? "bg-orange-500 text-white"
-                            : "bg-orange-100 text-orange-600"
-                        }`}
-                      >
-                        {item.badge}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                        isActive
+                          ? "bg-[#3D348B] text-white shadow-md shadow-indigo-100"
+                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {item.icon}
+                        <span>{item.label}</span>
+                      </div>
+
+                      {item.badge && (
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                            isActive
+                              ? "bg-orange-500 text-white"
+                              : "bg-orange-100 text-orange-600"
+                          }`}
+                        >
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                });
+              })()}
             </nav>
           </div>
         ))}
