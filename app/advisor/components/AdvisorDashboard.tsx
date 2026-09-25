@@ -59,7 +59,11 @@ export default function AdvisorDashboard() {
   return <AdvisorShell active="dashboard">
     <section className="page-heading">
       <div><h1>ภาพรวมการดูแลนักศึกษาสหกิจศึกษา</h1><p><Icon name="cap" /><span>ข้อมูลนักศึกษาในความดูแลจาก Supabase</span></p></div>
-      <div className="heading-actions"><button className="button secondary" onClick={() => window.print()}><Icon name="file" />พิมพ์รายงานสรุป</button><button className="button primary" disabled={!students.length} onClick={() => appointmentManager.current?.openCreate()}><Icon name="plus" />เพิ่มนัดหมายนิเทศ</button><Link className="button primary" href="/advisor/tasks"><Icon name="checklist" />ดูงานที่ต้องดำเนินการ</Link></div>
+      <div className="heading-actions">
+        <button className="button secondary" onClick={() => window.print()}><Icon name="file" />พิมพ์รายงานสรุป</button>
+        <button className="button primary" disabled={!students.length} onClick={() => appointmentManager.current?.openCreate()}><Icon name="plus" />เพิ่มนัดหมายนิเทศ</button>
+        {/* <Link className="button primary" href="/advisor/tasks"><Icon name="checklist" />ดูงานที่ต้องดำเนินการ</Link> */}
+      </div>
     </section>
     {error && <p className="feedback">ไม่สามารถโหลดข้อมูลได้: {error}</p>}
     <section className="stats" aria-label="สถิตินักศึกษา">

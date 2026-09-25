@@ -72,12 +72,14 @@ function toStudent(record: RecordRow, profile: ProfileRow): Student {
 
 export function useAdvisorStudents() {
   const { user } = useAuth();
+  const userId = user?.id;
+  const userRole = user?.role;
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const refresh = useCallback(async () => {
-    if (!user || user.role !== "advisor") {
+    if (!userId || userRole !== "advisor") {
       setStudents([]);
       setLoading(false);
       return;
@@ -86,7 +88,7 @@ export function useAdvisorStudents() {
     const { data: records, error: recordError } = await supabase
       .from("internship_records")
       .select("id, student_id, company_name, position, province, project, current_week, progress_percent, placement_status, progress_health, supervision_status, evaluation_status")
-      .eq("advisor_id", user.id)
+      .eq("advisor_id", userId)
       .eq("placement_status", "approved")
       .eq("status", "in_progress")
       .order("updated_at", { ascending: false });
@@ -119,7 +121,7 @@ export function useAdvisorStudents() {
       setError("");
     }
     setLoading(false);
-  }, [user]);
+  }, [userId, userRole]);
 
   useEffect(() => { void refresh(); }, [refresh]);
   return { students, loading, error, refresh };

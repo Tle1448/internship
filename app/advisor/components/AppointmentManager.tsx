@@ -144,6 +144,7 @@ const AppointmentManager = forwardRef<AppointmentManagerHandle, { students: Stud
 
     dialogRef.current?.close();
     setMessage(editingId ? "แก้ไขนัดหมายและแจ้งนักศึกษาแล้ว" : "เพิ่มนัดหมายและแจ้งนักศึกษาแล้ว");
+    if (!editingId) setForm(emptyForm(students[0]?.recordId ?? ""));
     await load();
   }
 

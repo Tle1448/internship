@@ -33,6 +33,7 @@ interface NotificationItem {
   application_id: string | null;
   job_application_id: string | null;
   supervision_appointment_id: string | null;
+  progress_report_id: string | null;
 }
 
 interface NotificationBellProps {
@@ -41,6 +42,7 @@ interface NotificationBellProps {
 
 function notificationHref(item: NotificationItem, role: NotificationBellProps["role"]) {
   if (item.supervision_appointment_id) return "/supervision-appointments";
+  if (item.progress_report_id) return role === "advisor" ? "/advisor/tasks" : "/internship-record/weekly-logs";
   if (role === "advisor") return "/advisor/students";
   if (role === "coordinator") {
     const placementNotice = item.title.includes("สถานที่ฝึกงาน") || item.title.includes("หลักฐาน") || item.title.includes("ยืนยัน");

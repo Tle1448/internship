@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Building2,
+  CalendarRange,
   BriefcaseBusiness,
   ClipboardCheck,
   FileClock,
@@ -43,6 +44,11 @@ export default function ConditerSidebar() {
       label: "อัปเดตเอกสารและความคืบหน้าการสมัคร",
       href: "/conditer/progress",
       icon: FileClock,
+    },
+    {
+      label: "รอบติดตามความก้าวหน้า",
+      href: "/conditer/progress-periods",
+      icon: CalendarRange,
     },
   ];
 

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const tabs = [
   { label: "อัปเดทหลักฐาน", href: "/internship-record" },
-  { label: "บันทึกประจำสัปดาห์", href: "/internship-record/weekly-logs" },
+  { label: "บันทึกความก้าวหน้า", href: "/internship-record/weekly-logs" },
 ];
 
 export default function InternshipTabs() {
