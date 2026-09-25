@@ -1,4 +1,6 @@
-import { students } from "../data";
+"use client";
+
+import { useAdvisorStudents } from "../data";
 import EvaluationForm from "./EvaluationForm";
 import EvaluationHistory from "./EvaluationHistory";
 import StudentOverview from "./StudentOverview";
@@ -8,8 +10,11 @@ import SupervisionForm from "./SupervisionForm";
 type StudentView = "overview" | "progress" | "supervision" | "evaluation" | "history";
 
 export default function AdvisorStudentRoute({ id, view }: { id: string; view: StudentView }) {
-  const student = students.find(item => item.id === id);
-  if (!student) return <section className="detail-card empty-state"><strong>ไม่พบข้อมูลนักศึกษา</strong><p>กรุณากลับไปเลือกนักศึกษาจากหน้ารวมอีกครั้ง</p></section>;
+  const { students, loading, error } = useAdvisorStudents();
+  if (loading) return <section className="detail-card empty-state">Loading student data...</section>;
+  if (error) return <section className="detail-card empty-state">Unable to load student data: {error}</section>;
+  const student = students.find((item) => item.id === id);
+  if (!student) return <section className="detail-card empty-state">Student record was not found or is not assigned to this advisor.</section>;
   if (view === "overview") return <StudentOverview student={student} />;
   if (view === "progress") return <StudentProgress student={student} />;
   if (view === "supervision") return <SupervisionForm student={student} />;

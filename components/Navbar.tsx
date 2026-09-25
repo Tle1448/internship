@@ -66,6 +66,7 @@ export default function Navbar() {
     currentPath.startsWith("/internship-record") ||
     currentPath.startsWith("/jobs") ||
     currentPath.startsWith("/documents") ||
+    currentPath.startsWith("/supervision-appointments") ||
     currentPath.startsWith("/notifications");
 
   // ปิด dropdown เมื่อคลิกข้างนอก
@@ -119,24 +120,20 @@ export default function Navbar() {
     };
   }, [isStudentPath]);
 
-  // 1. ถ้าอยู่หน้า Login ให้คืนค่าเป็น null ทันที
-  if (currentPath === "/login" || currentPath.startsWith("/login")) {
-    return null;
-  }
-
   const handleLogout = async () => {
     setIsDropdownOpen(false);
     try {
       await logout();
-      router.replace("/login");
+      router.replace("/Login");
       router.refresh();
     } catch (error) {
       console.error("ออกจากระบบไม่สำเร็จ:", error);
     }
   };
 
-  // 2. เช็กประเภทของหน้าปัจจุบัน
+  // เช็กประเภทของหน้าปัจจุบัน
   const isHomePage = currentPath === "/";
+  const isLogin = currentPath === "/login" || currentPath.startsWith("/login");
   const isAdmin = currentPath.startsWith("/admin");
   const isAdvisor = currentPath.startsWith("/advisor");
   const isConditer = currentPath.startsWith("/conditer");
@@ -155,10 +152,17 @@ export default function Navbar() {
       ? studentProfile.name.trim().charAt(0)
       : "น";
 
+  const accountDisplayName = user?.name?.trim() || "ผู้ใช้งาน";
+  const accountAvatarChar = accountDisplayName.charAt(0);
+
   const userData = isAdmin
     ? { name: "Admin User", subText: "System Admin", avatarChar: "A" }
     : isAdvisor
-    ? { name: "Adviser", subText: "อาจารย์ที่ปรึกษา", avatarChar: "A" }
+    ? {
+        name: accountDisplayName,
+        subText: user?.userCode || "",
+        avatarChar: accountAvatarChar,
+      }
     : isConditer
     ? { name: "Coordinator", subText: "เจ้าหน้าที่ผู้ประสานงาน", avatarChar: "C" }
     : isStudent
@@ -189,8 +193,8 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Nav tabs (ซ่อนเมื่ออยู่หน้า Home, Admin, Advisor หรือหน้านักศึกษา) */}
-        {!isHomePage && !isAdmin && !isAdvisor && !isStudent && (
+        {/* Nav tabs (ซ่อนเมื่ออยู่หน้า Home, Login, Admin, Advisor, Conditer หรือหน้านักศึกษา — ทุกหน้าพวกนี้มี sidebar ของตัวเองแล้ว) */}
+        {!isHomePage && !isLogin && !isAdmin && !isAdvisor && !isConditer && !isStudent && (
           <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
             {navItems.map((item) => {
               const active = pathname === item.href;
@@ -218,6 +222,7 @@ export default function Navbar() {
             <div className="flex items-center gap-3">
               {isStudent && <NotificationBell role="student" />}
               {isConditer && <NotificationBell role="coordinator" />}
+              {isAdvisor && <NotificationBell role="advisor" />}
 
               <div className="relative border-l border-slate-200 pl-3" ref={dropdownRef}>
                 <button
@@ -258,7 +263,7 @@ export default function Navbar() {
             </div>
           ) : (
             <Link
-              href="/login"
+              href="/Login"
               className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-indigo-900 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-800"
             >
               <UserIcon className="h-4 w-4" />

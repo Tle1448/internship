@@ -6,6 +6,9 @@ import { supabase } from "@/lib/supabase";
 import { getCurrentStudentId } from "@/lib/currentUser"; // TODO: เปลี่ยนเป็น auth จริงทีหลัง
 import InternshipTabs from "@/components/InternshipTabs";
 
+// bucket เดียวกับที่ใช้อัปโหลดไฟล์หลักฐาน (ต้องตรงกับฝั่ง conditer ด้วย)
+const EVIDENCE_BUCKET = "internship-evidence";
+
 // ---------- Types ----------
 interface Application {
   id: string;              // = internship_records.id
@@ -158,6 +161,30 @@ export default function InternshipRecordPage() {
 
     if (record) {
       setRecordId(record.id);
+
+      // ---------------------------------------------------------------
+      // Self-heal: เช็คว่าไฟล์แต่ละไฟล์ใน evidence_files ยังอยู่จริงใน
+      // Storage ไหม ถ้าไฟล์ไหนถูกลบไปแล้ว (เช่นลบตรงจาก Supabase Dashboard)
+      // ให้ตัดออกจากรายการที่โชว์ และ sync evidence_files ในตาราง
+      // internship_records ให้ตรงกันทันที เพื่อไม่ให้เหลือ "ไฟล์ผี" ค้างอยู่
+      // ---------------------------------------------------------------
+      const rawPaths: string[] = record.evidence_files ?? [];
+      const existingPaths: string[] = [];
+
+      for (const path of rawPaths) {
+        const { error: fileError } = await supabase.storage
+          .from(EVIDENCE_BUCKET)
+          .createSignedUrl(path, 60);
+        if (!fileError) existingPaths.push(path);
+      }
+
+      if (existingPaths.length !== rawPaths.length) {
+        await supabase
+          .from("internship_records")
+          .update({ evidence_files: existingPaths })
+          .eq("id", record.id);
+      }
+
       setApplications([
         {
           id: record.id,
@@ -169,7 +196,7 @@ export default function InternshipRecordPage() {
           position: record.position ?? "ยังไม่ระบุตำแหน่ง",
           company: record.company_name ?? "ยังไม่ระบุบริษัท",
           statusText: record.progress_note ?? record.status ?? "in_progress",
-          uploadedFiles: (record.evidence_files ?? []).map(fileNameFromUrl),
+          uploadedFiles: existingPaths.map(fileNameFromUrl),
         },
       ]);
     } else {
@@ -211,7 +238,7 @@ export default function InternshipRecordPage() {
       for (const file of Array.from(files)) {
         const filePath = `${studentId}/${Date.now()}_${file.name}`;
         const { error: uploadError } = await supabase.storage
-          .from("internship-evidence")
+          .from(EVIDENCE_BUCKET)
           .upload(filePath, file, { upsert: true });
 
         if (uploadError) throw uploadError;
@@ -295,7 +322,7 @@ export default function InternshipRecordPage() {
 
   // ---------------------------------------------------------------------
   // บันทึกข้อความความคืบหน้าโดยไม่เขียนทับสถานะ workflow ของการฝึกงาน
-  // -> จุดนี้คือจุดที่ฝั่ง advisor จะเห็นความเคลื่อนไหว
+  // -> จุดนี้คือจุดที่ฝั่ง conditer จะเห็นความเคลื่อนไหว
   // ---------------------------------------------------------------------
   const handleFinalSubmitAllUpdates = async () => {
     if (applications.length === 0 || !studentId || !recordId) return;
@@ -439,12 +466,8 @@ export default function InternshipRecordPage() {
             <div className="flex-1">
               <p className="text-sm font-semibold text-amber-800">Feedback ล่าสุดจาก advisor</p>
               <p className="mt-1 text-sm text-amber-900">
-                &ldquo;โปรดตรวจสอบรายละเอียดเอกสารสัญญาฝึกงานฉบับล่าสุด และให้อาจารย์ที่ปรึกษาลงนามก่อนวันที่ 25 มิ.ย.&rdquo;
+                &ldquo;กรุณาตรวจสอบข้อมูลก่อนยืนยัน&rdquo;
               </p>
-              <div className="mt-2 flex items-center justify-between text-xs text-amber-700">
-                <span>โดย อ.ดร. มานะ (Advisor)</span>
-                <span>19 มิ.ย. 2568</span>
-              </div>
             </div>
           </section>
 
@@ -466,9 +489,6 @@ export default function InternshipRecordPage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="font-bold text-slate-900 text-sm">{app.studentName}</p>
-                            <span className="text-[11px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium border border-emerald-200">
-                              ผ่านการตรวจสอบสมรรถนะแล้ว ✓
-                            </span>
                           </div>
                           <p className="text-xs text-slate-500 mt-0.5">{app.major}</p>
                           <p className="text-xs text-slate-400">รหัสนักศึกษา: {app.studentId}</p>

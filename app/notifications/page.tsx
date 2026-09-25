@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Check, CheckCheck, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Bell, Check, CheckCheck, ChevronRight, Loader2 } from "lucide-react";
 import StudentSidebar from "@/components/StudentSidebar";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
@@ -12,9 +13,14 @@ type Notification = {
   message: string;
   is_read: boolean;
   created_at: string;
+  application_id: string | null;
+  job_application_id: string | null;
+  supervision_appointment_id: string | null;
+  progress_report_id: string | null;
 };
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const [items, setItems] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +38,7 @@ export default function NotificationsPage() {
     setLoading(true);
     const { data, error: fetchError } = await supabase
       .from("notifications")
-      .select("id, title, message, is_read, created_at")
+      .select("id, title, message, is_read, created_at, application_id, job_application_id, supervision_appointment_id, progress_report_id")
       .eq("recipient_type", "student")
       .eq("recipient_id", studentId)
       .order("created_at", { ascending: false });
@@ -70,6 +76,17 @@ export default function NotificationsPage() {
     }
   }
 
+  async function openNotification(item: Notification) {
+    if (!item.is_read) await markRead(item.id);
+    if (item.supervision_appointment_id) {
+      router.push("/supervision-appointments");
+    } else if (item.progress_report_id) {
+      router.push("/internship-record/weekly-logs");
+    } else if (item.application_id || item.job_application_id) {
+      router.push("/select-company");
+    }
+  }
+
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-800">
       <StudentSidebar />
@@ -89,10 +106,10 @@ export default function NotificationsPage() {
           ) : (
             <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
               {items.map((item) => (
-                <button key={item.id} type="button" onClick={() => !item.is_read && void markRead(item.id)} className={"flex w-full items-start gap-4 border-b border-slate-100 p-5 text-left last:border-b-0 " + (!item.is_read ? "bg-indigo-50/40" : "bg-white")}>
+                <button key={item.id} type="button" onClick={() => void openNotification(item)} className={"flex w-full items-start gap-4 border-b border-slate-100 p-5 text-left last:border-b-0 hover:bg-slate-50 " + (!item.is_read ? "bg-indigo-50/40" : "bg-white")}>
                   <span className={"mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full " + (!item.is_read ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-500")}><Bell size={16} /></span>
                   <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="text-sm font-semibold text-slate-900">{item.title}</span>{!item.is_read && <span className="h-2 w-2 rounded-full bg-indigo-600" />}</span><span className="mt-1 block text-sm leading-6 text-slate-600">{item.message}</span><span className="mt-2 block text-xs text-slate-400">{new Date(item.created_at).toLocaleString("th-TH")}</span></span>
-                  {item.is_read && <Check size={16} className="mt-1 shrink-0 text-emerald-600" />}
+                  {item.supervision_appointment_id || item.progress_report_id || item.application_id || item.job_application_id ? <ChevronRight size={18} className="mt-1 shrink-0 text-slate-400" /> : item.is_read && <Check size={16} className="mt-1 shrink-0 text-emerald-600" />}
                 </button>
               ))}
             </div>

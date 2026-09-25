@@ -4,9 +4,12 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Building2,
+  CalendarRange,
   BriefcaseBusiness,
   ClipboardCheck,
+  FileClock,
   LogOut,
+  UserRoundCheck,
   Users,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
@@ -28,9 +31,24 @@ export default function ConditerSidebar() {
       icon: BriefcaseBusiness,
     },
     {
-      label: "ยื่นคำร้องขออนุมัติ",
+      label: "ติดตามการสมัคร",
       href: "/conditer/applications",
       icon: ClipboardCheck,
+    },
+    {
+      label: "ยืนยันที่ฝึกงาน",
+      href: "/conditer/placements",
+      icon: UserRoundCheck,
+    },
+    {
+      label: "อัปเดตเอกสารและความคืบหน้าการสมัคร",
+      href: "/conditer/progress",
+      icon: FileClock,
+    },
+    {
+      label: "รอบติดตามความก้าวหน้า",
+      href: "/conditer/progress-periods",
+      icon: CalendarRange,
     },
   ];
 
@@ -129,13 +147,7 @@ export default function ConditerSidebar() {
         </div>
 
         {/* Logout */}
-        <button
-          onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-xl border border-[#E7E4EF] bg-white px-4 py-3 text-xs font-semibold text-[#6C687B] transition hover:border-[#E94B4B] hover:bg-[#FFF6F6] hover:text-[#E94B4B]"
-        >
-          <LogOut size={17} />
-          ออกจากระบบ
-        </button>
+        
       </div>
     </aside>
   );

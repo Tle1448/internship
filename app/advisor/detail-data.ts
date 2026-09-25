@@ -25,12 +25,3 @@ export function createWeeklyRecords(student: Student): WeeklyRecord[] {
     };
   }).sort((a, b) => b.week - a.week);
 }
-
-export const scoreCriteria = [
-  { title: "ผลสัมฤทธิ์ของงานและโครงงานสหกิจ", description: "คุณภาพของชิ้นงาน ผลผลิตตามเป้าหมาย ความถูกต้อง และการส่งมอบตรงเวลา", max: 30, initial: 28 },
-  { title: "ความรู้ความสามารถทางวิชาชีพ", description: "ทักษะเชิงลึก การประยุกต์ใช้ความรู้ การแก้ปัญหาเฉพาะหน้า และความคิดริเริ่ม", max: 30, initial: 27 },
-  { title: "ความรับผิดชอบและวินัยในการทำงาน", description: "ความตรงต่อเวลา การปฏิบัติตามระเบียบ และความรับผิดชอบต่องาน", max: 20, initial: 19 },
-  { title: "การสื่อสารและการทำงานร่วมกับผู้อื่น", description: "การประสานงาน การนำเสนอ และการปรับตัวเข้ากับทีม", max: 20, initial: 18 },
-];
-
-export function gradeFor(score: number) { return score >= 85 ? "A" : score >= 80 ? "B+" : score >= 75 ? "B" : score >= 70 ? "C+" : score >= 65 ? "C" : score >= 60 ? "D+" : score >= 50 ? "D" : "F"; }
