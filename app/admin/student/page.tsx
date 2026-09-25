@@ -4,14 +4,13 @@ import AdminBreadcrumb from "@/components/AdminBreadcrumb";
 import DocumentPreview from "@/components/DocumentPreview";
 import { supabase } from "@/lib/supabase";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type StudentStatus = "กำลังหาที่ฝึกงาน" | "รอการอนุมัติ" | "ได้ที่ฝึกงานแล้ว";
 type C1Status = "ผ่าน C1" | "รอตรวจ C1";
 type Student = { id: string; name: string; email: string; school: string; program: string; year: string; status: StudentStatus; advisor: string; c1Status: C1Status };
 
-const addedStudentsStorageKey = "wu-internship-added-students";
 const initialStudents: Student[] = [
   { id: "65114289", name: "นายสมชาย ใจดี", email: "somchai.na@wu.ac.th", school: "สำนักวิชาวิศวกรรมศาสตร์และเทคโนโลยี", program: "วิศวกรรมคอมพิวเตอร์", year: "ชั้นปีที่ 4", status: "กำลังหาที่ฝึกงาน", advisor: "ผศ.ดร.วิชาการ ดีเลิศ", c1Status: "ผ่าน C1" },
   { id: "65118942", name: "นางสาววิภาดา ภักดี", email: "wiphada.ph@wu.ac.th", school: "สำนักวิชาสารสนเทศศาสตร์", program: "เทคโนโลยีสารสนเทศ", year: "ชั้นปีที่ 4", status: "รอการอนุมัติ", advisor: "ดร.ประสาน สุขใจ", c1Status: "รอตรวจ C1" },
@@ -147,15 +146,39 @@ function StudentDetailView({ student }: { student: Student }) {
 export default function StudentPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [students, setStudents] = useState<Student[]>(initialStudents);
+  const [students, setStudents] = useState<Student[]>([]);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StudentStatus | "ทั้งหมด">("ทั้งหมด");
   const [school, setSchool] = useState("ทั้งหมด");
   const [program, setProgram] = useState("ทั้งหมด");
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(() => initialStudents.find((student) => student.id === searchParams.get("student")) ?? null);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [previewFile, setPreviewFile] = useState<string | null>(() => searchParams.get("file"));
   const previousStudentId = useRef<string | null>(null);
   const loadedStudentId = useRef<string | null>(null);
+
+  const loadStudents = useCallback(async () => {
+    const [profilesResult, recordsResult, documentsResult] = await Promise.all([
+      supabase.from("profiles").select("id, user_code, full_name, email, faculty, major, year").eq("role", "student").eq("is_active", true).order("user_code"),
+      supabase.from("internship_records").select("student_id, advisor_id, placement_status, status"),
+      supabase.from("student_documents").select("student_id, status"),
+    ]);
+    if (profilesResult.error || recordsResult.error || documentsResult.error) return;
+    const recordsByStudent = new Map((recordsResult.data ?? []).map((record) => [record.student_id, record]));
+    const documentsByStudent = new Map<string, string[]>();
+    for (const document of documentsResult.data ?? []) documentsByStudent.set(document.student_id, [...(documentsByStudent.get(document.student_id) ?? []), document.status]);
+    const advisorIds = [...new Set((recordsResult.data ?? []).map((record) => record.advisor_id).filter((id): id is string => Boolean(id)))];
+    const advisorsResult = advisorIds.length ? await supabase.from("profiles").select("id, full_name").in("id", advisorIds) : { data: [] as Array<{ id: string; full_name: string | null }> };
+    const advisorNames = new Map((advisorsResult.data ?? []).map((advisor) => [advisor.id, advisor.full_name ?? "ยังไม่ระบุอาจารย์ที่ปรึกษา"]));
+    setStudents((profilesResult.data ?? []).map((profile) => {
+      const record = recordsByStudent.get(profile.id);
+      const placement = record?.placement_status ?? "pending";
+      const studentStatus: StudentStatus = placement === "approved" || placement === "placed" || record?.status === "completed" ? "ได้ที่ฝึกงานแล้ว" : placement === "reviewing" || placement === "submitted" ? "รอการอนุมัติ" : "กำลังหาที่ฝึกงาน";
+      const documentStatuses = documentsByStudent.get(profile.id) ?? [];
+      return { id: profile.user_code ?? profile.id, name: profile.full_name ?? "-", email: profile.email ?? "-", school: profile.faculty ?? "ยังไม่ระบุสำนักวิชา", program: profile.major ?? "ยังไม่ระบุหลักสูตร", year: profile.year ? `ชั้นปีที่ ${profile.year}` : "ยังไม่ระบุชั้นปี", status: studentStatus, advisor: record?.advisor_id ? advisorNames.get(record.advisor_id) ?? "ยังไม่ระบุอาจารย์ที่ปรึกษา" : "ยังไม่ระบุอาจารย์ที่ปรึกษา", c1Status: documentStatuses.includes("approved") ? "ผ่าน C1" : "รอตรวจ C1" };
+    }));
+  }, []);
+
+  useEffect(() => { void loadStudents(); }, [loadStudents]);
 
   useEffect(() => {
     const handlePageShow = (event: PageTransitionEvent) => {
@@ -166,10 +189,10 @@ export default function StudentPage() {
   }, []);
 
   useEffect(() => {
-    const refreshStudent = () => { loadedStudentId.current = null; setSelectedStudent((current) => current ? { ...current } : current); router.refresh(); };
-    const channel = supabase.channel("admin-student-live").on("postgres_changes", { event: "*", schema: "public", table: "internship_records" }, refreshStudent).on("postgres_changes", { event: "*", schema: "public", table: "student_documents" }, refreshStudent).subscribe();
+    const refreshStudent = () => { loadedStudentId.current = null; setSelectedStudent((current) => current ? { ...current } : current); void loadStudents(); router.refresh(); };
+    const channel = supabase.channel("admin-student-live").on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, refreshStudent).on("postgres_changes", { event: "*", schema: "public", table: "internship_records" }, refreshStudent).on("postgres_changes", { event: "*", schema: "public", table: "student_documents" }, refreshStudent).subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [router]);
+  }, [loadStudents, router]);
 
   useEffect(() => {
     if (!selectedStudent) return;
@@ -261,20 +284,6 @@ export default function StudentPage() {
   }, [router, searchParams, selectedStudent]);
 
 
-  useEffect(() => {
-    try {
-      const savedStudents = JSON.parse(window.localStorage.getItem(addedStudentsStorageKey) ?? "[]") as Array<{ id?: string; name?: string; email?: string; school?: string; department?: string }>;
-      const importedStudents = savedStudents
-        .filter((student) => student.id && student.name && student.email && student.department)
-        .map((student) => ({ id: student.id!, name: student.name!, email: student.email!, school: student.school || "ยังไม่ระบุสำนักวิชา", program: student.department!, year: "ยังไม่ระบุชั้นปี", status: "กำลังหาที่ฝึกงาน" as StudentStatus, advisor: "ยังไม่ระบุอาจารย์ที่ปรึกษา", c1Status: "รอตรวจ C1" as C1Status }));
-      const timer = window.setTimeout(() => {
-        setStudents([...initialStudents, ...importedStudents.filter((student) => !initialStudents.some((item) => item.id === student.id))]);
-      }, 0);
-      return () => window.clearTimeout(timer);
-    } catch {
-      window.localStorage.removeItem(addedStudentsStorageKey);
-    }
-  }, []);
   const search = query.trim().toLocaleLowerCase();
   const filteredStudents = students.filter((student) => (status === "ทั้งหมด" || student.status === status) && (school === "ทั้งหมด" || student.school === school) && (program === "ทั้งหมด" || student.program === program) && [student.name, student.id, student.email, student.program].some((value) => value.toLocaleLowerCase().includes(search)));
   const schools = [...new Set(students.map((student) => student.school))];

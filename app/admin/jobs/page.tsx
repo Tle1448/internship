@@ -2,7 +2,8 @@
 import AdminSidebar from "@/components/AdminSidebar";
 import AdminBreadcrumb from "@/components/AdminBreadcrumb";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 type JobStatus = "เปิดรับสมัคร" | "ใกล้ปิดรับ" | "ปิดรับสมัคร" | "รอตรวจสอบ";
 type Job = {
@@ -36,12 +37,32 @@ const statusStyles: Record<JobStatus, string> = {
 };
 
 export default function JobsPage() {
-  const [jobs, setJobs] = useState(initialJobs);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<JobStatus | "ทั้งหมด">("ทั้งหมด");
   const [category, setCategory] = useState("ทั้งหมด");
   const [company, setCompany] = useState("ทั้งหมด");
   const [selected, setSelected] = useState<Job | null>(null);
+  useEffect(() => {
+    async function loadJobs() {
+      const [companiesResult, jobsResult, applicationsResult] = await Promise.all([
+        supabase.from("companies").select("id, name"),
+        supabase.from("jobs").select("id, company_id, title, location, department, positions, work_type, description, qualifications, end_date, status").order("created_at", { ascending: false }),
+        supabase.from("job_applications").select("job_id"),
+      ]);
+      if (companiesResult.error || jobsResult.error || applicationsResult.error) return;
+      const companyNames = new Map((companiesResult.data ?? []).map((item) => [item.id, item.name]));
+      const applicationCounts = new Map<string, number>();
+      for (const application of applicationsResult.data ?? []) if (application.job_id) applicationCounts.set(application.job_id, (applicationCounts.get(application.job_id) ?? 0) + 1);
+      setJobs((jobsResult.data ?? []).map((job) => {
+        const end = job.end_date ? new Date(job.end_date) : null;
+        const isClosingSoon = job.status === "open" && end && end.getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000 && end.getTime() >= Date.now();
+        const displayStatus: JobStatus = job.status === "closed" ? "ปิดรับสมัคร" : job.status === "draft" ? "รอตรวจสอบ" : isClosingSoon ? "ใกล้ปิดรับ" : "เปิดรับสมัคร";
+        return { id: job.id, title: job.title, company: companyNames.get(job.company_id ?? "") ?? "-", category: job.department ?? "-", location: job.location ?? "-", type: job.work_type ?? "-", slots: job.positions ?? 0, applicants: applicationCounts.get(job.id) ?? 0, deadline: end ? end.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : "-", status: displayStatus, description: job.description ?? "", qualifications: job.qualifications ?? [] };
+      }));
+    }
+    void loadJobs();
+  }, []);
   const categories = useMemo(() => [...new Set(jobs.map((job) => job.category))], [jobs]);
   const companies = useMemo(() => [...new Set(jobs.map((job) => job.company))], [jobs]);
   const filtered = jobs.filter((job) => (status === "ทั้งหมด" || job.status === status) && (category === "ทั้งหมด" || job.category === category) && (company === "ทั้งหมด" || job.company === company) && [job.title, job.company, job.category, job.location].some((item) => item.toLowerCase().includes(query.trim().toLowerCase())));

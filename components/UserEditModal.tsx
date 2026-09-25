@@ -7,6 +7,7 @@ export type EditableUser = {
   id: string;
   name: string;
   email: string;
+  password?: string;
   role: UserRole;
   school?: string;
   department: string;
@@ -20,7 +21,7 @@ type Props = {
   roles?: UserRole[];
   onClose: () => void;
   /** Return an error message if the user cannot be saved. */
-  onSave: (user: EditableUser) => string | void;
+  onSave: (user: EditableUser) => string | void | Promise<string | void>;
 };
 
 const departments: Record<string, string[]> = {
@@ -78,7 +79,7 @@ export default function UserEditModal({ user, initialId = "", mode = "edit", rol
     };
   }, []);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const updated = { ...draft, id: draft.id.trim(), name: draft.name.trim(), email: draft.email.trim(), department: draft.department.trim() };
     if (!updated.id || !updated.name || !updated.school || !updated.department) {
@@ -89,7 +90,7 @@ export default function UserEditModal({ user, initialId = "", mode = "edit", rol
       setError("กรุณาใช้อีเมลสถาบันที่ลงท้ายด้วย @wu.ac.th");
       return;
     }
-    const saveError = onSave(updated);
+    const saveError = await onSave(updated);
     if (saveError) setError(saveError);
     else onClose();
   }
@@ -111,6 +112,7 @@ export default function UserEditModal({ user, initialId = "", mode = "edit", rol
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="block text-xs font-semibold text-gray-600">ชื่อ - นามสกุล <span className="text-red-600">*</span><input required value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} autoComplete="name" className={fieldClass} /></label>
             <label className="block text-xs font-semibold text-gray-600">อีเมลสถาบัน (@wu.ac.th) <span className="text-red-600">*</span><input required type="email" value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })} autoComplete="email" className={fieldClass} /></label>
+            {isCreate && <label className="block text-xs font-semibold text-gray-600 sm:col-span-2">รหัสผ่านเริ่มต้น <span className="text-red-600">*</span><input required minLength={8} type="password" value={draft.password ?? ""} onChange={(event) => setDraft({ ...draft, password: event.target.value })} autoComplete="new-password" className={fieldClass} /></label>}
             <label className="block text-xs font-semibold text-gray-600">สำนักวิชา <span className="text-red-600">*</span><select required value={draft.school} onChange={(event) => setDraft({ ...draft, school: event.target.value, department: "" })} className={fieldClass}><option value="">เลือกสำนักวิชา</option>{[...new Set([...Object.keys(departments), draft.school ?? ""])].filter(Boolean).map((school) => <option key={school}>{school}</option>)}</select></label>
             <label className="block text-xs font-semibold text-gray-600">สาขาวิชา / หลักสูตร <span className="text-red-600">*</span><select required disabled={!draft.school} value={draft.department} onChange={(event) => setDraft({ ...draft, department: event.target.value })} className={`${fieldClass} disabled:cursor-not-allowed disabled:bg-gray-100`}><option value="">{draft.school ? "เลือกสาขาวิชา / หลักสูตร" : "เลือกสำนักวิชาก่อน"}</option>{availableDepartments.map((department) => <option key={department}>{department}</option>)}</select></label>
           </div>
