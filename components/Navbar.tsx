@@ -120,11 +120,6 @@ export default function Navbar() {
     };
   }, [isStudentPath]);
 
-  // 1. ถ้าอยู่หน้า Login ให้คืนค่าเป็น null ทันที
-  if (currentPath === "/Login" || currentPath.startsWith("/Login")) {
-    return null;
-  }
-
   const handleLogout = async () => {
     setIsDropdownOpen(false);
     try {
@@ -136,8 +131,9 @@ export default function Navbar() {
     }
   };
 
-  // 2. เช็กประเภทของหน้าปัจจุบัน
+  // เช็กประเภทของหน้าปัจจุบัน
   const isHomePage = currentPath === "/";
+  const isLogin = currentPath === "/login" || currentPath.startsWith("/login");
   const isAdmin = currentPath.startsWith("/admin");
   const isAdvisor = currentPath.startsWith("/advisor");
   const isConditer = currentPath.startsWith("/conditer");
@@ -197,8 +193,8 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Nav tabs (ซ่อนเมื่ออยู่หน้า Home, Admin, Advisor, Conditer หรือหน้านักศึกษา — ทุกหน้าพวกนี้มี sidebar ของตัวเองแล้ว) */}
-        {!isHomePage && !isAdmin && !isAdvisor && !isConditer && !isStudent && (
+        {/* Nav tabs (ซ่อนเมื่ออยู่หน้า Home, Login, Admin, Advisor, Conditer หรือหน้านักศึกษา — ทุกหน้าพวกนี้มี sidebar ของตัวเองแล้ว) */}
+        {!isHomePage && !isLogin && !isAdmin && !isAdvisor && !isConditer && !isStudent && (
           <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
             {navItems.map((item) => {
               const active = pathname === item.href;
