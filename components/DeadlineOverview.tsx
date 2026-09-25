@@ -101,7 +101,7 @@ export default function DeadlineOverview() {
     }
   };
   return (
-    <section className="rounded-xl border border-[#EAEAEA] bg-white p-4 shadow-sm sm:p-5">
+    <section className="rounded-[14px] border border-[#DFE6EF] bg-white p-5 shadow-[0_2px_5px_rgba(15,23,42,0.08)] sm:p-6">
       <div className="flex justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold">กำหนดส่งที่ใกล้ถึง</h2>

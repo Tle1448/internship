@@ -8,7 +8,7 @@ import Link from "next/link";
 
 export default function AdminDashboardPage() {
   return (
-    <div className="flex min-h-screen bg-white text-black font-sans">
+    <div className="flex min-h-screen bg-[#FAF8FD] font-sans text-[#24232B]">
       {/* เมนูด้านซ้าย */}
       <AdminSidebar active="dashboard" />
 
@@ -16,15 +16,15 @@ export default function AdminDashboardPage() {
       <div className="flex min-w-0 flex-grow flex-col md:ml-[285px]">
 
         {/* เนื้อหาหน้าภาพรวมระบบ */}
-        <main className="flex max-w-[1440px] flex-col p-8">
+        <main className="flex w-full max-w-none flex-col p-5 lg:p-10">
 
           <AdminBreadcrumb isRoot />
           <header className="flex flex-col items-start justify-between gap-4 py-4 sm:flex-row sm:items-center">
             <div>
-              <h1 className="text-3xl font-bold text-black">
+              <h1 className="text-3xl font-bold text-[#24232B]">
                 ภาพรวมระบบ
               </h1>
-              <p className="mt-1 text-black">
+              <p className="mt-1 text-[#6D6979]">
                 ติดตามภาพรวมข้อมูลนักศึกษา สถานประกอบการ และการฝึกงานในระบบ
               </p>
             </div>
@@ -35,7 +35,7 @@ export default function AdminDashboardPage() {
           
 
           {/* สรุปข้อมูลสำคัญ */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+          <div className="mb-8 grid grid-cols-1 gap-[22px] md:grid-cols-2 lg:grid-cols-4 [&>div]:min-h-[203px] [&>div]:rounded-[14px] [&>div]:border-[#DFE6EF] [&>div]:p-[22px] [&>div]:shadow-[0_2px_5px_rgba(15,23,42,0.08)] [&>div]:hover:shadow-[0_5px_14px_rgba(15,23,42,0.12)]">
             <div className="bg-white border border-[#EAEAEA] rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all">
               <div className="flex justify-between items-center mb-3">
                 <span className="text-xs font-semibold text-black">
@@ -102,9 +102,9 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* สรุปข้อมูลและกำหนดการ */}
-          <div className="order-2 grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <div className="order-2 grid grid-cols-1 gap-5 lg:grid-cols-2 [&_#application-rounds]:rounded-[14px] [&_#application-rounds]:border-[#DFE6EF] [&_#application-rounds]:shadow-[0_2px_5px_rgba(15,23,42,0.08)]">
             {/* สถานะการสมัครของนักศึกษา */}
-            <div className="min-w-0 bg-white border border-[#EAEAEA] rounded-xl p-6">
+            <div className="min-w-0 rounded-[14px] border border-[#DFE6EF] bg-white p-6 shadow-[0_2px_5px_rgba(15,23,42,0.08)]">
               <div className="mb-5">
                 <div className="text-base font-bold">
                   📊 ความก้าวหน้าการสมัครของนักศึกษา
@@ -165,7 +165,7 @@ export default function AdminDashboardPage() {
           </div>
 
           <section aria-labelledby="admin-actions-title" className="order-1 mb-8 grid gap-5 lg:grid-cols-2">
-            <div className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm sm:p-6">
+            <div className="rounded-[14px] border border-[#DFE6EF] bg-white p-5 shadow-[0_2px_5px_rgba(15,23,42,0.08)] sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 id="admin-actions-title" className="text-lg font-bold text-black">งานที่ต้องดำเนินการ</h2>
@@ -200,7 +200,7 @@ export default function AdminDashboardPage() {
           </section>
 
           <section aria-label="ภาพรวมการดำเนินงานของอาจารย์และผู้ประสานงาน" className="order-3 mt-8 grid gap-5 xl:grid-cols-2">
-            <section aria-labelledby="advisor-overview-title" className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm sm:p-6">
+            <section aria-labelledby="advisor-overview-title" className="rounded-[14px] border border-[#DFE6EF] bg-white p-5 shadow-[0_2px_5px_rgba(15,23,42,0.08)] sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div><h2 id="advisor-overview-title" className="text-lg font-bold text-black">การติดตามของอาจารย์นิเทศ</h2><p className="mt-1 text-sm text-black">ภาพรวมการดูแลและประเมินนักศึกษา</p></div>
                 <span className="flex size-10 items-center justify-center rounded-xl bg-[#514A88] text-xl">🎓</span>
@@ -214,7 +214,7 @@ export default function AdminDashboardPage() {
               <Link href="/advisor/students" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#3D348B] hover:text-[#7678ED]">ดูการติดตามนักศึกษาทั้งหมด <span aria-hidden="true">→</span></Link>
             </section>
 
-            <section aria-labelledby="coordinator-overview-title" className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm sm:p-6">
+            <section aria-labelledby="coordinator-overview-title" className="rounded-[14px] border border-[#DFE6EF] bg-white p-5 shadow-[0_2px_5px_rgba(15,23,42,0.08)] sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div><h2 id="coordinator-overview-title" className="text-lg font-bold text-black">การดำเนินงานของผู้ประสานงาน</h2><p className="mt-1 text-sm text-black">ภาพรวมบริษัท ตำแหน่งงาน และใบสมัคร</p></div>
                 <span className="flex size-10 items-center justify-center rounded-xl bg-[#E98E22] text-xl">💼</span>
@@ -230,7 +230,7 @@ export default function AdminDashboardPage() {
           </section>
 
           <section className="order-4 mt-8 grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-            <section aria-labelledby="activity-title" className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm sm:p-6">
+            <section aria-labelledby="activity-title" className="rounded-[14px] border border-[#DFE6EF] bg-white p-5 shadow-[0_2px_5px_rgba(15,23,42,0.08)] sm:p-6">
               <div className="flex items-center justify-between gap-3"><div><h2 id="activity-title" className="text-lg font-bold text-black">กิจกรรมล่าสุด</h2><p className="mt-1 text-sm text-[#555]">ความเคลื่อนไหวในระบบล่าสุด</p></div><Link href="/admin/users" className="text-sm font-semibold text-[#3D348B] hover:text-[#7678ED]">ดูผู้ใช้งาน</Link></div>
               <div className="mt-5 space-y-5 border-l-2 border-[#EEECFF] pl-5">
                 <div className="relative"><span className="absolute -left-[29px] top-1 size-3 rounded-full border-2 border-white bg-[#3D348B]" /><p className="font-semibold">มีผู้ใช้งานใหม่ลงทะเบียน 6 ราย</p><p className="mt-1 text-xs text-[#555]">นักศึกษา 5 ราย และอาจารย์ที่ปรึกษา 1 ราย · 25 นาทีที่แล้ว</p></div>
@@ -239,7 +239,7 @@ export default function AdminDashboardPage() {
               </div>
             </section>
 
-            <section aria-labelledby="document-summary-title" className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm sm:p-6">
+            <section aria-labelledby="document-summary-title" className="rounded-[14px] border border-[#DFE6EF] bg-white p-5 shadow-[0_2px_5px_rgba(15,23,42,0.08)] sm:p-6">
               <div className="flex items-center justify-between gap-3"><div><h2 id="document-summary-title" className="text-lg font-bold text-black">สรุปสถานะเอกสาร</h2><p className="mt-1 text-sm text-[#555]">เอกสารประกอบการฝึกงาน</p></div><span className="text-xl">📋</span></div>
               <dl className="mt-5 space-y-3">
                 <div className="flex items-center justify-between rounded-lg bg-[#F18701] px-4 py-3 text-white"><dt className="text-sm font-medium">รอตรวจสอบ</dt><dd className="font-mono text-xl font-bold">28</dd></div>
