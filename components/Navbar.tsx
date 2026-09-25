@@ -14,12 +14,19 @@ interface NavItem {
   href: string;
 }
 
+// เมนูสำหรับผู้ใช้งานที่ล็อกอินแล้ว (บทบาททั่วไป ไม่ใช่ admin/advisor/conditer/student)
 const navItems: NavItem[] = [
   { label: "หน้าแรก", href: "/" },
   { label: "ค้นหางาน", href: "/jobs" },
   { label: "บันทึกฝึกงาน", href: "/internship-record" },
   { label: "เอกสารส่งงาน", href: "/documents" },
   { label: "แจ้งเตือน", href: "/notifications" },
+];
+
+// เมนูสำหรับผู้เยี่ยมชมทั่วไปที่ยังไม่ได้ล็อกอิน (เช่น หน้าแรก / หน้า Login)
+const publicNavItems: NavItem[] = [
+  { label: "หน้าแรก", href: "/" },
+  { label: "เกี่ยวกับเรา", href: "/about" },
 ];
 
 // ---------- Icons ----------
@@ -132,8 +139,6 @@ export default function Navbar() {
   };
 
   // เช็กประเภทของหน้าปัจจุบัน
-  const isHomePage = currentPath === "/";
-  const isLogin = currentPath === "/login" || currentPath.startsWith("/login");
   const isAdmin = currentPath.startsWith("/admin");
   const isAdvisor = currentPath.startsWith("/advisor");
   const isConditer = currentPath.startsWith("/conditer");
@@ -173,6 +178,10 @@ export default function Navbar() {
       }
     : { name: "ผู้ใช้งาน", subText: "", avatarChar: "?" };
 
+  // เมนูที่จะแสดงบน navbar: ถ้าล็อกอินแล้ว (และไม่ใช่ admin/advisor/conditer/student ที่มี sidebar ของตัวเอง)
+  // ใช้ navItems, ถ้ายังไม่ล็อกอิน (ผู้เยี่ยมชมทั่วไป) ใช้ publicNavItems
+  const menuItems = isLoggedIn ? navItems : publicNavItems;
+
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white">
       <div className="flex w-full items-center justify-between gap-4 px-4 py-2.5">
@@ -193,10 +202,10 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Nav tabs (ซ่อนเมื่ออยู่หน้า Home, Login, Admin, Advisor, Conditer หรือหน้านักศึกษา — ทุกหน้าพวกนี้มี sidebar ของตัวเองแล้ว) */}
-        {!isHomePage && !isLogin && !isAdmin && !isAdvisor && !isConditer && !isStudent && (
+        {/* Nav tabs (ซ่อนเมื่ออยู่หน้า Admin, Advisor, Conditer หรือหน้านักศึกษา — หน้าพวกนี้มี sidebar ของตัวเองแล้ว) */}
+        {!isAdmin && !isAdvisor && !isConditer && !isStudent && (
           <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
-            {navItems.map((item) => {
+            {menuItems.map((item) => {
               const active = pathname === item.href;
 
               return (
