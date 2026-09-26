@@ -112,17 +112,13 @@ export default function ConditerSidebar() {
               href={item.href}
               className={`mb-1 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-xs transition ${
                 active
-                  ? "bg-[#EFEEFC] font-semibold text-[#3D348B]"
+                  ? "bg-[#3D348B] font-semibold text-white shadow-sm"
                   : "text-[#68657A] hover:bg-[#F4F3FC] hover:text-[#3D348B]"
               }`}
             >
               <Icon
                 size={18}
-                className={
-                  active
-                    ? "text-[#3D348B]"
-                    : "text-[#888499]"
-                }
+                className={active ? "text-white" : "text-[#888499]"}
               />
 
               <span>{item.label}</span>
@@ -153,4 +149,4 @@ export default function ConditerSidebar() {
       </div>
     </aside>
   );
-} 
+}
