@@ -49,7 +49,7 @@ function formatAppointmentDate(value: string) {
   return new Date(value).toLocaleString("th-TH", { dateStyle: "long", timeStyle: "short" });
 }
 
-const AppointmentManager = forwardRef<AppointmentManagerHandle, { students: Student[]; loading: boolean }>(function AppointmentManager({ students, loading }, ref) {
+const AppointmentManager = forwardRef<AppointmentManagerHandle, { students: Student[] }>(function AppointmentManager({ students }, ref) {
   const { user } = useAuth();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -76,7 +76,6 @@ const AppointmentManager = forwardRef<AppointmentManagerHandle, { students: Stud
   useEffect(() => { void load(); }, [load]);
 
   const studentByRecord = useMemo(() => new Map(students.map((student) => [student.recordId, student])), [students]);
-  const upcoming = useMemo(() => appointments.find((item) => item.status === "scheduled" && new Date(item.scheduled_at).getTime() > Date.now()) ?? null, [appointments]);
 
   function openCreate() {
     setEditingId(null);
@@ -163,20 +162,9 @@ const AppointmentManager = forwardRef<AppointmentManagerHandle, { students: Stud
   }
 
   const activeAppointments = appointments.filter((item) => item.status === "scheduled" && new Date(item.scheduled_at).getTime() > Date.now());
-  const upcomingStudent = upcoming ? studentByRecord.get(upcoming.record_id) : null;
 
   return <>
     {message && <div className="feedback appointment-feedback" role="status"><Icon name="check" />{message}<button className="icon-button" aria-label="ปิดข้อความ" onClick={() => setMessage("")}><Icon name="close" size={16} /></button></div>}
-    <section className="appointment-banner">
-      <span className="appointment-icon"><Icon name="calendar" size={32} /></span>
-      <div>
-        <span className="banner-tag">กำหนดการนิเทศครั้งต่อไป</span>
-        <h2>{loading ? "กำลังโหลดข้อมูล..." : upcoming ? `นิเทศ ${upcomingStudent?.name ?? "นักศึกษา"} ที่ ${upcomingStudent?.company ?? "สถานประกอบการ"}` : "ยังไม่มีนัดหมายนิเทศที่กำลังจะถึง"}</h2>
-        <p>{upcoming ? `${formatAppointmentDate(upcoming.scheduled_at)} · ${upcoming.mode === "onsite" ? "On-site" : "Online"}${upcoming.location ? ` · ${upcoming.location}` : ""}` : "เพิ่มนัดหมายเพื่อแจ้งวัน เวลา และรายละเอียดให้นักศึกษา"}</p>
-      </div>
-      <button className="button" type="button" onClick={openCreate} disabled={!students.length}><Icon name="plus" />เพิ่มนัดหมาย</button>
-    </section>
-
     <dialog ref={dialogRef} className="modal appointment-modal" onClose={() => setEditingId(null)}>
       <div className="modal-header"><div><h2>{editingId ? "แก้ไขนัดหมายนิเทศ" : "เพิ่มนัดหมายนิเทศ"}</h2><p className="muted">ระบบจะแจ้งรายละเอียดให้นักศึกษาอัตโนมัติ</p></div><button className="icon-button" type="button" aria-label="ปิด" onClick={() => dialogRef.current?.close()}><Icon name="close" /></button></div>
       <form onSubmit={save}>
