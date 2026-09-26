@@ -38,7 +38,7 @@ export async function GET() {
   const [{ data: profiles, error: profilesError }, { data: records, error: recordsError }, { data: documents, error: documentsError }] = await Promise.all([
     supabaseAdmin.from("profiles").select("id, user_code, full_name, email, faculty, major, year").eq("role", "student").order("user_code"),
     supabaseAdmin.from("internship_records").select("student_id, advisor_id, company_name, position, province, started_at, ended_at, status, placement_status"),
-    supabaseAdmin.from("student_documents").select("id, student_id, document_type, file_path, status, comment, submitted_at").order("submitted_at", { ascending: false }),
+    supabaseAdmin.from("student_documents").select("id, student_id, document_type, file_name, file_url, status, comment, submitted_at").order("submitted_at", { ascending: false }),
   ]);
   const error = profilesError ?? recordsError ?? documentsError;
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

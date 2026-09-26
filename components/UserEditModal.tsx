@@ -25,7 +25,7 @@ type Props = {
   onSave: (user: EditableUser) => string | UserSaveError | void | Promise<string | UserSaveError | void>;
 };
 
-const departments: Record<string, string[]> = {
+export const departments: Record<string, string[]> = {
   "วิทยาลัยทันตแพทยศาสตร์นานาชาติ": ["สาขาวิชาทันตแพทยศาสตร์ (หลักสูตรนานาชาติ)"],
   "วิทยาลัยนานาชาติ (Walailak University International College - WUIC)": ["หลักสูตรนานาชาติต่างๆ (เช่น บริหารธุรกิจนานาชาติ, นวัตกรรมดิจิทัล ฯลฯ)"],
   "วิทยาลัยสัตวแพทยศาสตร์อัครราชกุมารี": ["สาขาวิชาสัตวแพทยศาสตร์ (หลักสูตรนานาชาติ)"],
