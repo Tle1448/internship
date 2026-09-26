@@ -29,8 +29,8 @@ function relativeTime(value: string) {
 
 export default async function AdminDashboardPage() {
   const [studentsResult, advisorsResult, recordsResult, companiesResult, jobsResult, documentsResult, applicationsResult, activitiesResult] = await Promise.all([
-    supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("role", "student").eq("is_active", true),
-    supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("role", "advisor").eq("is_active", true),
+    supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("role", "student"),
+    supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("role", "advisor"),
     supabaseAdmin.from("internship_records").select("placement_status"),
     supabaseAdmin.from("companies").select("approval_status"),
     supabaseAdmin.from("jobs").select("status, positions"),
@@ -39,13 +39,16 @@ export default async function AdminDashboardPage() {
     supabaseAdmin.from("admin_activity_logs").select("id, summary, entity_type, created_at").order("created_at", { ascending: false }).limit(3),
   ]);
   const students = studentsResult.count ?? 0;
+  const studentsError = studentsResult.error?.message;
   const advisors = advisorsResult.count ?? 0;
   const records = recordsResult.data ?? [];
   const companies = companiesResult.data ?? [];
   const jobs = jobsResult.data ?? [];
   const documents = documentsResult.data ?? [];
   const applications = applicationsResult.data ?? [];
-  const placedStudents = records.filter((record) => record.placement_status && record.placement_status !== "pending").length;
+  // A placement is final only after the coordinator approval workflow sets
+  // placement_status to "approved". Other states must not inflate this count.
+  const placedStudents = records.filter((record) => record.placement_status === "approved").length;
   const approvedCompanies = companies.filter((company) => company.approval_status === "approved").length;
   const pendingCompanies = companies.filter((company) => company.approval_status === "pending").length;
   const openJobs = jobs.filter((job) => job.status === "open");
@@ -93,6 +96,7 @@ export default async function AdminDashboardPage() {
             {/* ปุ่มดำเนินการด่วน */}
             <AdminDashboardActions report={{ students, companies: companies.length, openJobs: openJobs.length, pendingDocuments }} />
           </header>
+          {studentsError && <p role="alert" className="mb-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">ไม่สามารถโหลดจำนวนนักศึกษาได้: {studentsError}</p>}
           
 
           {/* สรุปข้อมูลสำคัญ */}

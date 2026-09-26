@@ -44,10 +44,10 @@ export async function GET() {
   if (!await requireAdmin()) return NextResponse.json({ error: "Admin access is required" }, { status: 403 });
   const { data, error } = await supabaseAdmin
     .from("profiles")
-    .select("id, user_code, full_name, email, role, faculty, major, is_active, created_at")
+    .select("id, user_code, full_name, email, role, faculty, major, created_at")
     .order("full_name", { ascending: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ users: data ?? [] });
+  return NextResponse.json({ users: (data ?? []).map((user) => ({ ...user, is_active: true })) });
 }
 
 export async function POST(request: NextRequest) {
@@ -77,13 +77,12 @@ export async function POST(request: NextRequest) {
   const { data: profile, error: profileError } = await supabaseAdmin.from("profiles").update({
     user_code: userCode, full_name: fullName, email, role,
     faculty: stringValue(body.faculty) || null, major: stringValue(body.major) || null,
-    is_active: body.isActive !== false,
-  }).eq("id", created.user.id).select("id, user_code, full_name, email, role, faculty, major, is_active").single();
+  }).eq("id", created.user.id).select("id, user_code, full_name, email, role, faculty, major").single();
   if (profileError) {
     await supabaseAdmin.auth.admin.deleteUser(created.user.id);
     return NextResponse.json({ error: profileError.message }, { status: 400 });
   }
-  return NextResponse.json({ user: profile }, { status: 201 });
+  return NextResponse.json({ user: profile ? { ...profile, is_active: true } : profile }, { status: 201 });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -94,7 +93,6 @@ export async function PATCH(request: NextRequest) {
   const id = stringValue(body?.id);
   const role = roleValue(body?.role);
   if (!body || !id || !role) return NextResponse.json({ error: "User id or role is invalid" }, { status: 400 });
-  if (id === admin.id && body.isActive === false) return NextResponse.json({ error: "You cannot deactivate your own account" }, { status: 400 });
 
   const fullName = stringValue(body.fullName);
   const email = stringValue(body.email).toLowerCase();
@@ -106,10 +104,9 @@ export async function PATCH(request: NextRequest) {
   const { data: profile, error } = await supabaseAdmin.from("profiles").update({
     user_code: userCode, full_name: fullName, email, role,
     faculty: stringValue(body.faculty) || null, major: stringValue(body.major) || null,
-    is_active: body.isActive !== false,
-  }).eq("id", id).select("id, user_code, full_name, email, role, faculty, major, is_active").single();
+  }).eq("id", id).select("id, user_code, full_name, email, role, faculty, major").single();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ user: profile });
+  return NextResponse.json({ user: profile ? { ...profile, is_active: true } : profile });
 }
 
 export async function DELETE(request: NextRequest) {
@@ -118,7 +115,7 @@ export async function DELETE(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: "Admin access is required" }, { status: 403 });
   const id = new URL(request.url).searchParams.get("id")?.trim() ?? "";
   if (!id || id === admin.id) return NextResponse.json({ error: "A different user id is required" }, { status: 400 });
-  const { error } = await supabaseAdmin.from("profiles").update({ is_active: false }).eq("id", id);
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(id, { ban_duration: "876000h" });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });
 }
