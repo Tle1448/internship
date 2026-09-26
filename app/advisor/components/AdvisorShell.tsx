@@ -9,7 +9,7 @@ import Icon from "./Icon";
 import "../advisor.css";
 import "../details.css";
 
-export type StudentSection = "overview" | "progress" | "supervision" | "evaluation" | "history";
+export type StudentSection = "overview" | "documents" | "progress" | "supervision" | "evaluation" | "history";
 type AdvisorSection = "dashboard" | "students" | "tasks" | "profile";
 
 export default function AdvisorShell({ student, active, children, title, studentSection }: { student?: Student; active: AdvisorSection; children: ReactNode; title?: string; studentSection?: StudentSection }) {
@@ -24,6 +24,7 @@ export default function AdvisorShell({ student, active, children, title, student
   ];
   const studentLinks = student ? [
     { key: "overview", label: "ภาพรวม", href: `/advisor/students/${student.id}` },
+    { key: "documents", label: "เอกสารฝึกงาน", href: `/advisor/students/${student.id}/documents` },
     { key: "progress", label: "บันทึกความก้าวหน้า", href: `/advisor/students/${student.id}/progress` },
     { key: "supervision", label: "บันทึกนิเทศ", href: `/advisor/students/${student.id}/supervision` },
     { key: "evaluation", label: "แบบประเมิน", href: `/advisor/students/${student.id}/evaluation` },
