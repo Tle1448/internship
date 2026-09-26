@@ -73,6 +73,38 @@ interface ProfileData {
   avatarUrl: string | null;
 }
 
+function getApplyErrorMessage(error: unknown) {
+  const message =
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as { message?: unknown }).message === 'string'
+      ? (error as { message: string }).message
+      : '';
+
+  if (
+    message.includes('already exists') ||
+    message.includes('duplicate key') ||
+    message.includes('job_applications_one_active_job_idx')
+  ) {
+    return 'คุณมีรายการสมัครตำแหน่งนี้อยู่แล้ว กรุณาตรวจสอบในหน้าติดตามการสมัคร';
+  }
+
+  if (message.includes('placement has already been confirmed')) {
+    return 'คุณได้รับการยืนยันสถานที่ฝึกงานแล้ว จึงไม่สามารถสมัครตำแหน่งอื่นได้';
+  }
+
+  if (message.includes('not available')) {
+    return 'ตำแหน่งนี้ปิดรับสมัครหรือไม่พร้อมให้สมัครแล้ว';
+  }
+
+  if (message.includes('Only students can start an application')) {
+    return 'บัญชีนี้ไม่มีสิทธิ์สมัครตำแหน่งฝึกงาน';
+  }
+
+  return message || 'เกิดข้อผิดพลาดในการสมัครงาน';
+}
+
 const EMPTY_PROFILE: ProfileData = {
   id: '',
   name: '',
@@ -818,22 +850,9 @@ export default function StudentDashboard() {
       const {
         error,
       } = await supabase
-        .from('job_applications')
-        .insert({
-          student_id:
-            profileData.id,
-
-          job_id:
-            selectedJob.id,
-
-          job_title:
-            selectedJob.title,
-
-          company_name:
-            selectedJob.company,
-
-          status:
-            'pending',
+        .rpc('start_job_application', {
+          job_id: selectedJob.id,
+          external_submission_id: null,
         });
 
       if (error) {
@@ -843,15 +862,14 @@ export default function StudentDashboard() {
       setSelectedJob(null);
 
       router.push('/coordinator');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(
         'สมัครงานไม่สำเร็จ:',
         JSON.stringify(err, null, 2)
       );
 
       setApplyError(
-        err.message ??
-          'เกิดข้อผิดพลาดในการสมัครงาน'
+        getApplyErrorMessage(err)
       );
     } finally {
       setApplying(false);
