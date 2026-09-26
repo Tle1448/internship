@@ -49,7 +49,7 @@ export default function StudentSidebar() {
         },
         {
           label: "ผลการประเมิน",
-          href: "/internship-record/results",
+          href: "/results",
           icon: <FileText className="w-5 h-5" />,
         },
         {
