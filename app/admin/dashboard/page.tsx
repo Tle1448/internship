@@ -6,6 +6,37 @@ import DeadlineOverview from "@/components/DeadlineOverview";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import React from "react";
 import Link from "next/link";
+import { connection } from "next/server";
+
+async function loadRecentActivity() {
+  const logs = await supabaseAdmin.from("admin_activity_logs")
+    .select("id, summary, entity_type, created_at")
+    .order("created_at", { ascending: false }).order("id").limit(3);
+  if (!logs.error || !["PGRST205", "42P01"].includes(logs.error.code)) return logs;
+
+  // Older databases have no audit table. Show actual submissions/creations;
+  // their timestamps do not represent reviews or later status changes.
+  const results = await Promise.all([
+    supabaseAdmin.from("companies").select("id, name, created_at").order("created_at", { ascending: false, nullsFirst: false }).order("id").limit(3),
+    supabaseAdmin.from("jobs").select("id, title, created_at").order("created_at", { ascending: false, nullsFirst: false }).order("id").limit(3),
+    supabaseAdmin.from("job_applications").select("id, created_at").order("created_at", { ascending: false, nullsFirst: false }).order("id").limit(3),
+    supabaseAdmin.from("student_documents").select("id, document_type, submitted_at").order("submitted_at", { ascending: false, nullsFirst: false }).order("id").limit(3),
+  ]);
+  const [companies, jobs, applications, documents] = results;
+  const data = [
+    ...(companies.data ?? []).map((item) => ({ id: `company-${item.id}`, summary: `เพิ่มสถานประกอบการ: ${item.name}`, entity_type: "company", created_at: item.created_at })),
+    ...(jobs.data ?? []).map((item) => ({ id: `job-${item.id}`, summary: `เพิ่มตำแหน่งงาน: ${item.title}`, entity_type: "job", created_at: item.created_at })),
+    ...(applications.data ?? []).map((item) => ({ id: `application-${item.id}`, summary: "ส่งใบสมัครฝึกงาน", entity_type: "application", created_at: item.created_at })),
+    ...(documents.data ?? []).map((item) => ({ id: `document-${item.id}`, summary: `ส่งเอกสาร: ${item.document_type}`, entity_type: "document", created_at: item.submitted_at })),
+  ].filter((item) => item.created_at && Number.isFinite(Date.parse(item.created_at)))
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || a.id.localeCompare(b.id)).slice(0, 3);
+  return { data, error: results.find((result) => result.error)?.error ?? null };
+}
+
+const activityLabels: Record<string, string> = {
+  profile: "ผู้ใช้งาน", company: "สถานประกอบการ", job: "ตำแหน่งงาน",
+  application: "ใบสมัคร", document: "เอกสาร",
+};
 
 function DashboardIcon({ name, className = "size-5" }: { name: "chart" | "file" | "building" | "briefcase" | "cap" | "clipboard"; className?: string }) {
   const paths = {
@@ -28,26 +59,43 @@ function relativeTime(value: string) {
 }
 
 export default async function AdminDashboardPage() {
-  const [studentsResult, advisorsResult, recordsResult, companiesResult, jobsResult, documentsResult, applicationsResult, activitiesResult] = await Promise.all([
-    supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("role", "student").eq("is_active", true),
-    supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("role", "advisor").eq("is_active", true),
+  await connection();
+  const [studentsResult, advisorsResult, recordsResult, companiesResult, approvedCompaniesResult, pendingCompaniesResult, jobsResult, documentsResult, applicationsResult, activitiesResult] = await Promise.all([
+    supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("role", "student"),
+    supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("role", "advisor"),
     supabaseAdmin.from("internship_records").select("placement_status"),
-    supabaseAdmin.from("companies").select("approval_status"),
+    supabaseAdmin.from("companies").select("id", { count: "exact", head: true }),
+    supabaseAdmin.from("companies").select("id", { count: "exact", head: true }).eq("status", "approved"),
+    supabaseAdmin.from("companies").select("id", { count: "exact", head: true }).eq("status", "pending"),
     supabaseAdmin.from("jobs").select("status, positions"),
     supabaseAdmin.from("student_documents").select("status"),
     supabaseAdmin.from("job_applications").select("status"),
-    supabaseAdmin.from("admin_activity_logs").select("id, summary, entity_type, created_at").order("created_at", { ascending: false }).limit(3),
+    loadRecentActivity(),
   ]);
+  const dashboardErrors = [
+    { label: "ข้อมูลนักศึกษา", error: studentsResult.error },
+    { label: "ข้อมูลอาจารย์นิเทศ", error: advisorsResult.error },
+    { label: "ข้อมูลการฝึกงาน", error: recordsResult.error },
+    { label: "ข้อมูลสถานประกอบการ", error: companiesResult.error },
+    { label: "สถานประกอบการที่อนุมัติแล้ว", error: approvedCompaniesResult.error },
+    { label: "สถานประกอบการรออนุมัติ", error: pendingCompaniesResult.error },
+    { label: "ข้อมูลตำแหน่งงาน", error: jobsResult.error },
+    { label: "ข้อมูลเอกสาร", error: documentsResult.error },
+    { label: "ข้อมูลใบสมัคร", error: applicationsResult.error },
+    { label: "ข้อมูลกิจกรรมล่าสุด", error: activitiesResult.error },
+  ].filter(({ error }) => error !== null);
   const students = studentsResult.count ?? 0;
   const advisors = advisorsResult.count ?? 0;
   const records = recordsResult.data ?? [];
-  const companies = companiesResult.data ?? [];
+  const companyCount = companiesResult.error ? null : companiesResult.count;
   const jobs = jobsResult.data ?? [];
   const documents = documentsResult.data ?? [];
   const applications = applicationsResult.data ?? [];
-  const placedStudents = records.filter((record) => record.placement_status && record.placement_status !== "pending").length;
-  const approvedCompanies = companies.filter((company) => company.approval_status === "approved").length;
-  const pendingCompanies = companies.filter((company) => company.approval_status === "pending").length;
+  // A placement is final only after the coordinator approval workflow sets
+  // placement_status to "approved". Other states must not inflate this count.
+  const placedStudents = records.filter((record) => record.placement_status === "approved").length;
+  const approvedCompanies = approvedCompaniesResult.error ? null : approvedCompaniesResult.count;
+  const pendingCompanies = pendingCompaniesResult.error ? null : pendingCompaniesResult.count;
   const openJobs = jobs.filter((job) => job.status === "open");
   const openPositions = openJobs.reduce((total, job) => total + (job.positions ?? 0), 0);
   const pendingJobs = jobs.filter((job) => job.status === "draft").length;
@@ -91,8 +139,16 @@ export default async function AdminDashboardPage() {
             </div>
 
             {/* ปุ่มดำเนินการด่วน */}
-            <AdminDashboardActions report={{ students, companies: companies.length, openJobs: openJobs.length, pendingDocuments }} />
+            <AdminDashboardActions report={{ students, companies: companyCount, openJobs: openJobs.length, pendingDocuments }} reportUnavailable={Boolean(studentsResult.error || companiesResult.error || jobsResult.error || documentsResult.error)} />
           </header>
+          {dashboardErrors.length > 0 && (
+            <section role="alert" className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <p className="font-semibold">ไม่สามารถโหลดข้อมูลบางส่วนจาก Supabase ได้</p>
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                {dashboardErrors.map(({ label, error }) => <li key={label}>{label}: {error?.message}</li>)}
+              </ul>
+            </section>
+          )}
           
 
           {/* สรุปข้อมูลสำคัญ */}
@@ -119,14 +175,14 @@ export default async function AdminDashboardPage() {
                 </span>
               </div>
               <div className="font-mono text-3xl font-bold text-black mb-2">
-                {companies.length} <span className="text-sm font-normal">แห่ง</span>
+                {companyCount ?? "—"} <span className="text-sm font-normal">แห่ง</span>
               </div>
               <div className="text-xs flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[#3D348B] text-white">
-                  {approvedCompanies} อนุมัติแล้ว
+                  {approvedCompanies ?? "—"} อนุมัติแล้ว
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[#F18701] text-white">
-                  {pendingCompanies} รออนุมัติ
+                  {pendingCompanies ?? "—"} รออนุมัติ
                 </span>
               </div>
             </div>
@@ -141,7 +197,7 @@ export default async function AdminDashboardPage() {
                 {openPositions} <span className="text-sm font-normal">อัตรา</span>
               </div>
               <div className="text-xs text-black">
-                {openJobs.length} ตำแหน่ง จาก {companies.length} สถานประกอบการ
+                {openJobs.length} ตำแหน่ง จาก {companyCount ?? "—"} สถานประกอบการ
               </div>
             </div>
 
@@ -232,7 +288,7 @@ export default async function AdminDashboardPage() {
                   <h2 id="admin-actions-title" className="text-lg font-bold text-black">งานที่ต้องดำเนินการ</h2>
                   <p className="mt-1 text-sm text-black">รายการที่ควรตรวจสอบและจัดการในวันนี้</p>
                 </div>
-                <span className="rounded-full bg-[#F35B04] px-3 py-1 text-xs font-semibold text-white">{pendingDocuments + pendingCompanies + pendingJobs} งานเร่งด่วน</span>
+                <span className="rounded-full bg-[#F35B04] px-3 py-1 text-xs font-semibold text-white">{pendingCompanies === null ? "—" : pendingDocuments + pendingCompanies + pendingJobs} งานเร่งด่วน</span>
               </div>
 
               <div className="mt-5 divide-y divide-[#EAEAEA]">
@@ -245,7 +301,7 @@ export default async function AdminDashboardPage() {
                 <Link href="/admin/companies" className="flex items-center gap-4 py-4 transition hover:bg-[#7678ED]/10">
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#FFF0DD] text-[#F18701]"><DashboardIcon name="building" /></span>
                   <span className="min-w-0 flex-1"><span className="block font-semibold">สถานประกอบการรออนุมัติ</span><span className="mt-0.5 block text-xs text-black">ตรวจสอบข้อมูลบริษัทและผู้ติดต่อก่อนเปิดใช้งาน</span></span>
-                  <span className="rounded-full bg-[#F18701] px-2.5 py-1 text-xs font-bold text-white">{pendingCompanies} แห่ง</span>
+                  <span className="rounded-full bg-[#F18701] px-2.5 py-1 text-xs font-bold text-white">{pendingCompanies ?? "—"} แห่ง</span>
                   <span aria-hidden="true" className="text-lg text-[#3D348B]">›</span>
                 </Link>
                 <Link href="/admin/jobs" className="flex items-center gap-4 py-4 transition hover:bg-[#7678ED]/10">
@@ -275,7 +331,6 @@ export default async function AdminDashboardPage() {
                 <div className="flex items-center justify-between gap-3 text-sm"><Link href="/advisor/tasks" className="font-medium text-[#3D348B] hover:underline">ใบสมัครรอพิจารณา</Link><span className="font-mono font-bold text-[#24232B]">{pendingApplications} รายการ · {pendingApplicationsForAdvisorPercent}%</span></div><div className="h-2 overflow-hidden rounded-full bg-[#E9E6F2]"><div style={{ width: `${pendingApplicationsForAdvisorPercent}%` }} className="h-full rounded-full bg-[#F35B04]" /></div>
                 <div className="flex items-center justify-between gap-3 text-sm"><Link href="/advisor/tasks" className="font-medium text-[#3D348B] hover:underline">เอกสารรอตรวจ</Link><span className="font-mono font-bold text-[#24232B]">{pendingDocuments} ฉบับ · {pendingDocumentPercent}%</span></div><div className="h-2 overflow-hidden rounded-full bg-[#E9E6F2]"><div style={{ width: `${pendingDocumentPercent}%` }} className="h-full rounded-full bg-[#3D348B]" /></div>
               </div>
-              <Link href="/advisor/students" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#3D348B] hover:text-[#7678ED]">ดูการติดตามนักศึกษาทั้งหมด <span aria-hidden="true">→</span></Link>
             </section>
 
             <section aria-labelledby="coordinator-overview-title" className="rounded-[14px] border border-[#DFE6EF] bg-white p-5 shadow-[0_2px_5px_rgba(15,23,42,0.08)] sm:p-6">
@@ -284,7 +339,7 @@ export default async function AdminDashboardPage() {
                 <span className="flex size-10 items-center justify-center rounded-xl bg-[#FFF0DD] text-[#F18701]"><DashboardIcon name="briefcase" /></span>
               </div>
               <div className="mt-5 grid auto-rows-fr gap-3 sm:grid-cols-3">
-                <Link href="/conditer/companies" className="h-full rounded-xl border border-[#FBE0D4] bg-[#FFF8F4] p-4 transition hover:border-[#F35B04]"><p className="text-xs font-semibold text-[#6D6979]">บริษัทรออนุมัติ</p><p className="mt-2 font-mono text-3xl font-bold text-[#F35B04]">{pendingCompanies} <span className="font-sans text-sm font-normal text-[#858390]">แห่ง</span></p></Link>
+                <Link href="/conditer/companies" className="h-full rounded-xl border border-[#FBE0D4] bg-[#FFF8F4] p-4 transition hover:border-[#F35B04]"><p className="text-xs font-semibold text-[#6D6979]">บริษัทรออนุมัติ</p><p className="mt-2 font-mono text-3xl font-bold text-[#F35B04]">{pendingCompanies ?? "—"} <span className="font-sans text-sm font-normal text-[#858390]">แห่ง</span></p></Link>
                 <Link href="/conditer/companies" className="h-full rounded-xl border border-[#E3DFFA] bg-[#F8F7FC] p-4 transition hover:border-[#7678ED]"><p className="text-xs font-semibold text-[#6D6979]">ตำแหน่งงานรอตรวจ</p><p className="mt-2 font-mono text-3xl font-bold text-[#3D348B]">{pendingJobs} <span className="font-sans text-sm font-normal text-[#858390]">ตำแหน่ง</span></p></Link>
                 <Link href="/conditer/applications" className="h-full rounded-xl border border-[#E3DFFA] bg-[#F8F7FC] p-4 transition hover:border-[#7678ED]"><p className="text-xs font-semibold text-[#6D6979]">ใบสมัครทั้งหมด</p><p className="mt-2 font-mono text-3xl font-bold text-[#3D348B]">{totalApplications} <span className="font-sans text-sm font-normal text-[#858390]">ใบสมัคร</span></p></Link>
               </div>
@@ -292,7 +347,6 @@ export default async function AdminDashboardPage() {
                 <div className="flex items-center justify-between gap-3 text-sm"><Link href="/conditer/applications" className="font-medium text-[#3D348B] hover:underline">ใบสมัครรอพิจารณา</Link><span className="font-mono font-bold text-[#24232B]">{pendingApplications} ใบสมัคร · {pendingApplicationPercent}%</span></div><div className="h-2 overflow-hidden rounded-full bg-[#E9E6F2]"><div style={{ width: `${pendingApplicationPercent}%` }} className="h-full rounded-full bg-[#F35B04]" /></div>
                 <div className="flex items-center justify-between gap-3 text-sm"><Link href="/conditer/applications" className="font-medium text-[#3D348B] hover:underline">อนุมัติการสมัครแล้ว</Link><span className="font-mono font-bold text-[#24232B]">{approvedApplications} ใบสมัคร · {approvedApplicationPercent}%</span></div><div className="h-2 overflow-hidden rounded-full bg-[#E9E6F2]"><div style={{ width: `${approvedApplicationPercent}%` }} className="h-full rounded-full bg-[#3D348B]" /></div>
               </div>
-              <Link href="/conditer/applications" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#3D348B] hover:text-[#7678ED]">ดูรายการสมัครทั้งหมด <span aria-hidden="true">→</span></Link>
             </section>
           </section>
 
@@ -300,7 +354,9 @@ export default async function AdminDashboardPage() {
             <section aria-labelledby="activity-title" className="rounded-[14px] border border-[#DFE6EF] bg-white p-5 shadow-[0_2px_5px_rgba(15,23,42,0.08)] sm:p-6">
               <div><h2 id="activity-title" className="text-lg font-bold text-black">กิจกรรมล่าสุด</h2><p className="mt-1 text-sm text-[#555]">ความเคลื่อนไหวในระบบล่าสุด</p></div>
               <div className="mt-5 space-y-5 border-l-2 border-[#EEECFF] pl-5">
-                {activities.length === 0 ? <p className="text-sm text-[#6D6979]">ยังไม่มีกิจกรรมจากผู้ดูแลระบบ</p> : activities.map((activity, index) => <div key={activity.id} className="relative"><span className={`absolute -left-[29px] top-1 size-3 rounded-full border-2 border-white ${index === 0 ? "bg-[#3D348B]" : index === 1 ? "bg-[#F18701]" : "bg-[#F35B04]"}`} /><p className="font-semibold">{activity.summary}</p><p className="mt-1 text-xs text-[#555]">{activity.entity_type} · {relativeTime(activity.created_at)}</p></div>)}
+                {activitiesResult.error && <p role="alert" className="text-sm text-red-700">โหลดกิจกรรมล่าสุดไม่ครบถ้วน กรุณาลองรีเฟรชข้อมูล</p>}
+                {!activitiesResult.error && activities.length === 0 && <p className="text-sm text-[#6D6979]">ยังไม่มีกิจกรรมในระบบ</p>}
+                {activities.map((activity, index) => <div key={activity.id} className="relative"><span className={`absolute -left-[29px] top-1 size-3 rounded-full border-2 border-white ${index === 0 ? "bg-[#3D348B]" : index === 1 ? "bg-[#F18701]" : "bg-[#F35B04]"}`} /><p className="font-semibold">{activity.summary}</p><p className="mt-1 text-xs text-[#555]">{activityLabels[activity.entity_type] ?? activity.entity_type} · {relativeTime(activity.created_at)}</p></div>)}
               </div>
             </section>
 

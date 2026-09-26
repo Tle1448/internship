@@ -39,11 +39,7 @@ function PreviousStudentDetailView({ student }: { student: Student }) {
 
 function AdminStudentDetailView({ student }: { student: Student }) {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const documents = [
-    { name: `Acceptance_Letter_${student.id}.pdf`, size: "1.2 MB", submittedAt: "28 ก.ย. 2569", status: "รอตรวจ", statusClass: "bg-[#FFF3DF] text-[#9D5200]" },
-    { name: `Company_Certificate_${student.id}.pdf`, size: "980 KB", submittedAt: "28 ก.ย. 2569", status: "ผ่าน", statusClass: "bg-[#E9F6EE] text-[#267047]" },
-    { name: `Internship_Plan_${student.id}.pdf`, size: "760 KB", submittedAt: "28 ก.ย. 2569", status: "ผ่าน", statusClass: "bg-[#E9F6EE] text-[#267047]" },
-  ];
+  const [documents, setDocuments] = useState<Array<{ name: string; size: string; submittedAt: string; status: string; statusClass: string }>>([]);
 
   useEffect(() => {
     let active = true;
@@ -52,7 +48,19 @@ function AdminStudentDetailView({ student }: { student: Student }) {
       if (!profile || !active) return;
       const { data: record } = await supabase.from("internship_records").select("company_name, position, province, started_at, ended_at, status, advisor_id").eq("student_id", profile.id).maybeSingle();
       const { data: advisor } = record?.advisor_id ? await supabase.from("profiles").select("full_name").eq("id", record.advisor_id).maybeSingle() : { data: null };
+      const { data: documentRows, error: documentsError } = await supabase.from("student_documents").select("id, document_type, file_path, status, submitted_at").eq("student_id", profile.id).order("submitted_at", { ascending: false });
       if (!active) return;
+      if (documentsError) {
+        setActionMessage(`โหลดเอกสารไม่สำเร็จ: ${documentsError.message}`);
+      } else {
+        setDocuments((documentRows ?? []).map((document) => ({
+          name: document.file_path?.split("/").pop() || document.document_type,
+          size: document.document_type,
+          submittedAt: new Date(document.submitted_at).toLocaleDateString("th-TH"),
+          status: document.status === "approved" ? "ผ่าน" : document.status === "needs_edit" ? "ส่งแก้ไข" : "รอตรวจ",
+          statusClass: document.status === "approved" ? "bg-[#E9F6EE] text-[#267047]" : document.status === "needs_edit" ? "bg-red-100 text-red-700" : "bg-[#FFF3DF] text-[#9D5200]",
+        })));
+      }
       const values: Record<string, string | undefined> = {
         "ผลการเรียน": profile.gpa != null ? `GPA ${profile.gpa}` : undefined,
         "หน่วยกิตสะสม": profile.credits != null ? profile.credits.toString() : undefined,
@@ -158,7 +166,7 @@ export default function StudentPage() {
 
   const loadStudents = useCallback(async () => {
     const [profilesResult, recordsResult, documentsResult] = await Promise.all([
-      supabase.from("profiles").select("id, user_code, full_name, email, faculty, major, year").eq("role", "student").eq("is_active", true).order("user_code"),
+      supabase.from("profiles").select("id, user_code, full_name, email, faculty, major, year").eq("role", "student").order("user_code"),
       supabase.from("internship_records").select("student_id, advisor_id, placement_status, status"),
       supabase.from("student_documents").select("student_id, status"),
     ]);

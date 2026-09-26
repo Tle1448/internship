@@ -118,12 +118,6 @@ export default function UserEditModal({ user, initialId = "", mode = "edit", rol
           </div>
           <label className="block text-xs font-semibold text-gray-600"><span className="flex flex-wrap justify-between gap-2">บทบาทที่มอบหมาย (Assigned Role)<span className="font-mono text-[#F18701]">★ C4 Policy</span></span><select value={draft.role} onChange={(event) => setDraft({ ...draft, role: event.target.value as UserRole })} className={`${fieldClass} border-[#C9C5EA]`}>{[...new Set([...roles, draft.role])].map((role) => <option key={role} value={role}>{roleLabels[role]}</option>)}</select></label>
 
-          <section aria-label="สถานะการตรวจสอบสิทธิ์" className="rounded-xl bg-[#FFF5E3] p-4 text-sm text-[#665B48]">
-            <h3 className="mb-2 flex items-center gap-2 text-xs font-bold tracking-wide text-[#493715]"><span aria-hidden="true">ⓘ</span> C4 STRICT VALIDATION STATUS</h3>
-            <p>สาขาวิชา <strong className="text-[#3D348B]">{draft.department}</strong> กำหนดบทบาทเป็น {roleLabels[draft.role]}</p>
-            <p className="mt-3 text-xs leading-relaxed">ยังไม่ได้เชื่อมการตรวจสอบนโยบาย C4 กับระบบ</p>
-          </section>
-
           <div className="flex items-center justify-between gap-4 rounded-xl bg-[#F3F3F4] p-4">
             <div><p id={`${formId}-active`} className="text-sm font-semibold">สถานะการใช้งานบัญชี (Account Active)</p><p className="mt-1 text-xs text-gray-500">เปิดหรือปิดสถานะการใช้งานของบัญชีผู้ใช้</p></div>
             <button type="button" role="switch" aria-checked={draft.status === "Active"} aria-labelledby={`${formId}-active`} onClick={() => setDraft({ ...draft, status: draft.status === "Active" ? "Inactive" : "Active" })} className={`flex h-6 w-12 shrink-0 cursor-pointer items-center rounded-full p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#3D348B] ${draft.status === "Active" ? "bg-[#3D348B]" : "bg-gray-400"}`}><span className={`size-5 rounded-full bg-white shadow-sm transition-transform ${draft.status === "Active" ? "translate-x-6" : "translate-x-0"}`} /></button>

@@ -12,6 +12,31 @@ type CreateStudentBody = {
   password?: unknown;
 };
 
+async function requireAdmin() {
+  const sessionClient = await createSupabaseServerClient();
+  const { data: { user } } = await sessionClient.auth.getUser();
+  if (!user) return null;
+  const { data: profile } = await supabaseAdmin.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  return profile?.role === "admin" ? user : null;
+}
+
+export async function GET() {
+  if (!await requireAdmin()) return NextResponse.json({ error: "Admin access is required" }, { status: 403 });
+  const [{ data: profiles, error: profilesError }, { data: records, error: recordsError }, { data: documents, error: documentsError }] = await Promise.all([
+    supabaseAdmin.from("profiles").select("id, user_code, full_name, email, faculty, major, year").eq("role", "student").order("user_code"),
+    supabaseAdmin.from("internship_records").select("student_id, advisor_id, company_name, position, province, started_at, ended_at, status, placement_status"),
+    supabaseAdmin.from("student_documents").select("id, student_id, document_type, file_path, status, comment, submitted_at").order("submitted_at", { ascending: false }),
+  ]);
+  const error = profilesError ?? recordsError ?? documentsError;
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  const advisorIds = [...new Set((records ?? []).map((record) => record.advisor_id).filter((id): id is string => Boolean(id)))];
+  const { data: advisors, error: advisorsError } = advisorIds.length ? await supabaseAdmin.from("profiles").select("id, full_name").in("id", advisorIds) : { data: [], error: null };
+  if (advisorsError) return NextResponse.json({ error: advisorsError.message }, { status: 400 });
+  const recordsByStudent = new Map((records ?? []).map((record) => [record.student_id, record]));
+  const advisorsById = new Map((advisors ?? []).map((advisor) => [advisor.id, advisor.full_name]));
+  return NextResponse.json({ students: (profiles ?? []).map((profile) => ({ ...profile, record: recordsByStudent.get(profile.id) ?? null, advisorName: recordsByStudent.get(profile.id)?.advisor_id ? advisorsById.get(recordsByStudent.get(profile.id)!.advisor_id) ?? null : null, documents: (documents ?? []).filter((document) => document.student_id === profile.id) })) });
+}
+
 export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: "Invalid request origin" }, { status: 403 });
 
