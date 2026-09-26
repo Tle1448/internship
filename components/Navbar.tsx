@@ -64,9 +64,12 @@ export default function Navbar() {
     code: string;
   } | null>(null);
 
+  // รูปโปรไฟล์ของนักศึกษา
+  const [studentAvatarUrl, setStudentAvatarUrl] = useState<string | null>(null);
+
   const currentPath = pathname ? pathname.toLowerCase() : "";
 
-  // เช็กว่าอยู่ในหน้านักศึกษา (รวมหน้าเลือกบริษัท /select-company ด้วยแล้ว)
+  // เช็กว่าอยู่ในหน้านักศึกษา (รวม /select-company และ /supervision-appointments แล้ว)
   const isStudentPath =
     currentPath.startsWith("/pagestudent") ||
     currentPath.startsWith("/select-company") ||
@@ -87,9 +90,11 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // โหลดชื่อ-รหัสนักศึกษาจริงจาก profiles ตาม currentStudentId
+  // โหลดชื่อ-รหัส-รูปโปรไฟล์นักศึกษาจริงจาก profiles ตาม currentStudentId
   useEffect(() => {
     if (!isStudentPath) {
+      setStudentProfile(null);
+      setStudentAvatarUrl(null);
       return;
     }
 
@@ -99,27 +104,62 @@ export default function Navbar() {
       const studentId = await getCurrentStudentId();
 
       if (!studentId) {
-        if (!cancelled) setStudentProfile(null);
+        if (!cancelled) {
+          setStudentProfile(null);
+          setStudentAvatarUrl(null);
+        }
         return;
       }
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("full_name, user_code")
+        .select("full_name, user_code, avatar_url")
         .eq("id", studentId)
         .maybeSingle();
 
-      if (!cancelled) {
-        if (error) {
-          console.error("โหลดโปรไฟล์สำหรับ Navbar ไม่สำเร็จ:", error);
-          setStudentProfile(null);
-        } else {
-          setStudentProfile({
-            name: data?.full_name ?? "",
-            code: data?.user_code ?? "",
-          });
-        }
+      if (cancelled) return;
+
+      if (error) {
+        console.error("โหลดโปรไฟล์สำหรับ Navbar ไม่สำเร็จ:", error);
+        setStudentProfile(null);
+        setStudentAvatarUrl(null);
+        return;
       }
+
+      // ชื่อและรหัสนักศึกษา
+      setStudentProfile({
+        name: data?.full_name ?? "",
+        code: data?.user_code ?? "",
+      });
+
+      // รูปโปรไฟล์จาก Supabase
+      const avatarPath = data?.avatar_url;
+
+      if (!avatarPath) {
+        setStudentAvatarUrl(null);
+        return;
+      }
+
+      // ถ้า avatar_url เป็น URL อยู่แล้ว
+      if (avatarPath.startsWith("http://") || avatarPath.startsWith("https://")) {
+        setStudentAvatarUrl(avatarPath);
+        return;
+      }
+
+      // ถ้า avatar_url เป็น path ใน Storage
+      const { data: signedData, error: signedError } = await supabase.storage
+        .from("resumes")
+        .createSignedUrl(avatarPath, 60 * 60 * 24 * 7);
+
+      if (cancelled) return;
+
+      if (signedError) {
+        console.error("สร้าง URL รูปโปรไฟล์สำหรับ Navbar ไม่สำเร็จ:", signedError);
+        setStudentAvatarUrl(null);
+        return;
+      }
+
+      setStudentAvatarUrl(signedData?.signedUrl ?? null);
     })();
 
     return () => {
@@ -146,7 +186,7 @@ export default function Navbar() {
 
   const isLoggedIn = Boolean(user) && (isAdmin || isAdvisor || isStudent || isConditer);
 
-  // 3. กำหนดข้อมูลโปรไฟล์ผู้ใช้งาน
+  // กำหนดข้อมูลโปรไฟล์ผู้ใช้งาน
   const studentDisplayName =
     studentProfile?.name && studentProfile.name.trim().length > 0
       ? studentProfile.name
@@ -178,8 +218,7 @@ export default function Navbar() {
       }
     : { name: "ผู้ใช้งาน", subText: "", avatarChar: "?" };
 
-  // เมนูที่จะแสดงบน navbar: ถ้าล็อกอินแล้ว (และไม่ใช่ admin/advisor/conditer/student ที่มี sidebar ของตัวเอง)
-  // ใช้ navItems, ถ้ายังไม่ล็อกอิน (ผู้เยี่ยมชมทั่วไป) ใช้ publicNavItems
+  // เมนูที่จะแสดงบน navbar: ถ้าล็อกอินแล้วใช้ navItems, ถ้ายังไม่ล็อกอินใช้ publicNavItems
   const menuItems = isLoggedIn ? navItems : publicNavItems;
 
   return (
@@ -247,8 +286,17 @@ export default function Navbar() {
                     </p>
                   </div>
 
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 border border-indigo-100 font-bold text-indigo-900 shadow-sm">
-                    <span className="text-sm">{userData.avatarChar}</span>
+                  {/* Avatar: ถ้าเป็นนักศึกษาและมีรูปจาก Supabase ให้แสดงรูป ไม่งั้นแสดงตัวอักษร */}
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-50 border border-indigo-100 font-bold text-indigo-900 shadow-sm">
+                    {isStudent && studentAvatarUrl ? (
+                      <img
+                        src={studentAvatarUrl}
+                        alt="รูปโปรไฟล์นักศึกษา"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-sm">{userData.avatarChar}</span>
+                    )}
                   </div>
                 </button>
 
