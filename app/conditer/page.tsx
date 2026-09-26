@@ -51,7 +51,7 @@ export default function ConditerPage() {
     <div className="min-h-screen bg-[#F8F7FB] text-[#29263A]">
       <ConditerSidebar />
       <main className="min-h-screen lg:ml-[235px]">
-        <header className="border-b border-[#E8E6F0] bg-white px-6 py-6 lg:px-8">
+        <header className="px-6 py-6 lg:px-8">
           <p className="text-[11px] text-[#9691A7]">ระบบสหกิจศึกษา</p>
           <h1 className="mt-1 text-2xl font-bold text-[#29263A]">การจัดการฝึกงาน</h1>
           <p className="mt-1 text-sm text-[#858196]">ข้อมูลบริษัท ประกาศงาน และใบสมัครจากฐานข้อมูล</p>
