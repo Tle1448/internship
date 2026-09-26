@@ -44,25 +44,32 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data: { user: authUser }, error } = await supabase.auth.getUser();
       if (error || !authUser) {
-        if (current === revision.current) setUser(null);
+        // A temporary network/Auth API failure must not discard a valid local
+        // session. Supabase emits SIGNED_OUT when the session is truly removed.
+        if (!error && current === revision.current) setUser(null);
         return;
       }
       const sessionUser = await loadUser(authUser.id, authUser.email);
       if (current === revision.current) setUser(sessionUser);
-    } catch { if (current === revision.current) setUser(null); }
+    } catch (refreshError) {
+      console.warn("Unable to refresh the current user; keeping the existing session.", refreshError);
+    }
     finally { if (current === revision.current) setLoading(false); }
   }, [loadUser]);
 
   useEffect(() => {
-    const initialRefresh = window.setTimeout(() => void refresh(), 0);
-    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
-      window.setTimeout(() => void refresh(), 0);
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || (event === "INITIAL_SESSION" && !session)) {
+        revision.current++;
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "USER_UPDATED") {
+        window.setTimeout(() => void refresh(), 0);
+      }
     });
-    const onVisible = () => { if (document.visibilityState === "visible") void refresh(); };
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", onVisible);
-    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, 60000);
-    return () => { window.clearTimeout(initialRefresh); authListener.subscription.unsubscribe(); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", onVisible); window.clearInterval(timer); };
+    return () => authListener.subscription.unsubscribe();
   }, [refresh]);
 
   async function login(userCode: string, password: string, remember: boolean) {
