@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
 
   const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
     email, password, email_confirm: true,
-    app_metadata: { role }, user_metadata: { full_name: fullName },
+    app_metadata: { role }, user_metadata: { full_name: fullName, role },
   });
   if (createError || !created.user) return NextResponse.json({ error: createError?.message ?? "Unable to create account" }, { status: 400 });
 
