@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import StudentSidebar from "@/components/StudentSidebar";
@@ -21,6 +21,12 @@ type Evaluation = {
 };
 
 export default function EvaluationResultsPage() {
+  return <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-indigo-700" /></div>}>
+    <EvaluationResultsContent />
+  </Suspense>;
+}
+
+function EvaluationResultsContent() {
   const evaluationId = useSearchParams().get("evaluation_id");
   const { user } = useAuth();
   const [items, setItems] = useState<Evaluation[]>([]);
