@@ -353,6 +353,7 @@ export default function StudentDashboard() {
             .select('job_id')
             .eq('student_id', userId)
             .in('application_status', [
+              'draft',
               'submitted',
               'interview',
               'offer_received',
@@ -1544,10 +1545,6 @@ export default function StudentDashboard() {
 
                     <p className="text-[10px] text-slate-400 mt-1.5">
                       รองรับ JPG, PNG, WEBP ขนาดไม่เกิน 5MB
-                    </p>
-
-                    <p className="text-[10px] text-emerald-600 mt-0.5">
-                      เลือกรูปแล้ว รูปบนหน้าเว็บจะอัปเดตทันที
                     </p>
                   </div>
 

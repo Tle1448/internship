@@ -1,17 +1,19 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
-import { Building2, CheckCircle2, FileText, FileUp, Loader2, Send, X } from "lucide-react";
+import { ChangeEvent, FormEvent, useCallback, useEffect, useState } from "react";
+import { Building2, CheckCircle2, Clock3, FileText, FileUp, Loader2, Send, X, XCircle } from "lucide-react";
 import StudentSidebar from "@/components/StudentSidebar";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
 
-type ApplicationStatus = "submitted" | "interview" | "offer_received" | "rejected" | "withdrawn";
+type ApplicationStatus = "draft" | "submitted" | "interview" | "offer_received" | "rejected" | "withdrawn";
 type PlacementRequestStatus = "not_requested" | "pending_verification" | "confirmed" | "declined";
+type ReviewStatus = "pending" | "approved" | "rejected";
+type SelectionOutcome = "undecided" | "selected" | "not_selected";
 type Job = { id: string; title: string; company_name: string; location: string | null; tags: string[] | null };
 type ExternalRequest = { id: string; company_name: string; position: string; location: string; status: "pending" | "approved" | "rejected"; review_note: string | null };
-type StatusUpdate = { id: string; previous_status: ApplicationStatus; new_status: ApplicationStatus; evidence_files: string[]; note: string | null; created_at: string };
-type Application = { id: string; job_id: string | null; external_submission_id: string | null; company_name: string; job_title: string; application_status: ApplicationStatus; placement_request_status: PlacementRequestStatus; placement_verification_note: string | null; offer_evidence_files: string[]; status_updates: StatusUpdate[] };
+type StatusUpdate = { id: string; previous_status: ApplicationStatus; new_status: ApplicationStatus; evidence_files: string[]; note: string | null; created_at: string; review_status: ReviewStatus; review_note: string | null; reviewed_at: string | null };
+type Application = { id: string; job_id: string | null; external_submission_id: string | null; company_name: string; job_title: string; application_status: ApplicationStatus; placement_request_status: PlacementRequestStatus; placement_verification_note: string | null; selection_outcome: SelectionOutcome; offer_evidence_files: string[]; status_updates: StatusUpdate[] };
 
 const MAX_EVIDENCE_FILE_SIZE = 10 * 1024 * 1024;
 const EVIDENCE_EXTENSIONS = ["pdf", "doc", "docx", "png", "jpg", "jpeg", "webp"];
@@ -29,11 +31,21 @@ function formatFileSize(bytes: number) {
 }
 
 const applicationLabels: Record<ApplicationStatus, string> = {
-  submitted: "สมัครแล้ว", interview: "ได้รับเรียกสัมภาษณ์", offer_received: "ได้รับข้อเสนอ", rejected: "ไม่ผ่าน", withdrawn: "ถอนการสมัคร",
+  draft: "ยังไม่ยืนยันการสมัคร", submitted: "สมัครแล้ว", interview: "ได้รับเรียกสัมภาษณ์", offer_received: "ได้รับข้อเสนอ", rejected: "ไม่ผ่าน", withdrawn: "ถอนการสมัคร",
+};
+const allowedStatusTransitions: Record<ApplicationStatus, ApplicationStatus[]> = {
+  draft: ["submitted"],
+  submitted: ["interview", "offer_received", "rejected", "withdrawn"],
+  interview: ["offer_received", "rejected", "withdrawn"],
+  offer_received: ["withdrawn"],
+  rejected: [],
+  withdrawn: [],
 };
 const placementLabels: Record<PlacementRequestStatus, string> = {
-  not_requested: "ยังไม่ยื่นยืนยันที่ฝึกงาน", pending_verification: "รอ Coordinator ตรวจสอบ", confirmed: "ยืนยันที่ฝึกงานแล้ว", declined: "ขอหลักฐานเพิ่มเติม",
+  not_requested: "ยังไม่ได้เลือกเป็นที่ฝึกงาน", pending_verification: "รอ Coordinator ยืนยันบริษัทที่เลือก", confirmed: "ยืนยันที่ฝึกงานแล้ว", declined: "คำขอเลือกบริษัทถูกส่งกลับ",
 };
+const reviewLabels: Record<ReviewStatus, string> = { pending: "รอตรวจ", approved: "อนุมัติแล้ว", rejected: "ขอแก้ไข" };
+const reviewStyles: Record<ReviewStatus, string> = { pending: "bg-amber-50 text-amber-700", approved: "bg-emerald-50 text-emerald-700", rejected: "bg-red-50 text-red-700" };
 
 export default function SelectCompanyPage() {
   const { user, loading: authLoading } = useAuth();
@@ -50,16 +62,14 @@ export default function SelectCompanyPage() {
   const [statusUpdateError, setStatusUpdateError] = useState<string | null>(null);
   const [uploadingFileNumber, setUploadingFileNumber] = useState<number | null>(null);
   const [fileUrls, setFileUrls] = useState<Record<string, string>>({});
-  const uploadForId = useRef<string | null>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     setError(null);
     const [jobResult, applicationResult, externalResult] = await Promise.all([
       supabase.from("jobs").select("id, title, company_name, location, tags").eq("status", "open").is("archived_at", null).order("created_at", { ascending: false }),
-      supabase.from("job_applications").select("id, job_id, external_submission_id, company_name, job_title, application_status, placement_request_status, placement_verification_note, offer_evidence_files, status_updates:application_status_updates(id, previous_status, new_status, evidence_files, note, created_at)").eq("student_id", user.id).order("submitted_at", { ascending: false }),
+      supabase.from("job_applications").select("id, job_id, external_submission_id, company_name, job_title, application_status, placement_request_status, placement_verification_note, selection_outcome, offer_evidence_files, status_updates:application_status_updates(id, previous_status, new_status, evidence_files, note, created_at, review_status, review_note, reviewed_at)").eq("student_id", user.id).order("submitted_at", { ascending: false }),
       supabase.from("external_company_submissions").select("id, company_name, position, location, status, review_note").eq("student_id", user.id).order("created_at", { ascending: false }),
     ]);
     if (jobResult.error || applicationResult.error || externalResult.error) {
@@ -73,18 +83,21 @@ export default function SelectCompanyPage() {
     })));
     setExternalRequests((externalResult.data ?? []) as ExternalRequest[]);
     setLoading(false);
-  };
+  }, [user]);
 
   useEffect(() => {
-    if (!authLoading && user) void loadData();
-    if (!authLoading && !user) setLoading(false);
-  }, [authLoading, user]);
+    const timer = window.setTimeout(() => {
+      if (!authLoading && user) void loadData();
+      if (!authLoading && !user) setLoading(false);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [authLoading, loadData, user]);
 
   const startApplication = async (source: Job | ExternalRequest) => {
     if (!user) return;
     const isJob = "title" in source;
     const existing = applications.find((application) =>
-      (application.application_status === "submitted" || application.application_status === "interview" || application.application_status === "offer_received")
+      (application.application_status === "draft" || application.application_status === "submitted" || application.application_status === "interview" || application.application_status === "offer_received")
       && (isJob ? application.job_id === source.id : application.external_submission_id === source.id)
     );
     if (existing) {
@@ -99,7 +112,7 @@ export default function SelectCompanyPage() {
     });
     if (insertError) setError(insertError.message);
     else {
-      setMessage("เพิ่มรายการแล้ว โปรดสมัครผ่านช่องทางของบริษัท และกลับมาอัปเดตผลที่นี่");
+      setMessage("เพิ่มรายการแล้ว กรุณาเลือกสถานะ “สมัครแล้ว” และแนบหลักฐานเพื่อส่งให้ Coordinator ตรวจสอบ");
       await loadData();
     }
     setBusyId(null);
@@ -171,7 +184,7 @@ export default function SelectCompanyPage() {
         update_note: statusNote.trim() || null,
       });
       if (updateError) throw updateError;
-      setMessage(`อัปเดตเป็น “${applicationLabels[status]}” พร้อมหลักฐานแล้ว`);
+      setMessage(`ส่งคำขอเปลี่ยนเป็น “${applicationLabels[status]}” ให้ Coordinator ตรวจสอบแล้ว`);
       setPendingStatusUpdate(null);
       setStatusEvidenceFiles([]);
       setStatusNote("");
@@ -203,32 +216,13 @@ export default function SelectCompanyPage() {
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
 
-  const chooseEvidence = (applicationId: string) => {
-    uploadForId.current = applicationId;
-    fileInput.current?.click();
-  };
-
-  const submitEvidence = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    const applicationId = uploadForId.current;
-    event.target.value = "";
-    if (!file || !applicationId || !user) return;
-    setBusyId(applicationId);
-    setError(null);
-    try {
-      const path = `${user.id}/offers/${Date.now()}_${file.name}`;
-      const { error: uploadError } = await supabase.storage.from("internship-evidence").upload(path, file, { upsert: false });
-      if (uploadError) throw uploadError;
-      const { error: requestError } = await supabase.rpc("request_placement_verification", { application_id: applicationId, evidence_files: [path], offer_note: null });
-      if (requestError) throw requestError;
-      setMessage("ส่งหลักฐานให้ Coordinator ตรวจสอบแล้ว");
-      await loadData();
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "ส่งหลักฐานไม่สำเร็จ");
-    } finally {
-      setBusyId(null);
-      uploadForId.current = null;
-    }
+  const selectInternshipCompany = async (application: Application) => {
+    if (!window.confirm(`ยืนยันเลือก ${application.company_name} เป็นสถานที่ฝึกงานหรือไม่`)) return;
+    setBusyId(application.id); setError(null); setMessage(null);
+    const { error: selectionError } = await supabase.rpc("select_internship_company", { application_id: application.id });
+    if (selectionError) setError(selectionError.message);
+    else { setMessage(`ส่งคำขอเลือก ${application.company_name} ให้ Coordinator ยืนยันแล้ว`); await loadData(); }
+    setBusyId(null);
   };
 
   if (loading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="animate-spin text-[#3D348B]" /></div>;
@@ -239,29 +233,34 @@ export default function SelectCompanyPage() {
       <header><h1 className="text-2xl font-bold text-slate-900">สมัครและติดตามการฝึกงาน</h1><p className="mt-1 text-sm text-slate-500">สมัครผ่านช่องทางบริษัทด้วยตนเอง แล้วรายงานความคืบหน้าตามความจริง</p></header>
       {message && <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</p>}
       {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-      <input ref={fileInput} className="hidden" type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={submitEvidence} />
       <section className="rounded-lg border border-slate-200 bg-white">
         <div className="border-b border-slate-100 px-5 py-4"><h2 className="font-bold">รายการที่กำลังสมัคร</h2></div>
         {applications.length === 0 ? (
           <p className="px-5 py-10 text-center text-sm text-slate-500">ยังไม่มีรายการสมัคร</p>
         ) : (
           <div className="divide-y divide-slate-100">
-            {applications.map((application) => (
-              <div key={application.id} className="grid gap-4 p-5 lg:grid-cols-[1fr_220px_auto] lg:items-start">
+            {applications.map((application) => {
+              const pendingUpdate = application.status_updates.find((update) => update.review_status === "pending");
+              const hasConfirmedPlacement = applications.some((item) => item.placement_request_status === "confirmed");
+              const statusLocked = Boolean(pendingUpdate) || hasConfirmedPlacement || application.placement_request_status === "pending_verification" || application.application_status === "rejected" || application.application_status === "withdrawn" || application.selection_outcome === "not_selected";
+              return <div key={application.id} className="grid gap-4 p-5 lg:grid-cols-[1fr_240px_auto] lg:items-start">
                 <div>
                   <p className="font-semibold text-slate-900">{application.company_name}</p>
                   <p className="mt-1 text-sm text-slate-600">{application.job_title}</p>
-                  <p className="mt-2 text-xs text-slate-500">{placementLabels[application.placement_request_status]}</p>
+                  <p className="mt-2 text-xs text-slate-500">สถานะยืนยันแล้ว: <strong>{applicationLabels[application.application_status]}</strong></p>
+                  {pendingUpdate && <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700"><Clock3 size={13} />รอตรวจเปลี่ยนเป็น “{applicationLabels[pendingUpdate.new_status]}”</p>}
+                  {application.selection_outcome === "not_selected" ? <p className="mt-2 text-xs font-semibold text-slate-500">ไม่ได้เลือกเป็นสถานที่ฝึกงาน</p> : application.application_status === "offer_received" && <p className="mt-2 text-xs text-slate-500">{placementLabels[application.placement_request_status]}</p>}
                   {application.placement_request_status === "declined" && application.placement_verification_note && <p className="mt-2 text-xs font-medium text-amber-700">เหตุผล: {application.placement_verification_note}</p>}
                   {application.status_updates.length > 0 && (
                     <details className="mt-3 text-xs text-slate-600">
-                      <summary className="cursor-pointer font-medium text-[#3D348B]">ประวัติหลักฐาน ({application.status_updates.length})</summary>
+                      <summary className="cursor-pointer font-medium text-[#3D348B]">ประวัติการอัปเดต ({application.status_updates.length})</summary>
                       <div className="mt-2 space-y-3 border-l-2 border-slate-100 pl-3">
                         {application.status_updates.map((update) => (
                           <div key={update.id}>
-                            <p className="font-medium text-slate-700">{applicationLabels[update.previous_status]} → {applicationLabels[update.new_status]}</p>
+                            <div className="flex flex-wrap items-center gap-2"><p className="font-medium text-slate-700">{applicationLabels[update.previous_status]} → {applicationLabels[update.new_status]}</p><span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${reviewStyles[update.review_status]}`}>{reviewLabels[update.review_status]}</span></div>
                             <p className="mt-0.5 text-slate-400">{new Date(update.created_at).toLocaleString("th-TH")}</p>
-                            {update.note && <p className="mt-1">{update.note}</p>}
+                            {update.note && <p className="mt-1">หมายเหตุ: {update.note}</p>}
+                            {update.review_note && <p className="mt-1 font-medium text-red-700">ผลตรวจ: {update.review_note}</p>}
                             <div className="mt-1 flex flex-wrap gap-2">
                               {update.evidence_files.map((path) => (
                                 <button key={path} type="button" onClick={() => void openEvidence(path)} className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-[#3D348B] hover:bg-[#F4F3FC]">
@@ -275,15 +274,17 @@ export default function SelectCompanyPage() {
                     </details>
                   )}
                 </div>
-                <select aria-label="สถานะการสมัคร" disabled={busyId === application.id || application.placement_request_status !== "not_requested" || application.application_status === "rejected" || application.application_status === "withdrawn"} value={application.application_status} onChange={(event) => changeStatus(application, event.target.value as ApplicationStatus)} className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm disabled:bg-slate-100">
-                  {Object.entries(applicationLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                <select aria-label="ขออัปเดตสถานะการสมัคร" disabled={busyId === application.id || statusLocked || allowedStatusTransitions[application.application_status].length === 0} value={application.application_status} onChange={(event) => changeStatus(application, event.target.value as ApplicationStatus)} className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm disabled:bg-slate-100">
+                  {[application.application_status, ...allowedStatusTransitions[application.application_status]].map((value) => <option key={value} value={value}>{applicationLabels[value]}</option>)}
                 </select>
                 <div className="flex items-center gap-2">
-                  {application.application_status === "offer_received" && application.placement_request_status === "declined" && <button onClick={() => chooseEvidence(application.id)} disabled={busyId === application.id} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#3D348B] px-3 text-sm font-semibold text-white disabled:opacity-50"><FileUp size={16} />ส่งหลักฐานใหม่</button>}
+                  {application.application_status === "offer_received" && application.selection_outcome !== "not_selected" && (application.placement_request_status === "not_requested" || application.placement_request_status === "declined") && !hasConfirmedPlacement && <button onClick={() => void selectInternshipCompany(application)} disabled={busyId === application.id || Boolean(pendingUpdate)} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#3D348B] px-3 text-sm font-semibold text-white disabled:opacity-50"><CheckCircle2 size={16} />เลือกบริษัทนี้</button>}
+                  {application.placement_request_status === "pending_verification" && <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700"><Clock3 size={15} />รอยืนยัน</span>}
                   {application.placement_request_status === "confirmed" && <CheckCircle2 className="text-emerald-600" aria-label="ยืนยันแล้ว" />}
+                  {application.selection_outcome === "not_selected" && <XCircle className="text-slate-400" aria-label="ไม่ได้เลือก" />}
                 </div>
-              </div>
-            ))}
+              </div>;
+            })}
           </div>
         )}
       </section>
@@ -295,7 +296,7 @@ export default function SelectCompanyPage() {
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" onClick={() => busyId !== pendingStatusUpdate.application.id && setPendingStatusUpdate(null)}>
         <form onSubmit={submitStatusUpdate} onClick={(event) => event.stopPropagation()} className="w-full max-w-lg rounded-lg bg-white shadow-xl">
           <div className="flex items-start justify-between border-b border-slate-200 px-5 py-4">
-            <div><h2 className="font-bold text-slate-900">เพิ่มหลักฐานการอัปเดต</h2><p className="mt-1 text-sm text-slate-500">{pendingStatusUpdate.application.company_name} · {applicationLabels[pendingStatusUpdate.status]}</p></div>
+            <div><h2 className="font-bold text-slate-900">ส่งคำขออัปเดตสถานะ</h2><p className="mt-1 text-sm text-slate-500">{pendingStatusUpdate.application.company_name} · ขอเปลี่ยนเป็น {applicationLabels[pendingStatusUpdate.status]}</p></div>
             <button type="button" aria-label="ปิด" disabled={busyId === pendingStatusUpdate.application.id} onClick={() => setPendingStatusUpdate(null)} className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-50"><X size={20} /></button>
           </div>
           <div className="space-y-4 p-5">
@@ -327,7 +328,7 @@ export default function SelectCompanyPage() {
           </div>
           <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4">
             <button type="button" disabled={busyId === pendingStatusUpdate.application.id} onClick={() => setPendingStatusUpdate(null)} className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-700 disabled:opacity-50">ยกเลิก</button>
-            <button type="submit" disabled={busyId === pendingStatusUpdate.application.id || statusEvidenceFiles.length === 0} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#3D348B] px-4 text-sm font-semibold text-white disabled:opacity-50">{busyId === pendingStatusUpdate.application.id ? <Loader2 className="animate-spin" size={16} /> : <FileUp size={16} />}{busyId === pendingStatusUpdate.application.id ? "กำลังบันทึก..." : "บันทึกสถานะและหลักฐาน"}</button>
+            <button type="submit" disabled={busyId === pendingStatusUpdate.application.id || statusEvidenceFiles.length === 0} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#3D348B] px-4 text-sm font-semibold text-white disabled:opacity-50">{busyId === pendingStatusUpdate.application.id ? <Loader2 className="animate-spin" size={16} /> : <FileUp size={16} />}{busyId === pendingStatusUpdate.application.id ? "กำลังส่ง..." : "ส่งให้ Coordinator ตรวจ"}</button>
           </div>
         </form>
       </div>

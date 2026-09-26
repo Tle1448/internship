@@ -12,6 +12,19 @@ type CreateStudentBody = {
   password?: unknown;
 };
 
+type UpdateStudentBody = {
+  studentId?: unknown;
+  fullName?: unknown;
+  email?: unknown;
+  faculty?: unknown;
+  major?: unknown;
+  companyName?: unknown;
+  position?: unknown;
+  province?: unknown;
+  startedAt?: unknown;
+  endedAt?: unknown;
+};
+
 async function requireAdmin() {
   const sessionClient = await createSupabaseServerClient();
   const { data: { user } } = await sessionClient.auth.getUser();
@@ -25,7 +38,7 @@ export async function GET() {
   const [{ data: profiles, error: profilesError }, { data: records, error: recordsError }, { data: documents, error: documentsError }] = await Promise.all([
     supabaseAdmin.from("profiles").select("id, user_code, full_name, email, faculty, major, year").eq("role", "student").order("user_code"),
     supabaseAdmin.from("internship_records").select("student_id, advisor_id, company_name, position, province, started_at, ended_at, status, placement_status"),
-    supabaseAdmin.from("student_documents").select("id, student_id, document_type, file_path, status, comment, submitted_at").order("submitted_at", { ascending: false }),
+    supabaseAdmin.from("student_documents").select("id, student_id, document_type, file_name, file_url, status, comment, submitted_at").order("submitted_at", { ascending: false }),
   ]);
   const error = profilesError ?? recordsError ?? documentsError;
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
@@ -84,4 +97,43 @@ export async function POST(request: NextRequest) {
   if (recordError) return NextResponse.json({ studentId: createdUser.user.id, created: true, warning: recordError.message });
 
   return NextResponse.json({ studentId: createdUser.user.id, created: true }, { status: 201 });
+}
+
+const textValue = (value: unknown) => typeof value === "string" ? value.trim() : "";
+
+export async function PATCH(request: NextRequest) {
+  if (!isSameOrigin(request)) return NextResponse.json({ error: "Invalid request origin" }, { status: 403 });
+  if (!await requireAdmin()) return NextResponse.json({ error: "Admin access is required" }, { status: 403 });
+
+  let body: UpdateStudentBody;
+  try { body = await request.json() as UpdateStudentBody; } catch { return NextResponse.json({ error: "Invalid request body" }, { status: 400 }); }
+
+  const studentId = textValue(body.studentId);
+  const fullName = textValue(body.fullName);
+  const email = textValue(body.email).toLowerCase();
+  const startedAt = textValue(body.startedAt);
+  const endedAt = textValue(body.endedAt);
+  if (!studentId || !fullName || !/^\S+@\S+\.\S+$/.test(email)) return NextResponse.json({ error: "ชื่อหรืออีเมลไม่ถูกต้อง" }, { status: 400 });
+  if ((startedAt && !/^\d{4}-\d{2}-\d{2}$/.test(startedAt)) || (endedAt && !/^\d{4}-\d{2}-\d{2}$/.test(endedAt)) || (startedAt && endedAt && startedAt > endedAt)) {
+    return NextResponse.json({ error: "วันเริ่มและสิ้นสุดฝึกงานไม่ถูกต้อง" }, { status: 400 });
+  }
+
+  const { data: student, error: studentError } = await supabaseAdmin.from("profiles").select("id").eq("id", studentId).eq("role", "student").maybeSingle();
+  if (studentError) return NextResponse.json({ error: "โหลดข้อมูลนักศึกษาไม่สำเร็จ" }, { status: 503 });
+  if (!student) return NextResponse.json({ error: "ไม่พบบัญชีนักศึกษา" }, { status: 404 });
+
+  const { data: emailOwner, error: emailError } = await supabaseAdmin.from("profiles").select("id").eq("email", email).neq("id", studentId).maybeSingle();
+  if (emailError) return NextResponse.json({ error: "ตรวจสอบอีเมลซ้ำไม่สำเร็จ" }, { status: 503 });
+  if (emailOwner) return NextResponse.json({ error: "อีเมลนี้มีบัญชีอยู่แล้ว" }, { status: 409 });
+
+  const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(studentId, { email, user_metadata: { full_name: fullName } });
+  if (authError) return NextResponse.json({ error: authError.message }, { status: 400 });
+  const { data: profile, error: profileError } = await supabaseAdmin.from("profiles").update({ full_name: fullName, email, faculty: textValue(body.faculty) || null, major: textValue(body.major) || null }).eq("id", studentId).select("id, full_name, email, faculty, major").single();
+  if (profileError) return NextResponse.json({ error: profileError.message }, { status: 400 });
+
+  const recordPayload = { company_name: textValue(body.companyName) || null, position: textValue(body.position) || null, province: textValue(body.province) || null, started_at: startedAt || null, ended_at: endedAt || null };
+  const { data: record, error: recordError } = await supabaseAdmin.from("internship_records").update(recordPayload).eq("student_id", studentId).select("student_id, company_name, position, province, started_at, ended_at").maybeSingle();
+  if (recordError) return NextResponse.json({ error: recordError.message }, { status: 400 });
+  if (!record) return NextResponse.json({ profile, record: null, warning: "บันทึกข้อมูลนักศึกษาแล้ว แต่ยังไม่มีรายการฝึกงานสำหรับแก้ไข" });
+  return NextResponse.json({ profile, record });
 }

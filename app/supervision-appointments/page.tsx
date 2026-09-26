@@ -53,6 +53,33 @@ function AppointmentItem({ appointment }: { appointment: Appointment }) {
   </article>;
 }
 
+function StandaloneScheduleItem({ result }: { result: SupervisionResult }) {
+  return <article id={`supervision-result-${result.id}`} className="border-b border-slate-100 px-5 py-5 last:border-b-0">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex min-w-0 gap-4">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700"><CalendarDays size={20} /></span>
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-slate-900">{new Date(`${result.date}T00:00:00`).toLocaleDateString("th-TH", { dateStyle: "long" })}</h3>
+          <p className="mt-1 flex items-center gap-2 text-sm text-slate-600">{result.mode === "online" ? <Video size={16} /> : <MapPin size={16} />}{result.mode === "online" ? "ออนไลน์" : "On-site"}</p>
+          {result.notes && <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-500">{result.notes}</p>}
+        </div>
+      </div>
+      <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700"><Clock3 size={14} />กำหนดไว้</span>
+    </div>
+  </article>;
+}
+
+function bangkokDateKey() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
 export default function SupervisionAppointmentsPage() {
   const { user } = useAuth();
   const appointmentId = useSearchParams().get("appointment_id");
@@ -63,6 +90,8 @@ export default function SupervisionAppointmentsPage() {
   const [unlinkedResults, setUnlinkedResults] = useState<SupervisionResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [currentTime] = useState(() => Date.now());
+  const [today] = useState(bangkokDateKey);
 
   const load = useCallback(async () => {
     if (!user || user.role !== "student") {
@@ -99,7 +128,10 @@ export default function SupervisionAppointmentsPage() {
     setLoading(false);
   }, [user, internshipId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
   useEffect(() => {
     if (!appointmentId || !items.some((item) => item.id === appointmentId)) return;
     document.getElementById(`appointment-${appointmentId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -110,9 +142,15 @@ export default function SupervisionAppointmentsPage() {
   }, [resultId, unlinkedResults]);
 
   const upcoming = useMemo(() => items
-    .filter((item) => item.status === "scheduled" && new Date(item.scheduled_at).getTime() > Date.now())
-    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()), [items]);
+    .filter((item) => item.status === "scheduled" && new Date(item.scheduled_at).getTime() > currentTime)
+    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()), [currentTime, items]);
   const history = useMemo(() => items.filter((item) => !upcoming.some((current) => current.id === item.id)), [items, upcoming]);
+  const upcomingStandaloneResults = useMemo(() => unlinkedResults
+    .filter((result) => result.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date)), [today, unlinkedResults]);
+  const completedStandaloneResults = useMemo(() => unlinkedResults
+    .filter((result) => result.date < today), [today, unlinkedResults]);
+  const upcomingCount = upcoming.length + upcomingStandaloneResults.length;
 
   return <div className="flex min-h-screen bg-slate-50 text-slate-800">
     <StudentSidebar />
@@ -121,9 +159,9 @@ export default function SupervisionAppointmentsPage() {
         <header className="mb-6"><h1 className="text-2xl font-bold text-slate-950">นัดหมายนิเทศ</h1><p className="mt-1 text-sm text-slate-500">ตรวจสอบวัน เวลา รูปแบบ และสิ่งที่ต้องเตรียมสำหรับการนิเทศ</p></header>
 
         {loading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-indigo-700" /></div> : error ? <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div> : <div className="space-y-7">
-          <section><div className="mb-3 flex items-center justify-between"><h2 className="text-base font-semibold text-slate-900">นัดหมายที่กำลังจะถึง</h2><span className="text-xs text-slate-500">{upcoming.length} รายการ</span></div>{upcoming.length ? <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">{upcoming.map((appointment) => <div id={`appointment-${appointment.id}`} key={appointment.id}><AppointmentItem appointment={appointment} /></div>)}</div> : <div className="rounded-lg border border-slate-200 bg-white px-6 py-14 text-center"><CalendarDays className="mx-auto text-slate-400" size={32} /><p className="mt-3 text-sm text-slate-500">ยังไม่มีนัดหมายนิเทศที่กำลังจะถึง</p></div>}</section>
+          <section><div className="mb-3 flex items-center justify-between"><h2 className="text-base font-semibold text-slate-900">นัดหมายที่กำลังจะถึง</h2><span className="text-xs text-slate-500">{upcomingCount} รายการ</span></div>{upcomingCount ? <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">{upcoming.map((appointment) => <div id={`appointment-${appointment.id}`} key={appointment.id}><AppointmentItem appointment={appointment} /></div>)}{upcomingStandaloneResults.map((result) => <StandaloneScheduleItem key={result.id} result={result} />)}</div> : <div className="rounded-lg border border-slate-200 bg-white px-6 py-14 text-center"><CalendarDays className="mx-auto text-slate-400" size={32} /><p className="mt-3 text-sm text-slate-500">ยังไม่มีนัดหมายนิเทศที่กำลังจะถึง</p></div>}</section>
           {history.length > 0 && <section><div className="mb-3 flex items-center justify-between"><h2 className="text-base font-semibold text-slate-900">ประวัตินัดหมาย</h2><span className="text-xs text-slate-500">{history.length} รายการ</span></div><div className="overflow-hidden rounded-lg border border-slate-200 bg-white">{history.map((appointment) => <div id={`appointment-${appointment.id}`} key={appointment.id}><AppointmentItem appointment={appointment} /></div>)}</div></section>}
-          {unlinkedResults.length > 0 && <section><div className="mb-3 flex items-center justify-between"><h2 className="text-base font-semibold text-slate-900">ผลการนิเทศ</h2><span className="text-xs text-slate-500">{unlinkedResults.length} รายการ</span></div><div className="overflow-hidden rounded-lg border border-slate-200 bg-white">{unlinkedResults.map((result) => <article id={`supervision-result-${result.id}`} key={result.id} className="border-b border-slate-100 px-5 py-5 last:border-b-0"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold text-slate-900">นิเทศเมื่อ {new Date(`${result.date}T00:00:00`).toLocaleDateString("th-TH", { dateStyle: "long" })}</h3><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">{result.mode === "online" ? "ออนไลน์" : "On-site"}</span></div><p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{result.notes || "ไม่มีบันทึกเพิ่มเติม"}</p></article>)}</div></section>}
+          {completedStandaloneResults.length > 0 && <section><div className="mb-3 flex items-center justify-between"><h2 className="text-base font-semibold text-slate-900">ผลการนิเทศ</h2><span className="text-xs text-slate-500">{completedStandaloneResults.length} รายการ</span></div><div className="overflow-hidden rounded-lg border border-slate-200 bg-white">{completedStandaloneResults.map((result) => <article id={`supervision-result-${result.id}`} key={result.id} className="border-b border-slate-100 px-5 py-5 last:border-b-0"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold text-slate-900">นิเทศเมื่อ {new Date(`${result.date}T00:00:00`).toLocaleDateString("th-TH", { dateStyle: "long" })}</h3><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">{result.mode === "online" ? "ออนไลน์" : "On-site"}</span></div><p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{result.notes || "ไม่มีบันทึกเพิ่มเติม"}</p></article>)}</div></section>}
         </div>}
       </div>
     </main>
