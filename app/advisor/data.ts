@@ -37,8 +37,13 @@ type RecordRow = {
 type ProfileRow = { id: string; full_name: string | null; user_code: string | null; major: string | null };
 
 export const placementStatusLabels: Record<PlacementStatus, string> = {
-  approved: "อนุมัติครบถ้วน",
-  pending: "รอตรวจสอบ",
+  approved: "Approved",
+  pending: "Pending review",
+};
+
+export const progressHealthLabels: Record<ProgressHealth, string> = {
+  on_track: "On track",
+  attention: "Needs attention",
 };
 
 export const progressHealthLabels: Record<ProgressHealth, string> = {
@@ -72,14 +77,21 @@ function toStudent(record: RecordRow, profile: ProfileRow): Student {
 
 export function useAdvisorStudents() {
   const { user } = useAuth();
+<<<<<<< HEAD
   const userId = user?.id;
   const userRole = user?.role;
+=======
+>>>>>>> 390feae (Connect Advisor with database)
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const refresh = useCallback(async () => {
+<<<<<<< HEAD
     if (!userId || userRole !== "advisor") {
+=======
+    if (!user || user.role !== "advisor") {
+>>>>>>> 390feae (Connect Advisor with database)
       setStudents([]);
       setLoading(false);
       return;
@@ -88,9 +100,13 @@ export function useAdvisorStudents() {
     const { data: records, error: recordError } = await supabase
       .from("internship_records")
       .select("id, student_id, company_name, position, province, project, current_week, progress_percent, placement_status, progress_health, supervision_status, evaluation_status")
+<<<<<<< HEAD
       .eq("advisor_id", userId)
       .eq("placement_status", "approved")
       .eq("status", "in_progress")
+=======
+      .eq("advisor_id", user.id)
+>>>>>>> 390feae (Connect Advisor with database)
       .order("updated_at", { ascending: false });
     if (recordError) {
       setError(recordError.message);
@@ -121,7 +137,11 @@ export function useAdvisorStudents() {
       setError("");
     }
     setLoading(false);
+<<<<<<< HEAD
   }, [userId, userRole]);
+=======
+  }, [user]);
+>>>>>>> 390feae (Connect Advisor with database)
 
   useEffect(() => { void refresh(); }, [refresh]);
   return { students, loading, error, refresh };
