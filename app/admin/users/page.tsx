@@ -4,7 +4,7 @@ import AdminBreadcrumb from "@/components/AdminBreadcrumb";
 
 import AdminDeleteConfirmationModal from "@/components/adminDeleteConfirmationModal";
 import AdminDeletedUsersTable from "@/components/adminDeletedUsersTable";
-import UserEditModal, { type EditableUser, type UserRole } from "@/components/UserEditModal";
+import UserEditModal, { type EditableUser, type UserRole, type UserSaveError } from "@/components/UserEditModal";
 import { useEffect, useState } from "react";
 
 type Role = UserRole;
@@ -35,7 +35,7 @@ export default function UsersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [editing, setEditing] = useState<User | null>(null);
   const [isAdding, setIsAdding] = useState(false);
-  const [newUserId, setNewUserId] = useState("");
+  const [notice, setNotice] = useState("");
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const search = query.trim().toLocaleLowerCase();
   const filteredUsers = users
@@ -52,7 +52,6 @@ export default function UsersPage() {
   const inactiveUsers = availableUsers.filter((user) => user.status === "Inactive").length;
 
   function openForm(user: User | null = null) {
-    if (!user) setNewUserId(`USR-${crypto.randomUUID()}`);
     setEditing(user);
     setIsAdding(user === null);
   }
@@ -66,11 +65,13 @@ export default function UsersPage() {
 
   useEffect(() => { void loadUsers(); }, []);
 
-  async function saveNewUser(user: User): Promise<string | void> {
+  async function saveNewUser(user: User): Promise<string | UserSaveError | void> {
     const response = await fetch("/api/admin/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userCode: user.id, fullName: user.name, email: user.email, password: user.password, role: roleForDatabase[user.role], faculty: user.school, major: user.department, isActive: user.status === "Active" }) });
-    const payload = await response.json() as { error?: string };
-    if (!response.ok) return payload.error ?? "บันทึกผู้ใช้งานไม่สำเร็จ";
-    setQuery(""); setRole("All"); await loadUsers();
+    const payload = await response.json() as { error?: string; field?: string; user?: { user_code: string } };
+    if (!response.ok) return { error: payload.error ?? "บันทึกผู้ใช้งานไม่สำเร็จ", field: payload.field };
+    setNotice(`เพิ่มผู้ใช้งานสำเร็จ รหัสประจำตัว: ${payload.user?.user_code ?? "—"}`);
+    setQuery(""); setRole("All"); setStatus("All"); setCurrentPage(1); setActiveTab("active");
+    try { await loadUsers(); } catch { setNotice(`สร้างบัญชีสำเร็จ รหัสประจำตัว: ${payload.user?.user_code ?? "—"} กรุณาโหลดหน้าใหม่เพื่อดูรายชื่อ`); }
   }
 
   async function deleteUser(user: User) {
@@ -173,11 +174,10 @@ export default function UsersPage() {
           user={editing}
           onClose={() => setEditing(null)}
           onSave={async (updated) => {
-            const original = users.find((user) => user.id === updated.id);
-            if (!original?.authId) return "ไม่พบรหัสบัญชีในระบบ";
-            const response = await fetch("/api/admin/users", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: original.authId, userCode: updated.id, fullName: updated.name, email: updated.email, role: roleForDatabase[updated.role], faculty: updated.school, major: updated.department, isActive: updated.status === "Active" }) });
-            const payload = await response.json() as { error?: string };
-            if (!response.ok) return payload.error ?? "บันทึกผู้ใช้งานไม่สำเร็จ";
+            if (!editing.authId) return "ไม่พบรหัสบัญชีในระบบ";
+            const response = await fetch("/api/admin/users", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editing.authId, userCode: updated.id, fullName: updated.name, email: updated.email, role: roleForDatabase[updated.role], faculty: updated.school, major: updated.department, isActive: updated.status === "Active" }) });
+            const payload = await response.json() as { error?: string; field?: string };
+            if (!response.ok) return { error: payload.error ?? "บันทึกผู้ใช้งานไม่สำเร็จ", field: payload.field };
             await loadUsers();
           }}
         />
@@ -186,12 +186,12 @@ export default function UsersPage() {
       {isAdding && (
         <UserEditModal
           mode="create"
-          initialId={newUserId}
           roles={roles}
           onClose={() => setIsAdding(false)}
           onSave={saveNewUser}
         />
       )}
+      {notice && <div role="status" className="fixed bottom-5 right-5 z-50 rounded-lg bg-[#3D348B] p-4 text-sm text-white shadow-lg">{notice}<button type="button" onClick={() => setNotice("")} aria-label="ปิดข้อความ" className="ml-3">×</button></div>}
     </div>
   );
 }

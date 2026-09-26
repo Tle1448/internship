@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import UserEditModal, { type EditableUser, type UserRole } from "@/components/UserEditModal";
+import UserEditModal, { type EditableUser, type UserRole, type UserSaveError } from "@/components/UserEditModal";
 
 type DashboardReport = { students: number; companies: number | null; openJobs: number; pendingDocuments: number };
 const roles: UserRole[] = ["Student", "Coordinator", "Advisor", "Admin"];
@@ -10,11 +10,11 @@ const roles: UserRole[] = ["Student", "Coordinator", "Advisor", "Admin"];
 export default function AdminDashboardActions({ report, reportUnavailable = false }: { report: DashboardReport; reportUnavailable?: boolean }) {
   const [notice, setNotice] = useState("");
   const [refreshing, startTransition] = useTransition();
-  const [newUserId, setNewUserId] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
   const savingUser = useRef(false);
   const router = useRouter();
 
-  async function saveNewUser(user: EditableUser): Promise<string | void> {
+  async function saveNewUser(user: EditableUser): Promise<string | UserSaveError | void> {
     if (savingUser.current) return "กำลังบันทึกผู้ใช้งาน กรุณารอสักครู่";
     savingUser.current = true;
     try {
@@ -23,9 +23,9 @@ export default function AdminDashboardActions({ report, reportUnavailable = fals
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userCode: user.id, fullName: user.name, email: user.email, password: user.password, role: user.role.toLowerCase(), faculty: user.school, major: user.department, isActive: user.status === "Active" }),
       });
-      const payload = await response.json() as { error?: string };
-      if (!response.ok) return payload.error ?? "บันทึกผู้ใช้งานไม่สำเร็จ";
-      setNotice("เพิ่มผู้ใช้งานสำเร็จแล้ว");
+      const payload = await response.json() as { error?: string; field?: string; user?: { user_code: string } };
+      if (!response.ok) return { error: payload.error ?? "บันทึกผู้ใช้งานไม่สำเร็จ", field: payload.field };
+      setNotice(`เพิ่มผู้ใช้งานสำเร็จแล้ว รหัสประจำตัว: ${payload.user?.user_code ?? "—"}`);
       startTransition(() => router.refresh());
     } catch {
       return "ไม่สามารถยืนยันผลการบันทึกได้ กรุณาตรวจสอบรายชื่อผู้ใช้งานก่อนลองอีกครั้ง";
@@ -47,10 +47,10 @@ export default function AdminDashboardActions({ report, reportUnavailable = fals
 
   return <>
     <div className="flex flex-wrap gap-3">
-      <button type="button" aria-haspopup="dialog" onClick={() => { setNotice(""); setNewUserId(`USR-${crypto.randomUUID()}`); }} className="inline-flex h-10 items-center rounded-lg bg-[#3D348B] px-5 text-xs font-semibold text-white transition-colors hover:bg-[#7678ED]">+ เพิ่มผู้ใช้งาน</button>
+      <button type="button" aria-haspopup="dialog" onClick={() => { setNotice(""); setIsAdding(true); }} className="inline-flex h-10 items-center rounded-lg bg-[#3D348B] px-5 text-xs font-semibold text-white transition-colors hover:bg-[#7678ED]">+ เพิ่มผู้ใช้งาน</button>
       <button type="button" onClick={exportReport} disabled={reportUnavailable || report.companies === null || refreshing} title={reportUnavailable || report.companies === null ? "ข้อมูลรายงานยังไม่ครบ กรุณาโหลดหน้าใหม่ก่อนส่งออก" : undefined} className="h-10 rounded-lg border border-[#DDD8FA] bg-[#F1EEFC] px-5 text-xs font-semibold text-[#3D348B] transition-colors hover:bg-[#DDD8FA] disabled:opacity-50">ส่งออกรายงาน</button>
     </div>
-    {newUserId !== null && <UserEditModal key={newUserId} mode="create" initialId={newUserId} roles={roles} onClose={() => { if (!savingUser.current) setNewUserId(null); }} onSave={saveNewUser} />}
+    {isAdding && <UserEditModal mode="create" roles={roles} onClose={() => { if (!savingUser.current) setIsAdding(false); }} onSave={saveNewUser} />}
     {notice && <div role="status" className="fixed bottom-5 right-5 z-50 rounded-lg bg-[#443B92] px-4 py-3 text-sm font-semibold text-white shadow-lg">{notice}<button type="button" onClick={() => setNotice("")} className="ml-3 text-white/80 hover:text-white" aria-label="ปิดข้อความ">×</button></div>}
   </>;
 }

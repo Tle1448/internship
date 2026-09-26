@@ -37,7 +37,94 @@ function PreviousStudentDetailView({ student }: { student: Student }) {
   return <div lang="th" className="min-h-screen bg-[#F8F9FA] text-black md:flex"><AdminSidebar active="student" /><div className="min-w-0 flex-1 md:ml-[285px]"><header className="px-5 py-6 lg:px-10"><AdminBreadcrumb current={`จัดการนักศึกษา › ${student.name}`} /><div className="mt-5"><h1 className="text-2xl font-bold lg:text-[30px]">{student.name}</h1><p className="mt-1 text-[#555]">{student.id} · {student.email}</p></div></header><main className="space-y-5 p-5 lg:p-10"><div className="grid gap-5 lg:grid-cols-2"><section className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm"><h2 className="font-bold">ข้อมูลการศึกษาและฝึกงาน</h2><dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-gray-500">สำนักวิชา / หลักสูตร</dt><dd className="mt-1 font-medium">{student.school}<br />{student.program}</dd></div><div><dt className="text-gray-500">สถานะฝึกงาน</dt><dd className={`mt-2 inline-block rounded-full px-3 py-1 text-xs font-semibold ${statusStyles[student.status]}`}>{student.status}</dd></div><div><dt className="text-gray-500">อาจารย์ที่ปรึกษา</dt><dd className="mt-1 font-medium">{student.advisor}</dd></div><div><dt className="text-gray-500">สถานประกอบการ</dt><dd className="mt-1 font-medium">บริษัท วลัยลักษณ์เทคโนโลยี จำกัด</dd></div><div><dt className="text-gray-500">สถานะปัจจุบัน</dt><dd className="mt-1 font-medium">รอตรวจสอบ</dd></div></dl></section><section className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm"><h2 className="font-bold">เอกสารที่ส่ง (3 ไฟล์)</h2><p className="mt-1 text-xs text-gray-500">กดชื่อไฟล์เพื่อดูตัวอย่าง</p><div className="mt-4 space-y-3">{documents.map((document) => <button key={document.name} type="button" className="flex w-full items-center justify-between gap-4 rounded-xl border border-[#EAEAEA] bg-[#FAFAFA] px-4 py-3 text-left hover:bg-[#F7F6FF]"><span><span className="block font-semibold">📄 {document.name}</span><span className="mt-1 block text-xs text-gray-500">ขนาดไฟล์ {document.size} · ส่งเมื่อ 28 ก.ย. 2569</span></span><span className="text-sm font-semibold text-[#3D348B]">ดูตัวอย่าง</span></button>)}</div></section></div><section className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-bold">การจัดการและประวัติ</h2><p className="mt-1 text-sm text-gray-500">สำหรับผู้ดูแลระบบ</p></div><div className="flex flex-wrap gap-2">{["แก้ไขข้อมูล", "เปลี่ยนอาจารย์ที่ปรึกษา", "เปลี่ยนสถานะฝึกงาน", "ส่งแจ้งเตือน"].map((label) => <button key={label} type="button" className="rounded-lg border border-[#D9D6F5] px-3 py-2 text-xs font-semibold text-[#3D348B] hover:bg-[#F5F3FF]">{label}</button>)}</div></div><div className="mt-5 grid gap-5 lg:grid-cols-3"><div><h3 className="text-sm font-semibold">ข้อมูลการฝึกงาน</h3><p className="mt-2 text-sm">ตำแหน่ง: นักพัฒนาซอฟต์แวร์ฝึกหัด<br />1 มิ.ย. 2569 – 15 ต.ค. 2569<br />ผู้ควบคุมงาน: คุณกมลชนก สุขใจ</p></div><div><h3 className="text-sm font-semibold">ผู้รับผิดชอบ</h3><p className="mt-2 text-sm">อาจารย์นิเทศ: ผศ.ดร.วิชาการ ดีเลิศ<br />เจ้าหน้าที่สหกิจ: นางสาวกัลยา รัตนวงศ์</p></div><div><h3 className="text-sm font-semibold">ประวัติล่าสุด</h3><p className="mt-2 text-sm">28 ก.ย. 2569 · นักศึกษาส่งเอกสาร<br />29 ก.ย. 2569 · เจ้าหน้าที่ตรวจ Company Certificate</p></div></div><div className="mt-5 border-t border-[#EAEAEA] pt-4"><h3 className="text-sm font-semibold">สถานะเอกสาร</h3><div className="mt-3 grid gap-2 sm:grid-cols-3">{documents.map((document) => <div key={document.name} className="rounded-lg bg-[#FAFAFA] px-3 py-2 text-xs"><p className="truncate font-medium">{document.name}</p><p className={`mt-1 font-semibold ${document.status === "ผ่าน" ? "text-green-600" : "text-orange-600"}`}>{document.status} · ตรวจล่าสุด 29 ก.ย. 2569</p></div>)}</div></div></section></main></div></div>;
 }
 
-function AdminStudentDetailView({ student }: { student: Student }) {
+type StudentEditProfile = {
+  id: string; user_code: string; full_name: string | null; email: string | null; faculty: string | null; major: string | null;
+  company_name: string | null; position: string | null; province: string | null; started_at: string | null; ended_at: string | null;
+};
+
+function StudentIdentityDialog({ profile, onClose, onSaved }: { profile: StudentEditProfile; onClose: () => void; onSaved: (name: string, email: string) => void }) {
+  const [name, setName] = useState(profile.full_name ?? "");
+  const [email, setEmail] = useState(profile.email ?? "");
+  const [faculty, setFaculty] = useState(profile.faculty ?? "");
+  const [major, setMajor] = useState(profile.major ?? "");
+  const [companyName, setCompanyName] = useState(profile.company_name ?? "");
+  const [position, setPosition] = useState(profile.position ?? "");
+  const [province, setProvince] = useState(profile.province ?? "");
+  const [startedAt, setStartedAt] = useState(profile.started_at?.slice(0, 10) ?? "");
+  const [endedAt, setEndedAt] = useState(profile.ended_at?.slice(0, 10) ?? "");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    dialog?.showModal();
+    document.body.style.overflow = "hidden";
+    return () => {
+      dialog?.close();
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus instanceof HTMLElement) previousFocus.focus();
+    };
+  }, []);
+
+  async function save(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (savingRef.current) return;
+    const fullName = name.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!fullName || !/^\S+@\S+\.\S+$/.test(normalizedEmail)) { setError("กรุณากรอกชื่อและอีเมลให้ถูกต้อง"); return; }
+    savingRef.current = true; setSaving(true); setError("");
+    try {
+      const response = await fetch("/api/admin/students", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studentId: profile.id, fullName, email: normalizedEmail, faculty, major, companyName, position, province, startedAt, endedAt }),
+      });
+      const payload = await response.json() as { error?: string; warning?: string; profile?: { full_name: string; email: string } };
+      if (!response.ok) { setError(payload.error ?? "บันทึกข้อมูลไม่สำเร็จ"); return; }
+      onSaved(payload.profile?.full_name ?? fullName, payload.profile?.email ?? normalizedEmail);
+    } catch { setError("ไม่สามารถยืนยันผลการบันทึกได้ กรุณาตรวจสอบข้อมูลก่อนลองอีกครั้ง"); }
+    finally { savingRef.current = false; setSaving(false); }
+  }
+
+  const field = "mt-1.5 w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-normal text-[#292934] outline-none focus:border-[#7678ED] focus:ring-2 focus:ring-[#7678ED]/20";
+  return <dialog ref={dialogRef} aria-labelledby="edit-student-title" onCancel={(event) => { event.preventDefault(); if (!savingRef.current) onClose(); }} className="fixed inset-0 m-auto h-[min(800px,calc(100dvh-2rem))] max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[800px] overflow-hidden rounded-2xl border-0 bg-white p-0 text-[#292934] shadow-2xl backdrop:bg-black/40">
+    <div className="flex h-full flex-col">
+      <header className="flex shrink-0 items-start gap-3 border-b border-gray-100 bg-[#F5F5F6] px-5 py-6 sm:px-6">
+        <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#3D348B] text-white"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="size-6"><circle cx="9" cy="7" r="3" /><path d="M13 19H3v-2a6 6 0 0 1 9-5" /><path d="M17 11v10m-5-5h10" /></svg></span>
+        <div className="flex-1"><h2 id="edit-student-title" className="text-lg font-bold text-[#3D348B]">แก้ไขข้อมูลนักศึกษา</h2><p className="mt-0.5 text-xs text-gray-500">รหัสนักศึกษา {profile.user_code} · ข้อมูลส่วนตัวและสถานที่ฝึกงาน</p></div>
+        <button type="button" disabled={saving} onClick={onClose} aria-label="ปิดหน้าต่าง" className="cursor-pointer rounded-md px-2 py-1 text-xl text-gray-500 hover:bg-gray-200 disabled:opacity-50">×</button>
+      </header>
+      <form id="edit-student-form" onSubmit={save} className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-6 sm:px-6">
+        <fieldset disabled={saving} className="grid gap-5 sm:grid-cols-2"><legend className="mb-3 text-sm font-semibold text-[#3D348B]">ข้อมูลนักศึกษา</legend>
+          <label className="block text-xs font-semibold text-gray-600">ชื่อ–นามสกุล <span className="text-red-600">*</span><input required value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" className={field} /></label>
+          <label className="block text-xs font-semibold text-gray-600">อีเมล <span className="text-red-600">*</span><input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" className={field} /></label>
+          <label className="block text-xs font-semibold text-gray-600">สำนักวิชา<input value={faculty} onChange={(event) => setFaculty(event.target.value)} className={field} /></label>
+          <label className="block text-xs font-semibold text-gray-600">หลักสูตร<input value={major} onChange={(event) => setMajor(event.target.value)} className={field} /></label>
+        </fieldset>
+        <fieldset disabled={saving} className="grid gap-5 border-t border-gray-100 pt-6 sm:grid-cols-2"><legend className="mb-3 text-sm font-semibold text-[#3D348B]">รายละเอียดสถานที่ฝึกงาน</legend>
+          <label className="block text-xs font-semibold text-gray-600 sm:col-span-2">สถานประกอบการ<input value={companyName} onChange={(event) => setCompanyName(event.target.value)} className={field} /></label>
+          <label className="block text-xs font-semibold text-gray-600">ตำแหน่งงาน<input value={position} onChange={(event) => setPosition(event.target.value)} className={field} /></label>
+          <label className="block text-xs font-semibold text-gray-600">จังหวัด<input value={province} onChange={(event) => setProvince(event.target.value)} className={field} /></label>
+          <label className="block text-xs font-semibold text-gray-600">วันเริ่มฝึกงาน<input type="date" value={startedAt} onChange={(event) => setStartedAt(event.target.value)} className={field} /></label>
+          <label className="block text-xs font-semibold text-gray-600">วันสิ้นสุดฝึกงาน<input type="date" min={startedAt || undefined} value={endedAt} onChange={(event) => setEndedAt(event.target.value)} className={field} /></label>
+        </fieldset>
+        {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      </form>
+      <footer className="flex shrink-0 flex-wrap justify-end gap-3 border-t border-gray-100 bg-[#F5F5F6] px-5 py-5 sm:px-6">
+        <button type="button" disabled={saving} onClick={onClose} className="cursor-pointer rounded-lg border border-gray-200 bg-white px-5 py-3 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50">ยกเลิก</button>
+        <button type="submit" form="edit-student-form" disabled={saving} aria-busy={saving} className="flex cursor-pointer items-center gap-2 rounded-lg bg-[#3D348B] px-5 py-3 text-sm font-semibold text-white hover:bg-[#5146AA] disabled:opacity-50"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="size-4"><path d="M5 3h12l4 4v14H3V3h2Z" /><path d="M7 3v6h10V3M7 21v-8h10v8" /></svg>{saving ? "กำลังบันทึก…" : "บันทึกการเปลี่ยนแปลง"}</button>
+      </footer>
+    </div>
+  </dialog>;
+}
+
+function AdminStudentDetailView({ student, onSaved }: { student: Student; onSaved: (name: string, email: string) => void }) {
+  const [editProfile, setEditProfile] = useState<StudentEditProfile | null>(null);
+  const [loadingEdit, setLoadingEdit] = useState(false);
+  const loadingEditRef = useRef(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [documents, setDocuments] = useState<Array<{ name: string; size: string; submittedAt: string; status: string; statusClass: string }>>([]);
 
@@ -82,50 +169,17 @@ function AdminStudentDetailView({ student }: { student: Student }) {
     return () => { active = false; window.removeEventListener("admin-student-updated", renderLatestStudentData); };
   }, [student.advisor, student.id]);
 
-  const runAdminAction = async (action: "edit" | "advisor" | "status" | "notify") => {
-    let { data: profile, error: profileError } = await supabase.from("profiles").select("id, full_name, email").eq("user_code", student.id).maybeSingle();
-    if (profileError) { setActionMessage(`ค้นหาข้อมูลไม่สำเร็จ: ${profileError.message}`); return; }
-    if (!profile) {
-      const password = window.prompt(`ยังไม่มีบัญชี ${student.id} — ตั้งรหัสผ่านเริ่มต้น`, "");
-      if (!password) return;
-      const response = await fetch("/api/admin/students", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userCode: student.id, fullName: student.name, email: student.email, password }) });
-      const result = await response.json() as { error?: string; warning?: string };
-      if (!response.ok) { setActionMessage(`สร้างบัญชีไม่สำเร็จ: ${result.error ?? "เกิดข้อผิดพลาด"}`); return; }
-      const reloaded = await supabase.from("profiles").select("id, full_name, email").eq("user_code", student.id).maybeSingle();
-      profile = reloaded.data;
-      if (!profile) { setActionMessage(result.warning ?? "สร้างบัญชีแล้ว กรุณาลองทำรายการอีกครั้ง"); return; }
-      setActionMessage(result.warning ?? "สร้างบัญชีนักศึกษาใน Supabase แล้ว กำลังทำรายการต่อ");
-    }
-    if (action === "edit") {
-      const fullName = window.prompt("ชื่อ-นามสกุล", profile.full_name ?? student.name);
-      if (fullName === null) return;
-      const email = window.prompt("อีเมล", profile.email ?? student.email);
-      if (email === null) return;
-      const { error } = await supabase.from("profiles").update({ full_name: fullName.trim(), email: email.trim() }).eq("id", profile.id);
-      setActionMessage(error ? `บันทึกไม่สำเร็จ: ${error.message}` : "บันทึกข้อมูลนักศึกษาแล้ว");
-    }
-    if (action === "advisor") {
-      const advisorCode = window.prompt("รหัสอาจารย์ที่ปรึกษา (เช่น ADV0001)");
-      if (!advisorCode) return;
-      const { data: advisor, error: advisorError } = await supabase.from("profiles").select("id").eq("user_code", advisorCode.trim().toUpperCase()).eq("role", "advisor").maybeSingle();
-      if (advisorError || !advisor) { setActionMessage("ไม่พบอาจารย์ที่ปรึกษาตามรหัสที่ระบุ"); return; }
-      const { error } = await supabase.from("internship_records").update({ advisor_id: advisor.id }).eq("student_id", profile.id);
-      setActionMessage(error ? `เปลี่ยนอาจารย์ไม่สำเร็จ: ${error.message}` : "เปลี่ยนอาจารย์ที่ปรึกษาแล้ว");
-    }
-    if (action === "status") {
-      const status = window.prompt("สถานะฝึกงาน: in_progress, completed หรือ cancelled", "in_progress");
-      if (!status) return;
-      if (!["in_progress", "completed", "cancelled"].includes(status)) { setActionMessage("สถานะไม่ถูกต้อง"); return; }
-      const { error } = await supabase.from("internship_records").update({ status, updated_at: new Date().toISOString() }).eq("student_id", profile.id);
-      setActionMessage(error ? `เปลี่ยนสถานะไม่สำเร็จ: ${error.message}` : "เปลี่ยนสถานะฝึกงานแล้ว");
-    }
-    if (action === "notify") {
-      const message = window.prompt("ข้อความแจ้งเตือน");
-      if (!message?.trim()) return;
-      const { error } = await supabase.from("notifications").insert({ recipient_type: "student", recipient_id: profile.id, title: "ข้อความจากผู้ดูแลระบบ", message: message.trim(), is_read: false });
-      setActionMessage(error ? `ส่งแจ้งเตือนไม่สำเร็จ: ${error.message}` : "ส่งแจ้งเตือนถึงนักศึกษาแล้ว");
-    }
-    window.dispatchEvent(new Event("admin-student-updated"));
+  const openEdit = async () => {
+    if (loadingEditRef.current) return;
+    loadingEditRef.current = true; setLoadingEdit(true); setActionMessage(null);
+    try {
+      const { data, error } = await supabase.from("profiles").select("id, user_code, full_name, email, faculty, major").eq("user_code", student.id).eq("role", "student").maybeSingle();
+      if (error || !data) { setActionMessage(error ? "โหลดข้อมูลนักศึกษาไม่สำเร็จ กรุณาลองใหม่" : "ไม่พบบัญชีนักศึกษาในระบบ"); return; }
+      const { data: record, error: recordError } = await supabase.from("internship_records").select("company_name, position, province, started_at, ended_at").eq("student_id", data.id).maybeSingle();
+      if (recordError) { setActionMessage("โหลดรายละเอียดสถานที่ฝึกงานไม่สำเร็จ กรุณาลองใหม่"); return; }
+      setEditProfile({ ...data, company_name: record?.company_name ?? null, position: record?.position ?? null, province: record?.province ?? null, started_at: record?.started_at ?? null, ended_at: record?.ended_at ?? null });
+    } catch { setActionMessage("โหลดข้อมูลนักศึกษาไม่สำเร็จ กรุณาลองใหม่"); }
+    finally { loadingEditRef.current = false; setLoadingEdit(false); }
   };
 
   return <div lang="th" className="min-h-screen bg-[#FAF8FD] text-[#24232B] md:flex [&_main>section]:rounded-[14px] [&_main>section]:border-[#DFE6EF] [&_main>section]:shadow-[0_2px_5px_rgba(15,23,42,0.08)] [&_main>div>section]:rounded-[14px] [&_main>div>section]:border-[#DFE6EF] [&_main>div>section]:shadow-[0_2px_5px_rgba(15,23,42,0.08)]">
@@ -138,9 +192,10 @@ function AdminStudentDetailView({ student }: { student: Student }) {
           <section className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm"><h2 className="font-bold">รายละเอียดสถานที่ฝึกงาน</h2><dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-gray-500">สถานประกอบการ</dt><dd className="mt-1 font-medium">บริษัท วลัยลักษณ์เทคโนโลยี จำกัด<br />จ.นครศรีธรรมราช</dd></div><div><dt className="text-gray-500">ตำแหน่งงาน</dt><dd className="mt-1 font-medium">นักพัฒนาซอฟต์แวร์ฝึกหัด</dd></div><div><dt className="text-gray-500">ระยะเวลาฝึกงาน</dt><dd className="mt-1 font-medium">1 มิ.ย. 2569 – 15 ต.ค. 2569</dd></div><div><dt className="text-gray-500">สถานะ</dt><dd className="mt-2 flex flex-wrap gap-2"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusStyles[student.status]}`}>{student.status}</span><span className="rounded-full bg-[#FFF0DD] px-3 py-1 text-xs font-semibold text-[#B45309]">รอตรวจสอบเอกสาร</span></dd></div><div className="sm:col-span-2"><dt className="text-gray-500">ผู้เกี่ยวข้องในการฝึกงาน</dt><dd className="mt-1 leading-6"><span className="font-medium">ผู้ควบคุมงาน:</span> คุณกมลชนก สุขใจ<br /><span className="font-medium">อาจารย์นิเทศ:</span> {student.advisor}<br /><span className="font-medium">เจ้าหน้าที่สหกิจ:</span> นางสาวกัลยา รัตนวงศ์</dd></div></dl></section>
           <section className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm"><h2 className="font-bold">เอกสารที่ส่ง (3 ไฟล์)</h2><p className="mt-1 text-xs text-gray-500">กดรายการเพื่อดูตัวอย่าง</p><div className="mt-4 space-y-3">{documents.map((document) => <button key={document.name} type="button" className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#DFE6EF] bg-white px-4 py-3 text-left transition hover:border-[#7678ED] hover:bg-[#F8F7FC]"><span className="min-w-0"><span className="block truncate font-semibold text-[#3D348B]">{document.name}</span><span className="mt-1 block text-xs text-[#6D6979]">{document.size} · ส่งเมื่อ {document.submittedAt}</span></span><span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${document.statusClass}`}>{document.status}</span></button>)}</div></section>
         </div>
-        <section className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#EAEAEA] pb-4"><div><h2 className="font-bold">เครื่องมือผู้ดูแลระบบ & ประวัติกิจกรรม</h2><p className="mt-1 text-sm text-gray-500">จัดการข้อมูลและติดตามรายการล่าสุด</p></div><div className="flex flex-wrap gap-2">{[{ label: "แก้ไขข้อมูล", action: "edit" as const }, { label: "เปลี่ยนอาจารย์ที่ปรึกษา", action: "advisor" as const }, { label: "เปลี่ยนสถานะฝึกงาน", action: "status" as const }, { label: "ส่งแจ้งเตือน", action: "notify" as const }].map(({ label, action }) => <button key={action} type="button" onClick={() => void runAdminAction(action)} className="rounded-lg border border-[#D9D6F5] px-3 py-2 text-xs font-semibold text-[#3D348B] transition hover:bg-[#F5F3FF]">{label}</button>)}</div></div>{actionMessage && <div role="status" className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-[#F5F3FF] px-4 py-3 text-sm text-[#3D348B]"><span>{actionMessage}</span><button type="button" onClick={() => setActionMessage(null)} className="font-semibold">ปิด</button></div>}<ol className="mt-5 space-y-4 border-l-2 border-[#E5E1FF] pl-5 text-sm"><li className="relative"><span className="absolute -left-[30px] top-1 size-3 rounded-full bg-[#3D348B]" /><p className="font-medium">29 ก.ย. 2569 · เจ้าหน้าที่ตรวจ Company Certificate</p></li><li className="relative"><span className="absolute -left-[30px] top-1 size-3 rounded-full bg-[#B8B5D9]" /><p className="font-medium">28 ก.ย. 2569 · นักศึกษาส่งเอกสาร</p></li></ol></section>
+        <section className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#EAEAEA] pb-4"><div><h2 className="font-bold">เครื่องมือผู้ดูแลระบบ & ประวัติกิจกรรม</h2><p className="mt-1 text-sm text-gray-500">จัดการข้อมูลและติดตามรายการล่าสุด</p></div><div className="flex flex-wrap gap-2"><button type="button" aria-haspopup="dialog" disabled={loadingEdit} onClick={() => void openEdit()} className="rounded-lg border border-[#D9D6F5] px-3 py-2 text-xs font-semibold text-[#3D348B] transition hover:bg-[#F5F3FF] disabled:opacity-50">{loadingEdit ? "กำลังโหลด…" : "แก้ไขข้อมูล"}</button></div></div>{actionMessage && <div role="status" className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-[#F5F3FF] px-4 py-3 text-sm text-[#3D348B]"><span>{actionMessage}</span><button type="button" onClick={() => setActionMessage(null)} className="font-semibold">ปิด</button></div>}<ol className="mt-5 space-y-4 border-l-2 border-[#E5E1FF] pl-5 text-sm"><li className="relative"><span className="absolute -left-[30px] top-1 size-3 rounded-full bg-[#3D348B]" /><p className="font-medium">29 ก.ย. 2569 · เจ้าหน้าที่ตรวจ Company Certificate</p></li><li className="relative"><span className="absolute -left-[30px] top-1 size-3 rounded-full bg-[#B8B5D9]" /><p className="font-medium">28 ก.ย. 2569 · นักศึกษาส่งเอกสาร</p></li></ol></section>
       </main>
     </div>
+    {editProfile && <StudentIdentityDialog profile={editProfile} onClose={() => setEditProfile(null)} onSaved={(name, email) => { onSaved(name, email); setActionMessage("บันทึกข้อมูลนักศึกษาแล้ว"); setEditProfile(null); window.dispatchEvent(new Event("admin-student-updated")); }} />}
   </div>;
 }
 
@@ -305,7 +360,7 @@ export default function StudentPage() {
     return <DocumentPreview document={{ id: "DOC-001", student: selectedStudent.name, studentId: selectedStudent.id, company: "บริษัท วลัยลักษณ์เทคโนโลยี จำกัด" }} fileName={previewFile} onClose={() => window.history.back()} />;
   }
 
-  if (selectedStudent) return <AdminStudentDetailView student={selectedStudent} />;
+  if (selectedStudent) return <AdminStudentDetailView key={selectedStudent.id} student={selectedStudent} onSaved={(name, email) => { setSelectedStudent({ ...selectedStudent, name, email }); setStudents((current) => current.map((item) => item.id === selectedStudent.id ? { ...item, name, email } : item)); }} />;
 
   if (selectedStudent) {
     return <div lang="th" className="min-h-screen bg-[#F8F9FA] text-black md:flex"><AdminSidebar active="student" /><div className="min-w-0 flex-1 md:ml-[285px]"><header className="px-5 py-6 lg:px-10"><AdminBreadcrumb current={`จัดการนักศึกษา › ${selectedStudent.name}`} /><div className="mt-5 flex flex-wrap items-center justify-between gap-4"><div><h1 className="text-2xl font-bold lg:text-[30px]">{selectedStudent.name}</h1><p className="mt-1 text-[#555]">{selectedStudent.id} · {selectedStudent.email}</p></div><button type="button" onClick={() => setSelectedStudent(null)} className="rounded-lg border border-[#EAEAEA] bg-white px-4 py-2.5 text-sm font-semibold text-[#3D348B] hover:bg-[#F5F3FF]">← กลับไปรายการนักศึกษา</button></div></header><main className="space-y-5 p-5 lg:p-10"><section className="overflow-hidden rounded-2xl bg-[#3D348B] p-6 text-white"><p className="text-xs text-white/75">STUDENT PROFILE</p><div className="mt-3 flex items-center gap-4"><span className="flex size-14 items-center justify-center rounded-xl bg-white text-lg font-bold text-[#3D348B]">{selectedStudent.name.slice(0, 2)}</span><div><h2 className="text-xl font-bold">{selectedStudent.name}</h2><p className="text-sm text-white/80">{selectedStudent.school} · {selectedStudent.year}</p></div></div></section><div className="grid gap-5 lg:grid-cols-2"><section className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm"><h2 className="font-bold">ข้อมูลการศึกษาและฝึกงาน</h2><dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-gray-500">สำนักวิชา / หลักสูตร</dt><dd className="mt-1 font-medium">{selectedStudent.school}<br />{selectedStudent.program}</dd></div><div><dt className="text-gray-500">สถานะฝึกงาน</dt><dd className={`mt-2 inline-block rounded-full px-3 py-1 text-xs font-semibold ${statusStyles[selectedStudent.status]}`}>{selectedStudent.status}</dd></div><div><dt className="text-gray-500">อาจารย์ที่ปรึกษา</dt><dd className="mt-1 font-medium">{selectedStudent.advisor}</dd></div><div><dt className="text-gray-500">สถานประกอบการ</dt><dd className="mt-1 font-medium">บริษัท วลัยลักษณ์เทคโนโลยี จำกัด</dd></div><div><dt className="text-gray-500">สถานะปัจจุบัน</dt><dd className="mt-1 font-medium">รอตรวจสอบ</dd></div></dl></section><section className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm"><h2 className="font-bold">เอกสารที่ส่ง (3 ไฟล์)</h2><p className="mt-1 text-xs text-gray-500">กดชื่อไฟล์เพื่อดูตัวอย่าง</p><div className="mt-4 space-y-3">{[{ name: `Acceptance_Letter_${selectedStudent.id}.pdf`, size: "1.2 MB" }, { name: `Company_Certificate_${selectedStudent.id}.pdf`, size: "980 KB" }, { name: `Internship_Plan_${selectedStudent.id}.pdf`, size: "760 KB" }].map((document) => <button key={document.name} type="button" className="flex w-full items-center justify-between gap-4 rounded-xl border border-[#EAEAEA] bg-[#FAFAFA] px-4 py-4 text-left transition hover:border-[#C9C5F5] hover:bg-[#F7F6FF]"><div className="min-w-0"><p className="truncate font-semibold">📄 {document.name}</p><p className="mt-1 text-xs text-gray-500">ขนาดไฟล์ {document.size} · ส่งเมื่อ 28 ก.ย. 2569 · 10:32 น.</p></div><span className="shrink-0 text-sm font-semibold text-[#3D348B]">ดูตัวอย่าง</span></button>)}</div></section></div><section className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="text-lg font-bold">ตรวจสอบเอกสารนักศึกษา</h2><p className="mt-1 text-sm text-[#555]">ตรวจสอบ อนุมัติ หรือส่งเอกสารกลับแก้ไขของ {selectedStudent.name}</p></div><a href="/admin/student" className="rounded-lg bg-[#3D348B] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#5146AA]">เปิดตรวจสอบเอกสาร</a></div></section></main></div></div>;
