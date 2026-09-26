@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useCallback, useEffect, useState } from "react";
-import { Building2, CheckCircle2, Clock3, FileText, FileUp, Loader2, Send, X, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, FileText, FileUp, Loader2, Send, X, XCircle } from "lucide-react";
 import StudentSidebar from "@/components/StudentSidebar";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
@@ -10,7 +10,6 @@ type ApplicationStatus = "draft" | "submitted" | "interview" | "offer_received" 
 type PlacementRequestStatus = "not_requested" | "pending_verification" | "confirmed" | "declined";
 type ReviewStatus = "pending" | "approved" | "rejected";
 type SelectionOutcome = "undecided" | "selected" | "not_selected";
-type Job = { id: string; title: string; company_name: string; location: string | null; tags: string[] | null };
 type ExternalRequest = { id: string; company_name: string; position: string; location: string; status: "pending" | "approved" | "rejected"; review_note: string | null };
 type StatusUpdate = { id: string; previous_status: ApplicationStatus; new_status: ApplicationStatus; evidence_files: string[]; note: string | null; created_at: string; review_status: ReviewStatus; review_note: string | null; reviewed_at: string | null };
 type Application = { id: string; job_id: string | null; external_submission_id: string | null; company_name: string; job_title: string; application_status: ApplicationStatus; placement_request_status: PlacementRequestStatus; placement_verification_note: string | null; selection_outcome: SelectionOutcome; offer_evidence_files: string[]; status_updates: StatusUpdate[] };
@@ -35,9 +34,9 @@ const applicationLabels: Record<ApplicationStatus, string> = {
 };
 const allowedStatusTransitions: Record<ApplicationStatus, ApplicationStatus[]> = {
   draft: ["submitted"],
-  submitted: ["interview", "offer_received", "rejected", "withdrawn"],
-  interview: ["offer_received", "rejected", "withdrawn"],
-  offer_received: ["withdrawn"],
+  submitted: ["interview", "offer_received", "rejected"],
+  interview: ["offer_received", "rejected"],
+  offer_received: [],
   rejected: [],
   withdrawn: [],
 };
@@ -49,7 +48,6 @@ const reviewStyles: Record<ReviewStatus, string> = { pending: "bg-amber-50 text-
 
 export default function SelectCompanyPage() {
   const { user, loading: authLoading } = useAuth();
-  const [jobs, setJobs] = useState<Job[]>([]);
   const [externalRequests, setExternalRequests] = useState<ExternalRequest[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,15 +65,13 @@ export default function SelectCompanyPage() {
     if (!user) return;
     setLoading(true);
     setError(null);
-    const [jobResult, applicationResult, externalResult] = await Promise.all([
-      supabase.from("jobs").select("id, title, company_name, location, tags").eq("status", "open").is("archived_at", null).order("created_at", { ascending: false }),
+    const [applicationResult, externalResult] = await Promise.all([
       supabase.from("job_applications").select("id, job_id, external_submission_id, company_name, job_title, application_status, placement_request_status, placement_verification_note, selection_outcome, offer_evidence_files, status_updates:application_status_updates(id, previous_status, new_status, evidence_files, note, created_at, review_status, review_note, reviewed_at)").eq("student_id", user.id).order("submitted_at", { ascending: false }),
       supabase.from("external_company_submissions").select("id, company_name, position, location, status, review_note").eq("student_id", user.id).order("created_at", { ascending: false }),
     ]);
-    if (jobResult.error || applicationResult.error || externalResult.error) {
-      setError(jobResult.error?.message ?? applicationResult.error?.message ?? externalResult.error?.message ?? "โหลดข้อมูลไม่สำเร็จ");
+    if (applicationResult.error || externalResult.error) {
+      setError(applicationResult.error?.message ?? externalResult.error?.message ?? "โหลดข้อมูลไม่สำเร็จ");
     }
-    setJobs((jobResult.data ?? []) as Job[]);
     setApplications(((applicationResult.data ?? []) as Application[]).map((application) => ({
       ...application,
       offer_evidence_files: application.offer_evidence_files ?? [],
@@ -93,12 +89,11 @@ export default function SelectCompanyPage() {
     return () => window.clearTimeout(timer);
   }, [authLoading, loadData, user]);
 
-  const startApplication = async (source: Job | ExternalRequest) => {
+  const startApplication = async (source: ExternalRequest) => {
     if (!user) return;
-    const isJob = "title" in source;
     const existing = applications.find((application) =>
       (application.application_status === "draft" || application.application_status === "submitted" || application.application_status === "interview" || application.application_status === "offer_received")
-      && (isJob ? application.job_id === source.id : application.external_submission_id === source.id)
+      && application.external_submission_id === source.id
     );
     if (existing) {
       setMessage("มีรายการสมัครนี้อยู่แล้วในรายการติดตาม");
@@ -107,8 +102,8 @@ export default function SelectCompanyPage() {
     setBusyId(source.id);
     setError(null);
     const { error: insertError } = await supabase.rpc("start_job_application", {
-      job_id: isJob ? source.id : null,
-      external_submission_id: isJob ? null : source.id,
+      job_id: null,
+      external_submission_id: source.id,
     });
     if (insertError) setError(insertError.message);
     else {
@@ -225,6 +220,14 @@ export default function SelectCompanyPage() {
     setBusyId(null);
   };
 
+  const approvedExternalRequests = externalRequests.filter((request) =>
+    request.status === "approved"
+    && !applications.some((application) =>
+      application.external_submission_id === request.id
+      && ["draft", "submitted", "interview", "offer_received"].includes(application.application_status)
+    )
+  );
+
   if (loading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="animate-spin text-[#3D348B]" /></div>;
 
   return <div className="flex min-h-screen bg-slate-50 text-slate-800">
@@ -289,8 +292,7 @@ export default function SelectCompanyPage() {
         )}
       </section>
       {externalRequests.length > 0 && <section className="rounded-lg border border-slate-200 bg-white"><div className="border-b border-slate-100 px-5 py-4"><h2 className="font-bold">สถานะคำขอบริษัทภายนอก</h2></div><div className="divide-y divide-slate-100">{externalRequests.map((request) => <div key={request.id} className="flex flex-col justify-between gap-2 px-5 py-4 sm:flex-row sm:items-center"><div><p className="font-semibold text-slate-900">{request.company_name}</p><p className="mt-1 text-sm text-slate-500">{request.position}</p>{request.review_note && <p className="mt-2 text-xs text-amber-700">เหตุผล/หมายเหตุ: {request.review_note}</p>}</div><span className={`w-fit rounded-full px-3 py-1 text-xs font-semibold ${request.status === "approved" ? "bg-emerald-50 text-emerald-700" : request.status === "rejected" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>{request.status === "approved" ? "อนุมัติแล้ว" : request.status === "rejected" ? "ไม่อนุมัติ" : "รอพิจารณา"}</span></div>)}</div></section>}
-      <section><div className="mb-3"><h2 className="text-lg font-bold">ประกาศจาก Coordinator</h2><p className="text-sm text-slate-500">เมื่อเลือกแล้ว ให้ไปสมัครผ่านช่องทางที่บริษัทประกาศ</p></div><div className="grid gap-4 md:grid-cols-2">{jobs.map((job) => <JobCard key={job.id} company={job.company_name} title={job.title} location={job.location} tags={job.tags} busy={busyId === job.id} onStart={() => void startApplication(job)} />)}</div></section>
-      {externalRequests.some((request) => request.status === "approved") && <section><div className="mb-3"><h2 className="text-lg font-bold">บริษัทภายนอกที่อนุมัติแล้ว</h2><p className="text-sm text-slate-500">เริ่มติดตามการสมัครได้หลังได้รับอนุมัติ</p></div><div className="grid gap-4 md:grid-cols-2">{externalRequests.filter((request) => request.status === "approved").map((company) => <JobCard key={company.id} company={company.company_name} title={company.position} location={company.location} tags={null} busy={busyId === company.id} onStart={() => void startApplication(company)} />)}</div></section>}
+      {approvedExternalRequests.length > 0 && <section className="overflow-hidden rounded-lg border border-slate-200 bg-white"><div className="border-b border-slate-100 px-5 py-4"><h2 className="font-bold">บริษัทภายนอกที่อนุมัติแล้ว</h2><p className="mt-1 text-sm text-slate-500">เริ่มติดตามการสมัครได้หลังได้รับอนุมัติ</p></div><div className="divide-y divide-slate-100">{approvedExternalRequests.map((company) => <div key={company.id} className="flex flex-col justify-between gap-4 px-5 py-5 sm:flex-row sm:items-center"><div className="min-w-0"><h3 className="font-semibold text-slate-900">{company.company_name}</h3><p className="mt-1 text-sm text-slate-600">{company.position}</p><p className="mt-2 text-xs text-slate-500">{company.location || "ไม่ระบุสถานที่"}</p></div><button type="button" disabled={busyId === company.id} onClick={() => void startApplication(company)} className="inline-flex h-10 w-fit shrink-0 items-center gap-2 rounded-lg border border-[#3D348B] px-3 text-sm font-semibold text-[#3D348B] hover:bg-[#F4F3FC] disabled:opacity-50"><Send size={15} />เริ่มติดตามการสมัคร</button></div>)}</div></section>}
     </div></main>
     {pendingStatusUpdate && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" onClick={() => busyId !== pendingStatusUpdate.application.id && setPendingStatusUpdate(null)}>
@@ -334,8 +336,4 @@ export default function SelectCompanyPage() {
       </div>
     )}
   </div>;
-}
-
-function JobCard({ company, title, location, tags, busy, onStart }: { company: string; title: string; location: string | null; tags: string[] | null; busy: boolean; onStart: () => void }) {
-  return <article className="rounded-lg border border-slate-200 bg-white p-5"><Building2 className="mb-3 text-[#3D348B]" size={22} /><h3 className="font-bold text-slate-900">{company}</h3><p className="mt-1 text-sm text-slate-600">{title}</p><p className="mt-2 text-xs text-slate-500">{location || "ไม่ระบุสถานที่"}</p>{tags?.length ? <p className="mt-2 text-xs text-slate-500">{tags.join(" · ")}</p> : null}<button disabled={busy} onClick={onStart} className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg border border-[#3D348B] px-3 text-sm font-semibold text-[#3D348B] hover:bg-[#F4F3FC] disabled:opacity-50"><Send size={15} />เริ่มติดตามการสมัคร</button></article>;
 }
