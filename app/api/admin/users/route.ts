@@ -73,18 +73,15 @@ export async function POST(request: NextRequest) {
   const body = await readBody(request);
   if (!body) return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
 
-  const userCode = stringValue(body.userCode).toUpperCase();
   const fullName = stringValue(body.fullName);
   const email = stringValue(body.email).toLowerCase();
   const password = typeof body.password === "string" ? body.password : "";
   const role = roleValue(body.role);
   if (!fullName || !/^\S+@\S+\.\S+$/.test(email) || password.length < 8 || !role) {
-    return NextResponse.json({ error: "User code, name, email, password, or role is invalid" }, { status: 400 });
+    return NextResponse.json({ error: "Name, email, password, or role is invalid" }, { status: 400 });
   }
 
-  if (role === "student" && !validCode(userCode, role)) return NextResponse.json({ error: "กรุณากรอกรหัสนักศึกษาเป็นตัวเลข 8 หลัก", field: "userCode" }, { status: 400 });
-  if (role !== "student" && userCode) return NextResponse.json({ error: "ระบบจะกำหนดรหัสบัญชีสำหรับบทบาทนี้เมื่อบันทึก", field: "userCode" }, { status: 400 });
-  const duplicate = await checkDuplicate(userCode, email);
+  const duplicate = await checkDuplicate("", email);
   if (duplicate) return duplicate;
 
   const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -94,7 +91,7 @@ export async function POST(request: NextRequest) {
   if (createError || !created.user) return NextResponse.json({ error: createError?.message ?? "Unable to create account" }, { status: 400 });
 
   const { data: profile, error: profileError } = await supabaseAdmin.from("profiles").update({
-    ...(role === "student" ? { user_code: userCode } : {}), full_name: fullName, email, role,
+    full_name: fullName, email, role,
     faculty: stringValue(body.faculty) || null, major: stringValue(body.major) || null,
   }).eq("id", created.user.id).select("id, user_code, full_name, email, role, faculty, major").single();
   if (profileError) {
@@ -117,7 +114,9 @@ export async function PATCH(request: NextRequest) {
   const fullName = stringValue(body.fullName);
   const email = stringValue(body.email).toLowerCase();
   const userCode = stringValue(body.userCode).toUpperCase();
+  const password = typeof body.password === "string" ? body.password : "";
   if (!fullName || !userCode || !/^\S+@\S+\.\S+$/.test(email)) return NextResponse.json({ error: "User code, name, or email is invalid" }, { status: 400 });
+  if (password && password.length < 8) return NextResponse.json({ error: "Password must contain at least 8 characters", field: "password" }, { status: 400 });
 
   const { data: original, error: originalError } = await supabaseAdmin.from("profiles").select("user_code, role").eq("id", id).maybeSingle();
   if (originalError) return NextResponse.json({ error: "โหลดบัญชีผู้ใช้ไม่สำเร็จ" }, { status: 503 });
@@ -126,7 +125,7 @@ export async function PATCH(request: NextRequest) {
   const duplicate = await checkDuplicate(userCode, email, id);
   if (duplicate) return duplicate;
 
-  const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(id, { email, app_metadata: { role }, user_metadata: { full_name: fullName } });
+  const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(id, { email, ...(password ? { password } : {}), app_metadata: { role }, user_metadata: { full_name: fullName } });
   if (authError) return NextResponse.json({ error: authError.message }, { status: 400 });
   const { data: profile, error } = await supabaseAdmin.from("profiles").update({
     user_code: userCode, full_name: fullName, email, role,

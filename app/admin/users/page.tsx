@@ -4,7 +4,7 @@ import AdminBreadcrumb from "@/components/AdminBreadcrumb";
 
 import AdminDeleteConfirmationModal from "@/components/adminDeleteConfirmationModal";
 import AdminDeletedUsersTable from "@/components/adminDeletedUsersTable";
-import UserEditModal, { type EditableUser, type UserRole, type UserSaveError } from "@/components/UserEditModal";
+import UserEditModal, { type EditableUser, type UserRole, type UserSaveError, type UserSaveSuccess } from "@/components/UserEditModal";
 import { useEffect, useState } from "react";
 
 type Role = UserRole;
@@ -65,13 +65,16 @@ export default function UsersPage() {
 
   useEffect(() => { void loadUsers(); }, []);
 
-  async function saveNewUser(user: User): Promise<string | UserSaveError | void> {
+  async function saveNewUser(user: User): Promise<string | UserSaveError | UserSaveSuccess | void> {
     const response = await fetch("/api/admin/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userCode: user.id, fullName: user.name, email: user.email, password: user.password, role: roleForDatabase[user.role], faculty: user.school, major: user.department, isActive: user.status === "Active" }) });
     const payload = await response.json() as { error?: string; field?: string; user?: { user_code: string } };
     if (!response.ok) return { error: payload.error ?? "บันทึกผู้ใช้งานไม่สำเร็จ", field: payload.field };
-    setNotice(`เพิ่มผู้ใช้งานสำเร็จ รหัสประจำตัว: ${payload.user?.user_code ?? "—"}`);
+    const generatedCode = payload.user?.user_code;
+    if (!generatedCode) return "สร้างบัญชีสำเร็จ แต่ไม่พบรหัสประจำตัวที่ฐานข้อมูลสร้าง";
+    setNotice(`เพิ่มผู้ใช้งานสำเร็จ รหัสประจำตัว: ${generatedCode}`);
     setQuery(""); setRole("All"); setStatus("All"); setCurrentPage(1); setActiveTab("active");
-    try { await loadUsers(); } catch { setNotice(`สร้างบัญชีสำเร็จ รหัสประจำตัว: ${payload.user?.user_code ?? "—"} กรุณาโหลดหน้าใหม่เพื่อดูรายชื่อ`); }
+    try { await loadUsers(); } catch { setNotice(`สร้างบัญชีสำเร็จ รหัสประจำตัว: ${generatedCode} กรุณาโหลดหน้าใหม่เพื่อดูรายชื่อ`); }
+    return { generatedCode };
   }
 
   async function deleteUser(user: User) {
@@ -175,7 +178,7 @@ export default function UsersPage() {
           onClose={() => setEditing(null)}
           onSave={async (updated) => {
             if (!editing.authId) return "ไม่พบรหัสบัญชีในระบบ";
-            const response = await fetch("/api/admin/users", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editing.authId, userCode: updated.id, fullName: updated.name, email: updated.email, role: roleForDatabase[updated.role], faculty: updated.school, major: updated.department, isActive: updated.status === "Active" }) });
+            const response = await fetch("/api/admin/users", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editing.authId, userCode: updated.id, fullName: updated.name, email: updated.email, password: updated.password, role: roleForDatabase[updated.role], faculty: updated.school, major: updated.department, isActive: updated.status === "Active" }) });
             const payload = await response.json() as { error?: string; field?: string };
             if (!response.ok) return { error: payload.error ?? "บันทึกผู้ใช้งานไม่สำเร็จ", field: payload.field };
             await loadUsers();

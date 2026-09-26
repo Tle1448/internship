@@ -24,3 +24,13 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Dialogs retain their footer close/cancel actions; hide decorative close icons. */
+[role="dialog"] button[aria-label="ปิด"],
+[role="dialog"] button[aria-label="ปิดหน้าต่าง"] {
+  display: none;
+}
+
+[role="dialog"] form > header > button:not([aria-label]) {
+  display: none;
+}

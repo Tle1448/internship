@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
 export type UserRole = "Student" | "Coordinator" | "Advisor" | "Admin";
 export type UserSaveError = { error: string; field?: string };
+export type UserSaveSuccess = { generatedCode: string };
 export type EditableUser = {
   id: string;
   name: string;
@@ -22,7 +23,7 @@ type Props = {
   roles?: UserRole[];
   onClose: () => void;
   /** Return an error message if the user cannot be saved. */
-  onSave: (user: EditableUser) => string | UserSaveError | void | Promise<string | UserSaveError | void>;
+  onSave: (user: EditableUser) => string | UserSaveError | UserSaveSuccess | void | Promise<string | UserSaveError | UserSaveSuccess | void>;
 };
 
 export const departments: Record<string, string[]> = {
@@ -52,6 +53,12 @@ const roleLabels: Record<UserRole, string> = {
   Advisor: "อาจารย์ที่ปรึกษา (Academic Advisor)",
   Admin: "ผู้ดูแลระบบ (System Admin)",
 };
+const roleCodeExamples: Record<UserRole, string> = {
+  Student: "68000001",
+  Coordinator: "COR0001",
+  Advisor: "ADV0001",
+  Admin: "ADM0001",
+};
 const fieldClass = "mt-1.5 w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-normal text-[#292934] outline-none focus:border-[#7678ED] focus:ring-2 focus:ring-[#7678ED]/20";
 
 /** Mount with key={user.id}; unmount on close to discard unsaved changes. */
@@ -65,9 +72,10 @@ export default function UserEditModal({ user, initialId = "", mode = "edit", rol
   const [codeError, setCodeError] = useState("");
   const [editingCode, setEditingCode] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState("");
   const savingRef = useRef(false);
-  const autoCode = isCreate && draft.role !== "Student";
-  const codeEditable = !autoCode && (isCreate || editingCode);
+  const autoCode = isCreate;
+  const codeEditable = !autoCode && editingCode;
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const formId = useId();
@@ -105,10 +113,11 @@ export default function UserEditModal({ user, initialId = "", mode = "edit", rol
     }
     savingRef.current = true; setSaving(true);
     try {
-      const saveError = await onSave(updated);
-      if (typeof saveError === "string") setError(saveError);
-      else if (saveError?.field === "userCode") setCodeError(saveError.error);
-      else if (saveError) setError(saveError.error);
+      const result = await onSave(updated);
+      if (typeof result === "string") setError(result);
+      else if (result && "generatedCode" in result) setGeneratedCode(result.generatedCode);
+      else if (result?.field === "userCode") setCodeError(result.error);
+      else if (result) setError(result.error);
       else onClose();
     } catch {
       setError("ไม่สามารถยืนยันผลการบันทึกได้ กรุณาตรวจสอบรายชื่อผู้ใช้งานก่อนลองอีกครั้ง");
@@ -130,30 +139,31 @@ export default function UserEditModal({ user, initialId = "", mode = "edit", rol
         </header>
 
         <form id={formId} onSubmit={submit} className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-6 sm:px-6">
+          <label className="block text-xs font-semibold text-gray-600"><span className="flex flex-wrap justify-between gap-2">บทบาทที่มอบหมาย (Assigned Role)<span className="font-mono text-[#F18701]">★ C4 Policy</span></span><select value={draft.role} onChange={(event) => { setDraft({ ...draft, role: event.target.value as UserRole, id: isCreate ? "" : draft.id }); setCodeError(""); }} className={`${fieldClass} border-[#C9C5EA]`}>{[...new Set([...roles, draft.role])].map((role) => <option key={role} value={role}>{roleLabels[role]}</option>)}</select></label>
           <div>
-            {autoCode ? <p role="status" className="rounded-lg bg-gray-100 p-3 text-sm text-gray-600">ระบบจะกำหนดรหัสบัญชีเมื่อบันทึกตามบทบาทที่เลือก</p> : <label className="block text-xs font-semibold text-gray-600">{draft.role === "Student" ? "รหัสนักศึกษา" : "รหัสประจำตัว"}<input required type="text" readOnly={!codeEditable} value={draft.id} onChange={(event) => { setDraft({ ...draft, id: event.target.value }); setCodeError(""); }} inputMode={draft.role === "Student" ? "numeric" : "text"} aria-invalid={Boolean(codeError)} aria-describedby={codeError ? `${formId}-code-error` : undefined} placeholder={draft.role === "Student" ? "กรอกรหัสนักศึกษาจริง 8 หลัก" : "กรอกรหัสประจำตัว"} className={`${fieldClass} font-mono read-only:bg-gray-100`} /></label>}
+            {autoCode ? <label className="block text-xs font-semibold text-gray-600">รหัสประจำตัว<input readOnly aria-describedby={`${formId}-code-preview-hint`} value={roleCodeExamples[draft.role]} className={`${fieldClass} font-mono font-semibold text-[#3D348B] read-only:bg-gray-100`} /><span id={`${formId}-code-preview-hint`} className="mt-1 block text-xs font-normal text-gray-500">ตัวอย่างตามบทบาทที่เลือก รหัสจริงจะยืนยันจากฐานข้อมูลเมื่อบันทึก</span></label> : <label className="block text-xs font-semibold text-gray-600">{draft.role === "Student" ? "รหัสนักศึกษา" : "รหัสประจำตัว"}<input required type="text" readOnly={!codeEditable} value={draft.id} onChange={(event) => { setDraft({ ...draft, id: event.target.value }); setCodeError(""); }} inputMode={draft.role === "Student" ? "numeric" : "text"} aria-invalid={Boolean(codeError)} aria-describedby={codeError ? `${formId}-code-error` : undefined} placeholder={draft.role === "Student" ? "กรอกรหัสนักศึกษาจริง 8 หลัก" : "กรอกรหัสประจำตัว"} className={`${fieldClass} font-mono read-only:bg-gray-100`} /></label>}
             {!isCreate && <button type="button" disabled={saving} onClick={() => { if (editingCode) setDraft({ ...draft, id: user?.id ?? "" }); setEditingCode(!editingCode); setCodeError(""); }} className="mt-2 text-xs font-semibold text-[#3D348B]">{editingCode ? "ยกเลิกการแก้ไขรหัส" : "แก้ไขรหัส"}</button>}
             {codeError && <p id={`${formId}-code-error`} role="alert" className="mt-2 text-sm text-red-700">{codeError}</p>}
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="block text-xs font-semibold text-gray-600">ชื่อ - นามสกุล <span className="text-red-600">*</span><input required value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} autoComplete="name" className={fieldClass} /></label>
             <label className="block text-xs font-semibold text-gray-600">อีเมลสถาบัน (@wu.ac.th) <span className="text-red-600">*</span><input required type="email" value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })} autoComplete="email" className={fieldClass} /></label>
-            {isCreate && <label className="block text-xs font-semibold text-gray-600 sm:col-span-2">รหัสผ่านเริ่มต้น <span className="text-red-600">*</span><input required minLength={8} type="password" value={draft.password ?? ""} onChange={(event) => setDraft({ ...draft, password: event.target.value })} autoComplete="new-password" className={fieldClass} /></label>}
+            <label className="block text-xs font-semibold text-gray-600 sm:col-span-2">{isCreate ? "รหัสผ่านเริ่มต้น" : "รหัสผ่านใหม่ (เว้นว่างหากไม่เปลี่ยน)"}{isCreate && <span className="text-red-600"> *</span>}<input required={isCreate} minLength={8} type="password" value={draft.password ?? ""} onChange={(event) => setDraft({ ...draft, password: event.target.value })} autoComplete="new-password" className={fieldClass} /></label>
             <label className="block text-xs font-semibold text-gray-600">สำนักวิชา <span className="text-red-600">*</span><select required value={draft.school} onChange={(event) => setDraft({ ...draft, school: event.target.value, department: "" })} className={fieldClass}><option value="">เลือกสำนักวิชา</option>{[...new Set([...Object.keys(departments), draft.school ?? ""])].filter(Boolean).map((school) => <option key={school}>{school}</option>)}</select></label>
             <label className="block text-xs font-semibold text-gray-600">สาขาวิชา / หลักสูตร <span className="text-red-600">*</span><select required disabled={!draft.school} value={draft.department} onChange={(event) => setDraft({ ...draft, department: event.target.value })} className={`${fieldClass} disabled:cursor-not-allowed disabled:bg-gray-100`}><option value="">{draft.school ? "เลือกสาขาวิชา / หลักสูตร" : "เลือกสำนักวิชาก่อน"}</option>{availableDepartments.map((department) => <option key={department}>{department}</option>)}</select></label>
           </div>
-          <label className="block text-xs font-semibold text-gray-600"><span className="flex flex-wrap justify-between gap-2">บทบาทที่มอบหมาย (Assigned Role)<span className="font-mono text-[#F18701]">★ C4 Policy</span></span><select value={draft.role} onChange={(event) => { setDraft({ ...draft, role: event.target.value as UserRole, id: isCreate ? "" : draft.id }); setCodeError(""); }} className={`${fieldClass} border-[#C9C5EA]`}>{[...new Set([...roles, draft.role])].map((role) => <option key={role} value={role}>{roleLabels[role]}</option>)}</select></label>
 
           <div className="flex items-center justify-between gap-4 rounded-xl bg-[#F3F3F4] p-4">
             <div><p id={`${formId}-active`} className="text-sm font-semibold">สถานะการใช้งานบัญชี (Account Active)</p><p className="mt-1 text-xs text-gray-500">เปิดหรือปิดสถานะการใช้งานของบัญชีผู้ใช้</p></div>
             <button type="button" role="switch" aria-checked={draft.status === "Active"} aria-labelledby={`${formId}-active`} onClick={() => setDraft({ ...draft, status: draft.status === "Active" ? "Inactive" : "Active" })} className={`flex h-6 w-12 shrink-0 cursor-pointer items-center rounded-full p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#3D348B] ${draft.status === "Active" ? "bg-[#3D348B]" : "bg-gray-400"}`}><span className={`size-5 rounded-full bg-white shadow-sm transition-transform ${draft.status === "Active" ? "translate-x-6" : "translate-x-0"}`} /></button>
           </div>
+          {generatedCode && <div role="status" className="rounded-xl border border-[#C9C5EA] bg-[#F5F3FF] p-4 text-center"><p className="text-sm font-semibold text-[#3D348B]">สร้างบัญชีผู้ใช้สำเร็จ</p><p className="mt-2 text-xs text-gray-600">รหัสประจำตัวที่ระบบสร้าง</p><output className="mt-1 block font-mono text-xl font-bold tracking-wide text-[#292934]">{generatedCode}</output></div>}
           {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         </form>
 
         <footer className="flex shrink-0 flex-wrap justify-end gap-3 border-t border-gray-100 bg-[#F5F5F6] px-5 py-5 sm:px-6">
-          <button type="button" disabled={saving} onClick={onClose} className="cursor-pointer rounded-lg border border-gray-200 bg-white px-5 py-3 text-sm font-semibold hover:bg-gray-50">ยกเลิก (Cancel)</button>
-          <button type="submit" form={formId} disabled={saving} aria-busy={saving} className="flex cursor-pointer items-center gap-2 rounded-lg bg-[#3D348B] px-5 py-3 text-sm font-semibold text-white hover:bg-[#5146AA]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="size-4"><path d="M5 3h12l4 4v14H3V3h2Z" /><path d="M7 3v6h10V3M7 21v-8h10v8" /></svg>บันทึกการเปลี่ยนแปลง (Save Changes)</button>
+          <button type="button" disabled={saving} onClick={onClose} className="cursor-pointer rounded-lg border border-gray-200 bg-white px-5 py-3 text-sm font-semibold hover:bg-gray-50">{generatedCode ? "ปิด" : "ยกเลิก (Cancel)"}</button>
+          {!generatedCode && <button type="submit" form={formId} disabled={saving} aria-busy={saving} className="flex cursor-pointer items-center gap-2 rounded-lg bg-[#3D348B] px-5 py-3 text-sm font-semibold text-white hover:bg-[#5146AA]"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="size-4"><path d="M5 3h12l4 4v14H3V3h2Z" /><path d="M7 3v6h10V3M7 21v-8h10v8" /></svg>บันทึกการเปลี่ยนแปลง (Save Changes)</button>}
         </footer>
       </div>
     </dialog>
