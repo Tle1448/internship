@@ -1268,10 +1268,7 @@ export default function StudentDashboard() {
                 ค้นหาตำแหน่งงาน & องค์กรพันธมิตรสหกิจศึกษา
               </h2>
 
-              <p className="text-xs text-slate-500">
-                ระบบคัดสรรงานที่เหมาะสมกับทักษะของคุณ
-                (AI Skill Matching)
-              </p>
+              
 
             </div>
 
