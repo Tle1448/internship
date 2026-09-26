@@ -38,7 +38,7 @@ export default function StudentSidebar() {
           icon: <Building2 className="w-5 h-5" />,
         },
         {
-          label: "อัปเดต",
+          label: "บันทึกการฝึกงาน",
           href: "/internship-record",
           icon: <FileText className="w-5 h-5" />,
         },

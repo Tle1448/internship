@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
-import { AlertCircle, Building2, CalendarDays, CheckCircle2, FileText, Loader2, Plus, RotateCcw, X } from "lucide-react";
+import { AlertCircle, Building2, CalendarDays, CheckCircle2, Eye, FileText, FileUp, Loader2, Plus, RotateCcw, X } from "lucide-react";
 import InternshipTabs from "@/components/InternshipTabs";
 import StudentSidebar from "@/components/StudentSidebar";
 import { getCurrentStudentId } from "@/lib/currentUser";
@@ -25,6 +25,10 @@ interface ProgressReport {
   id: string;
   period_id: string;
   work_summary: string;
+  assigned_tasks: string;
+  skills_learned: string;
+  hours_worked: number;
+  attachment_paths: string[];
   project_progress: number;
   problems: string;
   next_plan: string;
@@ -66,6 +70,10 @@ export default function ProgressReportsPage() {
   const [reports, setReports] = useState<ProgressReport[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<ProgressPeriod | null>(null);
   const [workSummary, setWorkSummary] = useState("");
+  const [assignedTasks, setAssignedTasks] = useState("");
+  const [skillsLearned, setSkillsLearned] = useState("");
+  const [hoursWorked, setHoursWorked] = useState(0);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [projectProgress, setProjectProgress] = useState(0);
   const [problems, setProblems] = useState("");
   const [nextPlan, setNextPlan] = useState("");
@@ -105,7 +113,7 @@ export default function ProgressReportsPage() {
     setPeriods((periodsResult.data ?? []) as ProgressPeriod[]);
 
     if (record) {
-      const { data, error } = await supabase.from("progress_reports").select("id, period_id, work_summary, project_progress, problems, next_plan, status, submitted_at, advisor_feedback").eq("record_id", record.id);
+      const { data, error } = await supabase.from("progress_reports").select("id, period_id, work_summary, assigned_tasks, skills_learned, hours_worked, attachment_paths, project_progress, problems, next_plan, status, submitted_at, advisor_feedback").eq("record_id", record.id);
       if (error) setMessage({ type: "error", text: error.message });
       else setReports((data ?? []) as ProgressReport[]);
     }
@@ -128,6 +136,10 @@ export default function ProgressReportsPage() {
     const report = reportByPeriod.get(period.id);
     setSelectedPeriod(period);
     setWorkSummary(report?.work_summary ?? "");
+    setAssignedTasks(report?.assigned_tasks ?? "");
+    setSkillsLearned(report?.skills_learned ?? "");
+    setHoursWorked(report?.hours_worked ?? 0);
+    setAttachmentFiles([]);
     setProjectProgress(report?.project_progress ?? 0);
     setProblems(report?.problems ?? "");
     setNextPlan(report?.next_plan ?? "");
@@ -137,18 +149,40 @@ export default function ProgressReportsPage() {
   async function submitReport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedPeriod || !internship || !studentId) return;
-    if (!workSummary.trim() || !nextPlan.trim()) {
-      setMessage({ type: "error", text: "กรุณากรอกงานที่ทำและแผนงานช่วงถัดไป" });
+    if (!assignedTasks.trim() || !workSummary.trim() || !skillsLearned.trim() || !nextPlan.trim() || hoursWorked <= 0) {
+      setMessage({ type: "error", text: "กรุณากรอกงานที่ได้รับมอบหมาย สิ่งที่ดำเนินการ ทักษะ ชั่วโมงฝึกงาน และแผนงานช่วงถัดไป" });
       return;
     }
 
     setSubmitting(true);
     const existing = reportByPeriod.get(selectedPeriod.id);
+    const uploadedPaths: string[] = [];
+    for (const file of attachmentFiles) {
+      if (file.size > 10 * 1024 * 1024) {
+        setMessage({ type: "error", text: `ไฟล์ ${file.name} มีขนาดเกิน 10 MB` });
+        setSubmitting(false);
+        return;
+      }
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${studentId}/progress/${internship.id}/${selectedPeriod.id}/${Date.now()}_${crypto.randomUUID()}_${safeName}`;
+      const { error } = await supabase.storage.from("student-documents").upload(path, file, { upsert: false });
+      if (error) {
+        if (uploadedPaths.length) await supabase.storage.from("student-documents").remove(uploadedPaths);
+        setMessage({ type: "error", text: error.message });
+        setSubmitting(false);
+        return;
+      }
+      uploadedPaths.push(path);
+    }
     const values = {
       period_id: selectedPeriod.id,
       record_id: internship.id,
       student_id: studentId,
+      assigned_tasks: assignedTasks.trim(),
       work_summary: workSummary.trim(),
+      skills_learned: skillsLearned.trim(),
+      hours_worked: hoursWorked,
+      attachment_paths: [...(existing?.attachment_paths ?? []), ...uploadedPaths],
       project_progress: projectProgress,
       problems: problems.trim(),
       next_plan: nextPlan.trim(),
@@ -159,17 +193,37 @@ export default function ProgressReportsPage() {
       ? await supabase.from("progress_reports").update(values).eq("id", existing.id).select().single()
       : await supabase.from("progress_reports").insert(values).select().single();
 
-    if (result.error) setMessage({ type: "error", text: result.error.message });
+    if (result.error) {
+      if (uploadedPaths.length) await supabase.storage.from("student-documents").remove(uploadedPaths);
+      setMessage({ type: "error", text: result.error.message });
+    }
     else {
       setReports((current) => [...current.filter((item) => item.period_id !== selectedPeriod.id), result.data as ProgressReport]);
       setSelectedPeriod(null);
       setWorkSummary("");
+      setAssignedTasks("");
+      setSkillsLearned("");
+      setHoursWorked(0);
+      setAttachmentFiles([]);
       setProjectProgress(0);
       setProblems("");
       setNextPlan("");
       setMessage({ type: "success", text: "ส่งบันทึกความก้าวหน้าให้อาจารย์เรียบร้อยแล้ว" });
     }
     setSubmitting(false);
+  }
+
+  function selectAttachments(event: ChangeEvent<HTMLInputElement>) {
+    setAttachmentFiles(Array.from(event.target.files ?? []));
+  }
+
+  async function openAttachment(path: string) {
+    const { data, error } = await supabase.storage.from("student-documents").createSignedUrl(path, 60 * 30);
+    if (error || !data?.signedUrl) {
+      setMessage({ type: "error", text: error?.message ?? "เปิดไฟล์ประกอบไม่สำเร็จ" });
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   }
 
   if (loading) return <div className="flex min-h-[calc(100vh-61px)] items-center justify-center bg-slate-100 text-sm text-slate-500"><Loader2 className="mr-2 animate-spin" size={20} />กำลังโหลดข้อมูล...</div>;
@@ -207,6 +261,8 @@ export default function ProgressReportsPage() {
                       <div className="flex flex-wrap items-center gap-2"><h3 className="font-bold text-slate-900">{period.title}</h3>{report ? <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusCopy[report.status].className}`}>{statusCopy[report.status].label}</span> : isOverdue ? <span className="rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-semibold text-red-700">เกินกำหนด</span> : <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">ยังไม่ส่ง</span>}</div>
                       <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500"><CalendarDays size={14} />เปิด {formatDate(period.opens_on)} · ส่งภายใน {formatDate(period.due_on)}</p>
                       {report && <p className="mt-3 text-sm text-slate-600">{report.work_summary}</p>}
+                      {report && <p className="mt-1 text-xs text-slate-500">ชั่วโมงฝึกงานรอบนี้ {report.hours_worked} ชั่วโมง · ทักษะ: {report.skills_learned || "-"}</p>}
+                      {report && report.attachment_paths.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{report.attachment_paths.map((path, index) => <button key={path} type="button" onClick={() => void openAttachment(path)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs text-indigo-800"><Eye size={13} />ไฟล์ประกอบ {index + 1}</button>)}</div>}
                       {report?.advisor_feedback && <div className="mt-3 rounded-lg bg-indigo-50 p-3 text-sm text-indigo-900"><strong>ความเห็นอาจารย์:</strong> {report.advisor_feedback}</div>}
                     </div></div>
                     <button type="button" disabled={!canEdit} onClick={() => openForm(period)} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-indigo-800 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500">{report?.status === "revision_required" ? <RotateCcw size={16} /> : <Plus size={16} />}{report?.status === "revision_required" ? "แก้ไขและส่งใหม่" : report ? "กำลังรอตรวจ" : "เขียนรายงาน"}</button>
@@ -222,10 +278,13 @@ export default function ProgressReportsPage() {
       {selectedPeriod && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4"><form onSubmit={submitReport} className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl">
         <div className="flex items-start justify-between border-b border-slate-200 p-5"><div><h2 className="font-bold text-slate-900">{selectedPeriod.title}</h2><p className="mt-1 text-xs text-slate-500">กำหนดส่ง {formatDate(selectedPeriod.due_on)}</p></div><button type="button" onClick={() => setSelectedPeriod(null)} className="rounded-md p-2 text-slate-500 hover:bg-slate-100" aria-label="ปิด"><X size={18} /></button></div>
         <div className="space-y-5 p-5">
-          <label className="block text-sm font-semibold text-slate-700">งานที่ทำในช่วงนี้<textarea required rows={4} value={workSummary} onChange={(event) => setWorkSummary(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 p-3 font-normal outline-none focus:border-indigo-600" /></label>
+          <label className="block text-sm font-semibold text-slate-700">งานที่ได้รับมอบหมาย<textarea required rows={3} value={assignedTasks} onChange={(event) => setAssignedTasks(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 p-3 font-normal outline-none focus:border-indigo-600" /></label>
+          <label className="block text-sm font-semibold text-slate-700">สิ่งที่ดำเนินการ<textarea required rows={4} value={workSummary} onChange={(event) => setWorkSummary(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 p-3 font-normal outline-none focus:border-indigo-600" /></label>
+          <div className="grid gap-4 sm:grid-cols-[1fr_180px]"><label className="block text-sm font-semibold text-slate-700">ทักษะที่ได้เรียนรู้<textarea required rows={2} value={skillsLearned} onChange={(event) => setSkillsLearned(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 p-3 font-normal outline-none focus:border-indigo-600" /></label><label className="block text-sm font-semibold text-slate-700">ชั่วโมงฝึกงาน<input required type="number" min="0.5" max="168" step="0.5" value={hoursWorked || ""} onChange={(event) => setHoursWorked(Number(event.target.value))} className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-indigo-600" /></label></div>
           <label className="block text-sm font-semibold text-slate-700">ความคืบหน้าโปรเจกต์: {projectProgress}%<input type="range" min="0" max="100" step="5" value={projectProgress} onChange={(event) => setProjectProgress(Number(event.target.value))} className="mt-3 w-full accent-indigo-700" /></label>
           <label className="block text-sm font-semibold text-slate-700">ปัญหาหรือสิ่งที่ต้องการความช่วยเหลือ<textarea rows={3} value={problems} onChange={(event) => setProblems(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 p-3 font-normal outline-none focus:border-indigo-600" /></label>
           <label className="block text-sm font-semibold text-slate-700">แผนงานช่วงถัดไป<textarea required rows={3} value={nextPlan} onChange={(event) => setNextPlan(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-300 p-3 font-normal outline-none focus:border-indigo-600" /></label>
+          <div><p className="text-sm font-semibold text-slate-700">รูปภาพหรือไฟล์ประกอบ</p><input id="progress-attachments" multiple type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp" onChange={selectAttachments} className="sr-only" /><label htmlFor="progress-attachments" className="mt-2 flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"><span className="inline-flex items-center gap-2 font-semibold text-indigo-800"><FileUp size={16} />เลือกไฟล์</span><span className="text-slate-500">{attachmentFiles.length ? `เลือกแล้ว ${attachmentFiles.length} ไฟล์` : "ไม่บังคับ · สูงสุด 10 MB ต่อไฟล์"}</span></label></div>
         </div>
         <div className="flex justify-end gap-3 border-t border-slate-200 p-5"><button type="button" onClick={() => setSelectedPeriod(null)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">ยกเลิก</button><button type="submit" disabled={submitting} className="inline-flex items-center gap-2 rounded-lg bg-indigo-800 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60">{submitting ? <Loader2 className="animate-spin" size={16} /> : <FileText size={16} />}ส่งให้อาจารย์ตรวจ</button></div>
       </form></div>}

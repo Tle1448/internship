@@ -15,6 +15,10 @@ interface ProgressReport {
   id: string;
   period_id: string;
   work_summary: string;
+  assigned_tasks: string;
+  skills_learned: string;
+  hours_worked: number;
+  attachment_paths: string[];
   project_progress: number;
   problems: string;
   next_plan: string;
@@ -58,7 +62,7 @@ export default function StudentProgress({ student, embedded = false }: { student
     setLoading(true);
     const { data, error } = await supabase
       .from("progress_reports")
-      .select("id, period_id, work_summary, project_progress, problems, next_plan, status, submitted_at, advisor_feedback, progress_periods(title, sequence_no, opens_on, due_on)")
+      .select("id, period_id, work_summary, assigned_tasks, skills_learned, hours_worked, attachment_paths, project_progress, problems, next_plan, status, submitted_at, advisor_feedback, progress_periods(title, sequence_no, opens_on, due_on)")
       .eq("record_id", student.recordId)
       .order("submitted_at", { ascending: false });
 
@@ -106,6 +110,15 @@ export default function StudentProgress({ student, embedded = false }: { student
     setBusyId(null);
   }
 
+  async function openAttachment(path: string) {
+    const { data, error } = await supabase.storage.from("student-documents").createSignedUrl(path, 60 * 30);
+    if (error || !data?.signedUrl) {
+      setMessage(error?.message ?? "เปิดไฟล์ประกอบไม่สำเร็จ");
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  }
+
   const visible = useMemo(() => reports.filter((report) => filter === "all" || report.status === filter), [filter, reports]);
   const filters: { key: ReportFilter; label: string }[] = [
     { key: "all", label: "ทั้งหมด" },
@@ -129,7 +142,9 @@ export default function StudentProgress({ student, embedded = false }: { student
           <article id={`advisor-report-${report.id}`} className="detail-card weekly-card is-open" key={report.id}>
             <div className="weekly-toggle"><span className="week-number">{report.period?.sequence_no ?? "-"}</span><span className="weekly-summary"><strong>{report.period?.title ?? "รอบรายงาน"}</strong><small>ส่งเมื่อ {displayDate(report.submitted_at)}</small></span><span className={`badge ${report.status === "revision_required" ? "revision" : report.status === "submitted" ? "pending" : report.status}`}>{labels[report.status]}</span></div>
             <div className="weekly-details">
-              <div className="log-summary"><strong>งานที่ดำเนินการ</strong><p>{report.work_summary || "-"}</p></div>
+              <div className="student-overview-grid"><div className="log-summary"><strong>งานที่ได้รับมอบหมาย</strong><p>{report.assigned_tasks || "-"}</p></div><div className="log-summary"><strong>สิ่งที่ดำเนินการ</strong><p>{report.work_summary || "-"}</p></div></div>
+              <div className="student-overview-grid"><div className="log-summary"><strong>ทักษะที่ได้เรียนรู้</strong><p>{report.skills_learned || "-"}</p></div><div className="log-summary"><strong>ชั่วโมงฝึกงาน</strong><p>{report.hours_worked} ชั่วโมง</p></div></div>
+              {report.attachment_paths.length > 0 && <div className="log-summary"><strong>ไฟล์ประกอบ</strong><div className="review-actions">{report.attachment_paths.map((path, index) => <button key={path} type="button" className="button" onClick={() => void openAttachment(path)}>เปิดไฟล์ {index + 1}</button>)}</div></div>}
               <div className="progress-snapshot"><div className="snapshot-stats"><span>ความคืบหน้าโปรเจกต์</span><strong>{report.project_progress}%</strong></div><progress value={report.project_progress} max={100} /></div>
               <div className="student-overview-grid"><div className="log-summary"><strong>ปัญหา/สิ่งที่ต้องการความช่วยเหลือ</strong><p>{report.problems || "ไม่มี"}</p></div><div className="log-summary"><strong>แผนงานช่วงถัดไป</strong><p>{report.next_plan || "-"}</p></div></div>
               {report.advisor_feedback && <div className="weekly-comment"><Icon name="file" size={18} /><div><strong>ความเห็นล่าสุด</strong><p>{report.advisor_feedback}</p></div></div>}

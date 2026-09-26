@@ -22,6 +22,7 @@ export default function StudentOverview({ student }: { student: Student }) {
   })(); }, [student.recordId]);
 
   const actions = [
+    { href: `/advisor/students/${student.id}/documents`, icon: "file" as const, title: "เอกสารฝึกงาน", value: "ตรวจเอกสารและส่งความคิดเห็น" },
     { href: `/advisor/students/${student.id}/progress`, icon: "file" as const, title: "บันทึกความก้าวหน้า", value: counts.pending ? `${counts.pending} รายการรอตรวจ` : "ตรวจครบแล้ว" },
     { href: `/advisor/students/${student.id}/supervision`, icon: "calendar" as const, title: "การนิเทศ", value: student.supervisionStatus === "completed" ? "ดำเนินการแล้ว" : "รอดำเนินการ" },
     { href: `/advisor/students/${student.id}/evaluation`, icon: "checklist" as const, title: "การประเมิน", value: student.evaluationStatus === "completed" ? "ประเมินแล้ว" : "รอประเมิน" },
