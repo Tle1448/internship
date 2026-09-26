@@ -105,7 +105,7 @@ export default function HomePage() {
               Internship Management
             </h3>
             <p className="text-gray-600 text-sm leading-relaxed">
-              จัดการอยู่สหกิจศึกษาและฝึกงาน ครบครวง
+              การจัดการสหกิจศึกษาและฝึกงาน
             </p>
           </div>
 
@@ -132,7 +132,7 @@ export default function HomePage() {
               Company Matching
             </h3>
             <p className="text-gray-600 text-sm leading-relaxed">
-              คัดเลือกบริษัทสำนักประกอบการ ได้ง่าย
+              การค้นหาและจับคู่สถานประกอบการ
             </p>
           </div>
 
@@ -159,7 +159,7 @@ export default function HomePage() {
               Document Tracking
             </h3>
             <p className="text-gray-600 text-sm leading-relaxed">
-              ติดตามเอกสารและเอกสารออนไลน์ แบบออนไลน์
+              การติดตามเอกสารผ่านระบบออนไลน์
             </p>
           </div>
 
@@ -186,7 +186,7 @@ export default function HomePage() {
               Progress Monitoring
             </h3>
             <p className="text-gray-600 text-sm leading-relaxed">
-              ติดตามความก้าวหน้าการศึกษา และการประเมินผล
+              การติดตามความก้าวหน้าและผลการประเมิน
             </p>
           </div>
         </div>
