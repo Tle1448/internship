@@ -100,13 +100,14 @@ export default function ConditerSidebar() {
         </p>
 
         {menuItems.map((item) => {
-          const Icon = item.icon;
+  const Icon = item.icon;
 
-          const active =
-            pathname === item.href ||
-            pathname.startsWith(item.href + "/");
+  const active =
+    item.href === "/conditer"
+      ? pathname === "/conditer"
+      : pathname === item.href || pathname.startsWith(item.href + "/");
 
-          return (
+  return (
             <Link
               key={item.href}
               href={item.href}
@@ -149,4 +150,4 @@ export default function ConditerSidebar() {
       </div>
     </aside>
   );
-}
+} 
