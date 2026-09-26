@@ -103,9 +103,9 @@ export default function ConditerSidebar() {
   const Icon = item.icon;
 
   const active =
-    item.href === "/conditer"
-      ? pathname === "/conditer"
-      : pathname === item.href || pathname.startsWith(item.href + "/");
+  item.href === "/conditer"
+    ? pathname === "/conditer"
+    : pathname === item.href || pathname.startsWith(item.href + "/");
 
   return (
             <Link
