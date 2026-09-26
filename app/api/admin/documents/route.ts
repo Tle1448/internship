@@ -19,7 +19,7 @@ function text(value: unknown) { return typeof value === "string" ? value.trim() 
 
 export async function GET() {
   if (!await requireAdmin()) return NextResponse.json({ error: "Admin access is required" }, { status: 403 });
-  const { data: documents, error } = await supabaseAdmin.from("student_documents").select("id, student_id, document_type, file_path, status, comment, submitted_at, reviewed_at").order("submitted_at", { ascending: false });
+  const { data: documents, error } = await supabaseAdmin.from("student_documents").select("id, student_id, document_type, file_path:file_name, file_url, status, comment, submitted_at, reviewed_at").order("submitted_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   const studentIds = [...new Set((documents ?? []).map((document) => document.student_id))];

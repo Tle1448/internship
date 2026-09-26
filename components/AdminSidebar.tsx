@@ -46,7 +46,34 @@ export default function AdminSidebar({ active, variant }: { active: AdminPage; v
         })}
       </nav>
     </aside>
-    <style>{`@media (min-width: 768px) { #admin-sidebar ~ div { margin-left: 285px !important; } }`}</style>
+    <style>{`
+      @media (min-width: 768px) {
+        #admin-sidebar ~ div {
+          margin-left: 285px !important;
+          width: calc(100% - 285px);
+        }
+      }
+
+      @media (min-width: 768px) and (max-width: 1439px) {
+        #admin-sidebar ~ div > header,
+        #admin-sidebar ~ div > main {
+          padding-left: 1.25rem !important;
+          padding-right: 1.25rem !important;
+        }
+
+        #admin-sidebar ~ div table {
+          min-width: min(100%, 1000px) !important;
+        }
+      }
+
+      @media (min-width: 1440px) {
+        #admin-sidebar ~ div > header,
+        #admin-sidebar ~ div > main {
+          padding-left: 2.5rem !important;
+          padding-right: 2.5rem !important;
+        }
+      }
+    `}</style>
     </>
   );
 }

@@ -2,6 +2,7 @@
 import AdminSidebar from "@/components/AdminSidebar";
 import AdminBreadcrumb from "@/components/AdminBreadcrumb";
 import DocumentPreview from "@/components/DocumentPreview";
+import { departments } from "@/components/UserEditModal";
 import { supabase } from "@/lib/supabase";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -56,6 +57,8 @@ function StudentIdentityDialog({ profile, onClose, onSaved }: { profile: Student
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const facultyOptions = [...new Set([...Object.keys(departments), faculty])].filter(Boolean);
+  const majorOptions = [...new Set([...(departments[faculty] ?? []), major])].filter(Boolean);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -101,8 +104,8 @@ function StudentIdentityDialog({ profile, onClose, onSaved }: { profile: Student
         <fieldset disabled={saving} className="grid gap-5 sm:grid-cols-2"><legend className="mb-3 text-sm font-semibold text-[#3D348B]">ข้อมูลนักศึกษา</legend>
           <label className="block text-xs font-semibold text-gray-600">ชื่อ–นามสกุล <span className="text-red-600">*</span><input required value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" className={field} /></label>
           <label className="block text-xs font-semibold text-gray-600">อีเมล <span className="text-red-600">*</span><input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" className={field} /></label>
-          <label className="block text-xs font-semibold text-gray-600">สำนักวิชา<input value={faculty} onChange={(event) => setFaculty(event.target.value)} className={field} /></label>
-          <label className="block text-xs font-semibold text-gray-600">หลักสูตร<input value={major} onChange={(event) => setMajor(event.target.value)} className={field} /></label>
+          <label className="block text-xs font-semibold text-gray-600">สำนักวิชา<select value={faculty} onChange={(event) => { setFaculty(event.target.value); setMajor(""); }} className={field}><option value="">เลือกสำนักวิชา</option>{facultyOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+          <label className="block text-xs font-semibold text-gray-600">หลักสูตร<select disabled={!faculty} value={major} onChange={(event) => setMajor(event.target.value)} className={`${field} disabled:cursor-not-allowed disabled:bg-gray-100`}><option value="">{faculty ? "เลือกหลักสูตร" : "เลือกสำนักวิชาก่อน"}</option>{majorOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
         </fieldset>
         <fieldset disabled={saving} className="grid gap-5 border-t border-gray-100 pt-6 sm:grid-cols-2"><legend className="mb-3 text-sm font-semibold text-[#3D348B]">รายละเอียดสถานที่ฝึกงาน</legend>
           <label className="block text-xs font-semibold text-gray-600 sm:col-span-2">สถานประกอบการ<input value={companyName} onChange={(event) => setCompanyName(event.target.value)} className={field} /></label>
@@ -126,7 +129,9 @@ function AdminStudentDetailView({ student, onSaved }: { student: Student; onSave
   const [loadingEdit, setLoadingEdit] = useState(false);
   const loadingEditRef = useRef(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const [documents, setDocuments] = useState<Array<{ name: string; size: string; submittedAt: string; status: string; statusClass: string }>>([]);
+  const [documents, setDocuments] = useState<Array<{ id: string; name: string; path: string | null; submittedAt: string; status: string; statusClass: string }>>([]);
+  const [openingDocumentId, setOpeningDocumentId] = useState<string | null>(null);
+  const signedDocumentUrls = useRef<Record<string, string>>({});
 
   useEffect(() => {
     let active = true;
@@ -135,14 +140,15 @@ function AdminStudentDetailView({ student, onSaved }: { student: Student; onSave
       if (!profile || !active) return;
       const { data: record } = await supabase.from("internship_records").select("company_name, position, province, started_at, ended_at, status, advisor_id").eq("student_id", profile.id).maybeSingle();
       const { data: advisor } = record?.advisor_id ? await supabase.from("profiles").select("full_name").eq("id", record.advisor_id).maybeSingle() : { data: null };
-      const { data: documentRows, error: documentsError } = await supabase.from("student_documents").select("id, document_type, file_path, status, submitted_at").eq("student_id", profile.id).order("submitted_at", { ascending: false });
+      const { data: documentRows, error: documentsError } = await supabase.from("student_documents").select("id, document_type, file_name, file_url, status, submitted_at").eq("student_id", profile.id).order("submitted_at", { ascending: false });
       if (!active) return;
       if (documentsError) {
         setActionMessage(`โหลดเอกสารไม่สำเร็จ: ${documentsError.message}`);
       } else {
         setDocuments((documentRows ?? []).map((document) => ({
-          name: document.file_path?.split("/").pop() || document.document_type,
-          size: document.document_type,
+          id: document.id,
+          name: document.file_name || document.document_type,
+          path: document.file_url,
           submittedAt: new Date(document.submitted_at).toLocaleDateString("th-TH"),
           status: document.status === "approved" ? "ผ่าน" : document.status === "needs_edit" ? "ส่งแก้ไข" : "รอตรวจ",
           statusClass: document.status === "approved" ? "bg-[#E9F6EE] text-[#267047]" : document.status === "needs_edit" ? "bg-red-100 text-red-700" : "bg-[#FFF3DF] text-[#9D5200]",
@@ -169,6 +175,42 @@ function AdminStudentDetailView({ student, onSaved }: { student: Student; onSave
     return () => { active = false; window.removeEventListener("admin-student-updated", renderLatestStudentData); };
   }, [student.advisor, student.id]);
 
+  const openDocument = async (document: { id: string; path: string | null }) => {
+    if (!document.path || openingDocumentId) return;
+
+    setActionMessage(null);
+    setOpeningDocumentId(document.id);
+
+    try {
+      if (/^https?:\/\//i.test(document.path)) {
+        window.open(document.path, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      const cachedUrl = signedDocumentUrls.current[document.path];
+      if (cachedUrl) {
+        window.open(cachedUrl, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      const { data, error } = await supabase.storage
+        .from("student-documents")
+        .createSignedUrl(document.path, 60 * 30);
+
+      if (error || !data?.signedUrl) {
+        setActionMessage(error?.message ?? "ไม่สามารถเปิดเอกสารได้");
+        return;
+      }
+
+      signedDocumentUrls.current[document.path] = data.signedUrl;
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    } catch {
+      setActionMessage("ไม่สามารถเปิดเอกสารได้ กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setOpeningDocumentId(null);
+    }
+  };
+
   const openEdit = async () => {
     if (loadingEditRef.current) return;
     loadingEditRef.current = true; setLoadingEdit(true); setActionMessage(null);
@@ -190,7 +232,7 @@ function AdminStudentDetailView({ student, onSaved }: { student: Student; onSave
         <div className="grid gap-5 xl:grid-cols-3">
           <section className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm"><h2 className="font-bold">ข้อมูลนักศึกษา</h2><dl className="mt-4 space-y-4 text-sm"><div><dt className="text-gray-500">สำนักวิชา / หลักสูตร</dt><dd className="mt-1 font-medium">{student.school}<br />{student.program}</dd></div><div className="grid gap-3 sm:grid-cols-2"><div><dt className="text-gray-500">ผลการเรียน</dt><dd className="mt-1 font-medium">GPA 3.25</dd></div><div><dt className="text-gray-500">หน่วยกิตสะสม</dt><dd className="mt-1 font-medium">120</dd></div></div><div><dt className="text-gray-500">ทักษะ</dt><dd className="mt-1 font-medium">JavaScript, React, SQL</dd></div><div><dt className="text-gray-500">อาจารย์ที่ปรึกษา</dt><dd className="mt-1 font-medium">{student.advisor}</dd></div></dl></section>
           <section className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm"><h2 className="font-bold">รายละเอียดสถานที่ฝึกงาน</h2><dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-gray-500">สถานประกอบการ</dt><dd className="mt-1 font-medium">บริษัท วลัยลักษณ์เทคโนโลยี จำกัด<br />จ.นครศรีธรรมราช</dd></div><div><dt className="text-gray-500">ตำแหน่งงาน</dt><dd className="mt-1 font-medium">นักพัฒนาซอฟต์แวร์ฝึกหัด</dd></div><div><dt className="text-gray-500">ระยะเวลาฝึกงาน</dt><dd className="mt-1 font-medium">1 มิ.ย. 2569 – 15 ต.ค. 2569</dd></div><div><dt className="text-gray-500">สถานะ</dt><dd className="mt-2 flex flex-wrap gap-2"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusStyles[student.status]}`}>{student.status}</span><span className="rounded-full bg-[#FFF0DD] px-3 py-1 text-xs font-semibold text-[#B45309]">รอตรวจสอบเอกสาร</span></dd></div><div className="sm:col-span-2"><dt className="text-gray-500">ผู้เกี่ยวข้องในการฝึกงาน</dt><dd className="mt-1 leading-6"><span className="font-medium">ผู้ควบคุมงาน:</span> คุณกมลชนก สุขใจ<br /><span className="font-medium">อาจารย์นิเทศ:</span> {student.advisor}<br /><span className="font-medium">เจ้าหน้าที่สหกิจ:</span> นางสาวกัลยา รัตนวงศ์</dd></div></dl></section>
-          <section className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm"><h2 className="font-bold">เอกสารที่ส่ง (3 ไฟล์)</h2><p className="mt-1 text-xs text-gray-500">กดรายการเพื่อดูตัวอย่าง</p><div className="mt-4 space-y-3">{documents.map((document) => <button key={document.name} type="button" className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#DFE6EF] bg-white px-4 py-3 text-left transition hover:border-[#7678ED] hover:bg-[#F8F7FC]"><span className="min-w-0"><span className="block truncate font-semibold text-[#3D348B]">{document.name}</span><span className="mt-1 block text-xs text-[#6D6979]">{document.size} · ส่งเมื่อ {document.submittedAt}</span></span><span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${document.statusClass}`}>{document.status}</span></button>)}</div></section>
+          <section className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm"><h2 className="font-bold">เอกสารที่ส่ง ({documents.length} ไฟล์)</h2><p className="mt-1 text-xs text-gray-500">กดรายการเพื่อเปิดเอกสาร</p><div className="mt-4 space-y-3">{documents.length === 0 ? <p className="rounded-xl bg-[#F8F7FC] px-4 py-5 text-sm text-[#6D6979]">ยังไม่มีเอกสารที่ส่ง</p> : documents.map((document) => <button key={document.id} type="button" onClick={() => void openDocument(document)} disabled={!document.path || openingDocumentId !== null} aria-busy={openingDocumentId === document.id} className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#DFE6EF] bg-white px-4 py-3 text-left transition hover:border-[#7678ED] hover:bg-[#F8F7FC] disabled:cursor-default disabled:hover:border-[#DFE6EF] disabled:hover:bg-white"><span className="min-w-0"><span className="block truncate font-semibold text-[#3D348B]">{document.name}</span><span className="mt-1 block text-xs text-[#6D6979]">ส่งเมื่อ {document.submittedAt}</span></span><span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${document.statusClass}`}>{openingDocumentId === document.id ? "กำลังเปิด…" : document.status}</span></button>)}</div></section>
         </div>
         <section className="rounded-xl border border-[#EAEAEA] bg-white p-5 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#EAEAEA] pb-4"><div><h2 className="font-bold">เครื่องมือผู้ดูแลระบบ & ประวัติกิจกรรม</h2><p className="mt-1 text-sm text-gray-500">จัดการข้อมูลและติดตามรายการล่าสุด</p></div><div className="flex flex-wrap gap-2"><button type="button" aria-haspopup="dialog" disabled={loadingEdit} onClick={() => void openEdit()} className="rounded-lg border border-[#D9D6F5] px-3 py-2 text-xs font-semibold text-[#3D348B] transition hover:bg-[#F5F3FF] disabled:opacity-50">{loadingEdit ? "กำลังโหลด…" : "แก้ไขข้อมูล"}</button></div></div>{actionMessage && <div role="status" className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-[#F5F3FF] px-4 py-3 text-sm text-[#3D348B]"><span>{actionMessage}</span><button type="button" onClick={() => setActionMessage(null)} className="font-semibold">ปิด</button></div>}<ol className="mt-5 space-y-4 border-l-2 border-[#E5E1FF] pl-5 text-sm"><li className="relative"><span className="absolute -left-[30px] top-1 size-3 rounded-full bg-[#3D348B]" /><p className="font-medium">29 ก.ย. 2569 · เจ้าหน้าที่ตรวจ Company Certificate</p></li><li className="relative"><span className="absolute -left-[30px] top-1 size-3 rounded-full bg-[#B8B5D9]" /><p className="font-medium">28 ก.ย. 2569 · นักศึกษาส่งเอกสาร</p></li></ol></section>
       </main>
