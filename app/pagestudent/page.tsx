@@ -1080,10 +1080,6 @@ export default function StudentDashboard() {
 
                 </div>
 
-                <span className="absolute bottom-0 right-0 bg-emerald-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">
-                  100%
-                </span>
-
               </div>
 
               <div>
