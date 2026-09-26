@@ -167,12 +167,7 @@ export default function LoginPage() {
                   <span className="text-red-500">*</span>
                 </label>
 
-                <a
-                  href="#"
-                  className="text-sm font-medium text-[#7678ED] hover:text-[#3D348B] transition-colors"
-                >
-                  ลืมรหัสผ่าน?
-                </a>
+                
               </div>
 
               <div className="relative">
