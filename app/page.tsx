@@ -224,12 +224,8 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="px-6 md:px-12 lg:px-20 py-8 bg-gray-900 text-gray-400 text-center">
-        <p className="text-sm">
-          © 2026 WU-InternShip Platform. ระบบบริหารจัดการสหกิจศึกษา มหาวิทยาลัยวลัยลักษณ์
-        </p>
-      </div>
+      
+      
     </div>
   );
 }

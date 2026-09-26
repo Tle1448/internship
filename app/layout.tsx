@@ -16,7 +16,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <AuthProvider>
           <RoleGuard>
             <Navbar />
-            {children}
+            <main className="flex-1">{children}</main>
+
+            {/* Footer */}
+            <div className="px-6 md:px-12 lg:px-20 py-8 bg-gray-900 text-gray-400 text-center">
+              <p className="text-sm">
+                © 2026 WU-InternShip Platform. ระบบบริหารจัดการสหกิจศึกษา มหาวิทยาลัยวลัยลักษณ์
+              </p>
+            </div>
           </RoleGuard>
         </AuthProvider>
       </body>

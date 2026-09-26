@@ -296,9 +296,7 @@ export default function LoginPage() {
       </div>
 
       {/*Footer พาดขยาวตลอดแนวเต็มหน้าจอด้านล่างสุด */}
-      <div className="py-4 bg-gray-900 text-gray-400 text-center text-xs w-full">
-        <p>© 2026 WU-InternShip Platform. ระบบบริหารจัดการสหกิจศึกษา มหาวิทยาลัยวลัยลักษณ์</p>
-      </div>
+      
     </div>
   );
 }
