@@ -40,6 +40,23 @@ async function readBody(request: NextRequest): Promise<UserPayload | null> {
   try { return await request.json() as UserPayload; } catch { return null; }
 }
 
+function validCode(code: string, role: string) {
+  const patterns: Record<string, RegExp> = { student: /^[0-9]{8}$/, advisor: /^ADV[0-9]{4,6}$/, admin: /^ADM[0-9]{4,6}$/, coordinator: /^COR[0-9]{4,6}$/ };
+  return patterns[role]?.test(code) ?? false;
+}
+
+async function checkDuplicate(code: string, email: string, excludeId?: string) {
+  for (const [column, value] of [["user_code", code], ["email", email]]) {
+    if (!value) continue;
+    let query = supabaseAdmin.from("profiles").select("id").eq(column, value);
+    if (excludeId) query = query.neq("id", excludeId);
+    const { data, error } = await query.limit(1);
+    if (error) return NextResponse.json({ error: "ตรวจสอบข้อมูลซ้ำไม่สำเร็จ กรุณาลองใหม่" }, { status: 503 });
+    if (data?.length) return NextResponse.json({ error: column === "user_code" ? "รหัสนี้มีบัญชีอยู่แล้ว กรุณาค้นหาบัญชีเดิมในหน้าจัดการผู้ใช้งาน" : "อีเมลนี้มีบัญชีอยู่แล้ว", field: column === "user_code" ? "userCode" : "email" }, { status: 409 });
+  }
+  return null;
+}
+
 export async function GET() {
   if (!await requireAdmin()) return NextResponse.json({ error: "Admin access is required" }, { status: 403 });
   const { data, error } = await supabaseAdmin
@@ -61,12 +78,14 @@ export async function POST(request: NextRequest) {
   const email = stringValue(body.email).toLowerCase();
   const password = typeof body.password === "string" ? body.password : "";
   const role = roleValue(body.role);
-  if (!userCode || !fullName || !/^\S+@\S+\.\S+$/.test(email) || password.length < 8 || !role) {
+  if (!fullName || !/^\S+@\S+\.\S+$/.test(email) || password.length < 8 || !role) {
     return NextResponse.json({ error: "User code, name, email, password, or role is invalid" }, { status: 400 });
   }
 
-  const { data: duplicate } = await supabaseAdmin.from("profiles").select("id").or(`user_code.eq.${userCode},email.eq.${email}`).maybeSingle();
-  if (duplicate) return NextResponse.json({ error: "User code or email already exists" }, { status: 409 });
+  if (role === "student" && !validCode(userCode, role)) return NextResponse.json({ error: "กรุณากรอกรหัสนักศึกษาเป็นตัวเลข 8 หลัก", field: "userCode" }, { status: 400 });
+  if (role !== "student" && userCode) return NextResponse.json({ error: "ระบบจะกำหนดรหัสบัญชีสำหรับบทบาทนี้เมื่อบันทึก", field: "userCode" }, { status: 400 });
+  const duplicate = await checkDuplicate(userCode, email);
+  if (duplicate) return duplicate;
 
   const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
     email, password, email_confirm: true,
@@ -75,12 +94,13 @@ export async function POST(request: NextRequest) {
   if (createError || !created.user) return NextResponse.json({ error: createError?.message ?? "Unable to create account" }, { status: 400 });
 
   const { data: profile, error: profileError } = await supabaseAdmin.from("profiles").update({
-    user_code: userCode, full_name: fullName, email, role,
+    ...(role === "student" ? { user_code: userCode } : {}), full_name: fullName, email, role,
     faculty: stringValue(body.faculty) || null, major: stringValue(body.major) || null,
   }).eq("id", created.user.id).select("id, user_code, full_name, email, role, faculty, major").single();
   if (profileError) {
-    await supabaseAdmin.auth.admin.deleteUser(created.user.id);
-    return NextResponse.json({ error: profileError.message }, { status: 400 });
+    const { error: cleanupError } = await supabaseAdmin.auth.admin.deleteUser(created.user.id);
+    if (cleanupError) return NextResponse.json({ error: "สร้างบัญชีไม่สมบูรณ์ กรุณาตรวจสอบรายชื่อผู้ใช้งานก่อนลองใหม่" }, { status: 500 });
+    return NextResponse.json({ error: profileError.code === "23505" ? "รหัสนี้มีบัญชีอยู่แล้ว กรุณาค้นหาบัญชีเดิมในหน้าจัดการผู้ใช้งาน" : profileError.message, field: profileError.code === "23505" ? "userCode" : undefined }, { status: profileError.code === "23505" ? 409 : 400 });
   }
   return NextResponse.json({ user: profile ? { ...profile, is_active: true } : profile }, { status: 201 });
 }
@@ -99,13 +119,20 @@ export async function PATCH(request: NextRequest) {
   const userCode = stringValue(body.userCode).toUpperCase();
   if (!fullName || !userCode || !/^\S+@\S+\.\S+$/.test(email)) return NextResponse.json({ error: "User code, name, or email is invalid" }, { status: 400 });
 
+  const { data: original, error: originalError } = await supabaseAdmin.from("profiles").select("user_code, role").eq("id", id).maybeSingle();
+  if (originalError) return NextResponse.json({ error: "โหลดบัญชีผู้ใช้ไม่สำเร็จ" }, { status: 503 });
+  if (!original) return NextResponse.json({ error: "ไม่พบบัญชีผู้ใช้" }, { status: 404 });
+  if ((userCode !== original.user_code || role !== original.role) && !validCode(userCode, role)) return NextResponse.json({ error: role === "student" ? "กรุณากรอกรหัสนักศึกษาเป็นตัวเลข 8 หลัก" : "รหัสต้องตรงกับบทบาท: ADV, ADM หรือ COR ตามด้วยตัวเลข 4–6 หลัก", field: "userCode" }, { status: 400 });
+  const duplicate = await checkDuplicate(userCode, email, id);
+  if (duplicate) return duplicate;
+
   const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(id, { email, app_metadata: { role }, user_metadata: { full_name: fullName } });
   if (authError) return NextResponse.json({ error: authError.message }, { status: 400 });
   const { data: profile, error } = await supabaseAdmin.from("profiles").update({
     user_code: userCode, full_name: fullName, email, role,
     faculty: stringValue(body.faculty) || null, major: stringValue(body.major) || null,
   }).eq("id", id).select("id, user_code, full_name, email, role, faculty, major").single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error) return NextResponse.json({ error: error.code === "23505" ? "รหัสนี้มีบัญชีอยู่แล้ว กรุณาค้นหาบัญชีเดิมในหน้าจัดการผู้ใช้งาน" : error.message, field: error.code === "23505" ? "userCode" : undefined }, { status: error.code === "23505" ? 409 : 400 });
   return NextResponse.json({ user: profile ? { ...profile, is_active: true } : profile });
 }
 
