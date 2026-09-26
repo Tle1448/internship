@@ -8,9 +8,9 @@ import {
   ClipboardList,
   BriefcaseBusiness,
   ClipboardCheck,
-  LogOut,
   UserRoundCheck,
   Users,
+  LayoutDashboard,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -20,6 +20,11 @@ export default function ConditerSidebar() {
   const { logout } = useAuth();
 
   const menuItems = [
+    {
+      label: "การจัดการฝึกงาน",
+      href: "/conditer",
+      icon: LayoutDashboard,
+    },
     {
       label: "รายการบริษัท",
       href: "/conditer/companies",
@@ -45,7 +50,11 @@ export default function ConditerSidebar() {
       href: "/conditer/progress-periods",
       icon: CalendarRange,
     },
-    { label: "เกณฑ์ประเมินผล", href: "/conditer/evaluation-criteria", icon: ClipboardList },
+    {
+      label: "เกณฑ์ประเมินผล",
+      href: "/conditer/evaluation-criteria",
+      icon: ClipboardList,
+    },
   ];
 
   const handleLogout = async () => {
@@ -141,10 +150,7 @@ export default function ConditerSidebar() {
             การฝึกงานสำหรับนักศึกษา
           </p>
         </div>
-
-        {/* Logout */}
-        
       </div>
     </aside>
   );
-}
+} 
