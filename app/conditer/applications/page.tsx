@@ -2,14 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, ExternalLink, Loader2, Search, X } from "lucide-react";
+import { Check, ExternalLink, FileText, Loader2, Search, X } from "lucide-react";
 import ConditerSidebar from "@/components/ConditerSidebar";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/AuthProvider";
 
 type Progress = "submitted" | "interview" | "offer_received" | "rejected" | "withdrawn";
 type External = { id: string; company_name: string; position: string; location: string; status: "pending" | "approved" | "rejected"; review_note: string | null; student: { full_name: string | null; user_code: string | null } | null };
-type Application = { id: string; company_name: string; job_title: string; application_status: Progress; placement_request_status: string; submitted_at: string; student: { full_name: string | null; user_code: string | null } | null };
+type StatusUpdate = { id: string; previous_status: Progress; new_status: Progress; evidence_files: string[]; note: string | null; created_at: string };
+type Application = { id: string; company_name: string; job_title: string; application_status: Progress; placement_request_status: string; submitted_at: string; student: { full_name: string | null; user_code: string | null } | null; status_updates: StatusUpdate[] };
 const labels: Record<Progress, string> = { submitted: "สมัครแล้ว", interview: "สัมภาษณ์", offer_received: "ได้รับข้อเสนอ", rejected: "ไม่ผ่าน", withdrawn: "ถอนการสมัคร" };
 
 export default function ApplicationsPage() {
@@ -21,15 +22,20 @@ export default function ApplicationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const [fileUrls, setFileUrls] = useState<Record<string, string>>({});
 
   const loadData = async () => {
     setLoading(true); setError(null);
     const [applicationsResult, externalResult] = await Promise.all([
-      supabase.from("job_applications").select("id, company_name, job_title, application_status, placement_request_status, submitted_at, student:profiles!job_applications_student_id_fkey(full_name, user_code)").order("submitted_at", { ascending: false }),
+      supabase.from("job_applications").select("id, company_name, job_title, application_status, placement_request_status, submitted_at, student:profiles!job_applications_student_id_fkey(full_name, user_code), status_updates:application_status_updates(id, previous_status, new_status, evidence_files, note, created_at)").order("submitted_at", { ascending: false }),
       supabase.from("external_company_submissions").select("id, company_name, position, location, status, review_note, student:profiles!external_company_submissions_student_id_fkey(full_name, user_code)").order("created_at", { ascending: false }),
     ]);
     if (applicationsResult.error || externalResult.error) setError(applicationsResult.error?.message ?? externalResult.error?.message ?? "โหลดข้อมูลไม่สำเร็จ");
-    setApplications((applicationsResult.data ?? []).map((row) => ({ ...row, student: Array.isArray(row.student) ? row.student[0] ?? null : row.student })) as Application[]);
+    setApplications((applicationsResult.data ?? []).map((row) => ({
+      ...row,
+      student: Array.isArray(row.student) ? row.student[0] ?? null : row.student,
+      status_updates: [...(row.status_updates ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at)),
+    })) as Application[]);
     setExternalRequests((externalResult.data ?? []).map((row) => ({ ...row, student: Array.isArray(row.student) ? row.student[0] ?? null : row.student })) as External[]);
     setLoading(false);
   };
@@ -46,6 +52,20 @@ export default function ApplicationsPage() {
     setBusyId(null);
   };
 
+  const openEvidence = async (path: string) => {
+    if (fileUrls[path]) {
+      window.open(fileUrls[path], "_blank", "noopener,noreferrer");
+      return;
+    }
+    const { data, error: signedUrlError } = await supabase.storage.from("internship-evidence").createSignedUrl(path, 60 * 30);
+    if (signedUrlError || !data?.signedUrl) {
+      setError(signedUrlError?.message ?? "เปิดไฟล์หลักฐานไม่สำเร็จ");
+      return;
+    }
+    setFileUrls((current) => ({ ...current, [path]: data.signedUrl }));
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  };
+
   const filteredApplications = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     return applications.filter((item) => !keyword || [item.company_name, item.job_title, item.student?.full_name, item.student?.user_code].some((value) => value?.toLowerCase().includes(keyword)));
@@ -57,6 +77,6 @@ export default function ApplicationsPage() {
     <section className="mb-6 overflow-hidden rounded-lg border border-[#E7E4EF] bg-white"><div className="flex items-center justify-between border-b border-[#ECE9F1] px-5 py-4"><div><h2 className="font-bold">คำขอบริษัทภายนอก</h2><p className="mt-1 text-xs text-[#777287]">อนุมัติแล้ว นักศึกษาจึงเริ่มสมัครกับบริษัทนั้นได้</p></div><span className="text-sm text-[#3D348B]">รอพิจารณา {externalRequests.filter((item) => item.status === "pending").length}</span></div>
       {loading ? <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div> : <div className="divide-y divide-[#F0EDF4]">{externalRequests.length === 0 ? <p className="px-5 py-10 text-center text-sm text-[#777287]">ไม่มีคำขอบริษัทภายนอก</p> : externalRequests.map((request) => <div key={request.id} className="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_360px] lg:items-center"><div><p className="font-semibold">{request.company_name}</p><p className="mt-1 text-sm text-[#777287]">{request.position} · {request.location || "ไม่ระบุสถานที่"}</p><p className="mt-1 text-xs text-[#9691A5]">{request.student?.full_name || "ไม่ระบุชื่อ"} ({request.student?.user_code || "-"})</p>{request.review_note && <p className="mt-2 text-xs text-[#777287]">เหตุผล/หมายเหตุ: {request.review_note}</p>}</div>{request.status === "pending" ? <div><input value={reviewNotes[request.id] ?? ""} onChange={(event) => setReviewNotes((current) => ({ ...current, [request.id]: event.target.value }))} placeholder="เหตุผลเมื่อไม่อนุมัติ หรือหมายเหตุเพิ่มเติม" className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm" /><div className="mt-2 flex justify-end gap-2"><button disabled={busyId === request.id} onClick={() => void reviewExternal(request, "approved")} className="inline-flex h-9 items-center gap-1 rounded-lg bg-[#E8F8EF] px-3 text-xs font-semibold text-[#159447]"><Check size={15} />อนุมัติ</button><button disabled={busyId === request.id} onClick={() => void reviewExternal(request, "rejected")} className="inline-flex h-9 items-center gap-1 rounded-lg bg-[#FDECEC] px-3 text-xs font-semibold text-[#E94B4B]"><X size={15} />ไม่อนุมัติ</button></div></div> : <div className="flex justify-end"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs">{request.status === "approved" ? "อนุมัติแล้ว" : "ไม่อนุมัติ"}</span></div>}</div>)}</div>}
     </section>
-    <section className="overflow-hidden rounded-lg border border-[#E7E4EF] bg-white"><div className="flex flex-col justify-between gap-3 border-b border-[#ECE9F1] px-5 py-4 md:flex-row md:items-center"><div><h2 className="font-bold">สถานะการสมัครงาน</h2><p className="mt-1 text-xs text-[#777287]">แสดงผลที่นักศึกษารายงานจากบริษัท</p></div><label className="relative"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหานักศึกษา หรือบริษัท" className="h-10 rounded-lg border border-slate-200 pl-9 pr-3 text-sm" /></label></div><div className="overflow-x-auto"><table className="w-full min-w-[760px]"><thead className="bg-[#FBFAFD] text-left text-xs text-[#777287]"><tr><th className="px-5 py-3">นักศึกษา</th><th className="px-5 py-3">บริษัท / ตำแหน่ง</th><th className="px-5 py-3">สถานะสมัคร</th><th className="px-5 py-3">ยืนยันที่ฝึกงาน</th></tr></thead><tbody>{filteredApplications.map((application) => <tr key={application.id} className="border-t border-[#F0EDF4]"><td className="px-5 py-4 text-sm"><p className="font-semibold">{application.student?.full_name || "-"}</p><p className="text-xs text-[#777287]">{application.student?.user_code || "-"}</p></td><td className="px-5 py-4 text-sm"><p className="font-semibold">{application.company_name}</p><p className="text-xs text-[#777287]">{application.job_title}</p></td><td className="px-5 py-4"><span className="rounded-full bg-[#EFEEFC] px-3 py-1 text-xs text-[#3D348B]">{labels[application.application_status]}</span></td><td className="px-5 py-4 text-sm">{application.placement_request_status === "pending_verification" ? <span className="font-semibold text-[#D99500]">รอตรวจสอบ</span> : application.placement_request_status === "confirmed" ? <span className="font-semibold text-[#159447]">ยืนยันแล้ว</span> : "-"}</td></tr>)}</tbody></table></div></section>
+    <section className="overflow-hidden rounded-lg border border-[#E7E4EF] bg-white"><div className="flex flex-col justify-between gap-3 border-b border-[#ECE9F1] px-5 py-4 md:flex-row md:items-center"><div><h2 className="font-bold">สถานะการสมัครงาน</h2><p className="mt-1 text-xs text-[#777287]">แสดงผลพร้อมหลักฐานที่นักศึกษารายงานจากบริษัท</p></div><label className="relative"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหานักศึกษา หรือบริษัท" className="h-10 rounded-lg border border-slate-200 pl-9 pr-3 text-sm" /></label></div><div className="overflow-x-auto"><table className="w-full min-w-[900px]"><thead className="bg-[#FBFAFD] text-left text-xs text-[#777287]"><tr><th className="px-5 py-3">นักศึกษา</th><th className="px-5 py-3">บริษัท / ตำแหน่ง</th><th className="px-5 py-3">สถานะสมัคร</th><th className="px-5 py-3">หลักฐานล่าสุด</th><th className="px-5 py-3">ยืนยันที่ฝึกงาน</th></tr></thead><tbody>{filteredApplications.map((application) => { const latestUpdate = application.status_updates[0]; return <tr key={application.id} className="border-t border-[#F0EDF4]"><td className="px-5 py-4 text-sm"><p className="font-semibold">{application.student?.full_name || "-"}</p><p className="text-xs text-[#777287]">{application.student?.user_code || "-"}</p></td><td className="px-5 py-4 text-sm"><p className="font-semibold">{application.company_name}</p><p className="text-xs text-[#777287]">{application.job_title}</p></td><td className="px-5 py-4"><span className="rounded-full bg-[#EFEEFC] px-3 py-1 text-xs text-[#3D348B]">{labels[application.application_status]}</span></td><td className="px-5 py-4 text-xs">{latestUpdate ? <div><p className="font-medium text-slate-700">{labels[latestUpdate.previous_status]} → {labels[latestUpdate.new_status]}</p><div className="mt-2 flex flex-wrap gap-1">{latestUpdate.evidence_files.map((path) => <button key={path} type="button" onClick={() => void openEvidence(path)} className="inline-flex items-center gap-1 rounded-md border border-[#DDD9E8] px-2 py-1 text-[#3D348B] hover:bg-[#F4F3FC]"><FileText size={13} />เปิดไฟล์</button>)}</div></div> : <span className="text-slate-400">ไม่มีประวัติ</span>}</td><td className="px-5 py-4 text-sm">{application.placement_request_status === "pending_verification" ? <span className="font-semibold text-[#D99500]">รอตรวจสอบ</span> : application.placement_request_status === "confirmed" ? <span className="font-semibold text-[#159447]">ยืนยันแล้ว</span> : "-"}</td></tr>; })}</tbody></table></div></section>
   </div></main></div>;
 }
