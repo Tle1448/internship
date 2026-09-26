@@ -353,6 +353,7 @@ export default function StudentDashboard() {
             .select('job_id')
             .eq('student_id', userId)
             .in('application_status', [
+              'draft',
               'submitted',
               'interview',
               'offer_received',

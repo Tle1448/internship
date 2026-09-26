@@ -2,16 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, ExternalLink, FileText, Loader2, Search, X } from "lucide-react";
+import { Check, Clock3, ExternalLink, FileText, Loader2, Search, X } from "lucide-react";
 import ConditerSidebar from "@/components/ConditerSidebar";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/AuthProvider";
 
-type Progress = "submitted" | "interview" | "offer_received" | "rejected" | "withdrawn";
+type Progress = "draft" | "submitted" | "interview" | "offer_received" | "rejected" | "withdrawn";
+type ReviewStatus = "pending" | "approved" | "rejected";
 type External = { id: string; company_name: string; position: string; location: string; status: "pending" | "approved" | "rejected"; review_note: string | null; student: { full_name: string | null; user_code: string | null } | null };
-type StatusUpdate = { id: string; previous_status: Progress; new_status: Progress; evidence_files: string[]; note: string | null; created_at: string };
-type Application = { id: string; company_name: string; job_title: string; application_status: Progress; placement_request_status: string; submitted_at: string; student: { full_name: string | null; user_code: string | null } | null; status_updates: StatusUpdate[] };
-const labels: Record<Progress, string> = { submitted: "สมัครแล้ว", interview: "สัมภาษณ์", offer_received: "ได้รับข้อเสนอ", rejected: "ไม่ผ่าน", withdrawn: "ถอนการสมัคร" };
+type StatusUpdate = { id: string; previous_status: Progress; new_status: Progress; evidence_files: string[]; note: string | null; created_at: string; review_status: ReviewStatus; review_note: string | null; reviewed_at: string | null };
+type Application = { id: string; company_name: string; job_title: string; application_status: Progress; placement_request_status: string; selection_outcome: string; submitted_at: string; student: { full_name: string | null; user_code: string | null } | null; status_updates: StatusUpdate[] };
+
+const labels: Record<Progress, string> = { draft: "ยังไม่ยืนยันการสมัคร", submitted: "สมัครแล้ว", interview: "ได้รับเรียกสัมภาษณ์", offer_received: "ได้รับข้อเสนอ", rejected: "ไม่ผ่าน", withdrawn: "ถอนการสมัคร" };
+const reviewLabels: Record<ReviewStatus, string> = { pending: "รอตรวจ", approved: "อนุมัติแล้ว", rejected: "ขอแก้ไข" };
+const reviewStyles: Record<ReviewStatus, string> = { pending: "bg-amber-50 text-amber-700", approved: "bg-emerald-50 text-emerald-700", rejected: "bg-red-50 text-red-700" };
 
 export default function ApplicationsPage() {
   const { user } = useAuth();
@@ -20,6 +24,7 @@ export default function ApplicationsPage() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
   const [fileUrls, setFileUrls] = useState<Record<string, string>>({});
@@ -27,7 +32,7 @@ export default function ApplicationsPage() {
   const loadData = async () => {
     setLoading(true); setError(null);
     const [applicationsResult, externalResult] = await Promise.all([
-      supabase.from("job_applications").select("id, company_name, job_title, application_status, placement_request_status, submitted_at, student:profiles!job_applications_student_id_fkey(full_name, user_code), status_updates:application_status_updates(id, previous_status, new_status, evidence_files, note, created_at)").order("submitted_at", { ascending: false }),
+      supabase.from("job_applications").select("id, company_name, job_title, application_status, placement_request_status, selection_outcome, submitted_at, student:profiles!job_applications_student_id_fkey(full_name, user_code), status_updates:application_status_updates(id, previous_status, new_status, evidence_files, note, created_at, review_status, review_note, reviewed_at)").order("submitted_at", { ascending: false }),
       supabase.from("external_company_submissions").select("id, company_name, position, location, status, review_note, student:profiles!external_company_submissions_student_id_fkey(full_name, user_code)").order("created_at", { ascending: false }),
     ]);
     if (applicationsResult.error || externalResult.error) setError(applicationsResult.error?.message ?? externalResult.error?.message ?? "โหลดข้อมูลไม่สำเร็จ");
@@ -40,7 +45,10 @@ export default function ApplicationsPage() {
     setLoading(false);
   };
 
-  useEffect(() => { void loadData(); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadData(), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const reviewExternal = async (request: External, status: "approved" | "rejected") => {
     if (!user) return;
@@ -52,16 +60,20 @@ export default function ApplicationsPage() {
     setBusyId(null);
   };
 
+  const reviewStatusUpdate = async (update: StatusUpdate, decision: "approved" | "rejected") => {
+    const note = reviewNotes[update.id]?.trim() || null;
+    if (decision === "rejected" && !note) { setError("กรุณาระบุเหตุผลที่ส่งกลับแก้ไข"); return; }
+    setBusyId(update.id); setError(null); setSuccess(null);
+    const { error: reviewError } = await supabase.rpc("review_application_status_update", { status_update_id: update.id, decision, review_note: note });
+    if (reviewError) setError(reviewError.message);
+    else { setSuccess(decision === "approved" ? "อนุมัติสถานะการสมัครแล้ว" : "ส่งคำขอกลับให้นักศึกษาแก้ไขแล้ว"); await loadData(); }
+    setBusyId(null);
+  };
+
   const openEvidence = async (path: string) => {
-    if (fileUrls[path]) {
-      window.open(fileUrls[path], "_blank", "noopener,noreferrer");
-      return;
-    }
+    if (fileUrls[path]) { window.open(fileUrls[path], "_blank", "noopener,noreferrer"); return; }
     const { data, error: signedUrlError } = await supabase.storage.from("internship-evidence").createSignedUrl(path, 60 * 30);
-    if (signedUrlError || !data?.signedUrl) {
-      setError(signedUrlError?.message ?? "เปิดไฟล์หลักฐานไม่สำเร็จ");
-      return;
-    }
+    if (signedUrlError || !data?.signedUrl) { setError(signedUrlError?.message ?? "เปิดไฟล์หลักฐานไม่สำเร็จ"); return; }
     setFileUrls((current) => ({ ...current, [path]: data.signedUrl }));
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
@@ -70,13 +82,21 @@ export default function ApplicationsPage() {
     const keyword = search.trim().toLowerCase();
     return applications.filter((item) => !keyword || [item.company_name, item.job_title, item.student?.full_name, item.student?.user_code].some((value) => value?.toLowerCase().includes(keyword)));
   }, [applications, search]);
+  const pendingRequests = applications.flatMap((application) => application.status_updates.filter((update) => update.review_status === "pending").map((update) => ({ application, update })));
 
   return <div className="min-h-screen bg-[#F7F6FB]"><ConditerSidebar /><main className="lg:ml-[235px]"><div className="mx-auto max-w-[1500px] px-5 py-6 lg:px-8">
-    <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><h1 className="text-2xl font-bold text-[#29263E]">ติดตามการสมัครและอนุมัติบริษัทภายนอก</h1><p className="mt-1 text-sm text-[#777287]">Coordinator อนุมัติเฉพาะบริษัทภายนอก ส่วนผลสมัครเป็นข้อมูลที่นักศึกษารายงาน</p></div><Link href="/conditer/placements" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#3D348B] px-4 text-sm font-semibold text-white"><ExternalLink size={16} />ยืนยันที่ฝึกงานและมอบ Advisor</Link></div>
+    <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><h1 className="text-2xl font-bold text-[#29263E]">ตรวจสอบสถานะการสมัคร</h1><p className="mt-1 text-sm text-[#777287]">ตรวจหลักฐานก่อนยืนยันทุกสถานะ และติดตามประวัติของแต่ละบริษัท</p></div><Link href="/conditer/placements" className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#3D348B] px-4 text-sm font-semibold text-white"><ExternalLink size={16} />ยืนยันบริษัทที่นักศึกษาเลือก</Link></div>
     {error && <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-    <section className="mb-6 overflow-hidden rounded-lg border border-[#E7E4EF] bg-white"><div className="flex items-center justify-between border-b border-[#ECE9F1] px-5 py-4"><div><h2 className="font-bold">คำขอบริษัทภายนอก</h2><p className="mt-1 text-xs text-[#777287]">อนุมัติแล้ว นักศึกษาจึงเริ่มสมัครกับบริษัทนั้นได้</p></div><span className="text-sm text-[#3D348B]">รอพิจารณา {externalRequests.filter((item) => item.status === "pending").length}</span></div>
-      {loading ? <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div> : <div className="divide-y divide-[#F0EDF4]">{externalRequests.length === 0 ? <p className="px-5 py-10 text-center text-sm text-[#777287]">ไม่มีคำขอบริษัทภายนอก</p> : externalRequests.map((request) => <div key={request.id} className="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_360px] lg:items-center"><div><p className="font-semibold">{request.company_name}</p><p className="mt-1 text-sm text-[#777287]">{request.position} · {request.location || "ไม่ระบุสถานที่"}</p><p className="mt-1 text-xs text-[#9691A5]">{request.student?.full_name || "ไม่ระบุชื่อ"} ({request.student?.user_code || "-"})</p>{request.review_note && <p className="mt-2 text-xs text-[#777287]">เหตุผล/หมายเหตุ: {request.review_note}</p>}</div>{request.status === "pending" ? <div><input value={reviewNotes[request.id] ?? ""} onChange={(event) => setReviewNotes((current) => ({ ...current, [request.id]: event.target.value }))} placeholder="เหตุผลเมื่อไม่อนุมัติ หรือหมายเหตุเพิ่มเติม" className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm" /><div className="mt-2 flex justify-end gap-2"><button disabled={busyId === request.id} onClick={() => void reviewExternal(request, "approved")} className="inline-flex h-9 items-center gap-1 rounded-lg bg-[#E8F8EF] px-3 text-xs font-semibold text-[#159447]"><Check size={15} />อนุมัติ</button><button disabled={busyId === request.id} onClick={() => void reviewExternal(request, "rejected")} className="inline-flex h-9 items-center gap-1 rounded-lg bg-[#FDECEC] px-3 text-xs font-semibold text-[#E94B4B]"><X size={15} />ไม่อนุมัติ</button></div></div> : <div className="flex justify-end"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs">{request.status === "approved" ? "อนุมัติแล้ว" : "ไม่อนุมัติ"}</span></div>}</div>)}</div>}
+    {success && <p role="status" className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{success}</p>}
+
+    <section className="mb-6 overflow-hidden rounded-lg border border-[#E7E4EF] bg-white"><div className="flex items-center justify-between border-b border-[#ECE9F1] px-5 py-4"><div><h2 className="font-bold">คำขอบริษัทภายนอก</h2><p className="mt-1 text-xs text-[#777287]">อนุมัติบริษัทก่อนนักศึกษาจึงเริ่มติดตามการสมัครได้</p></div><span className="text-sm text-[#3D348B]">รอพิจารณา {externalRequests.filter((item) => item.status === "pending").length}</span></div>
+      {loading ? <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div> : <div className="divide-y divide-[#F0EDF4]">{externalRequests.length === 0 ? <p className="px-5 py-10 text-center text-sm text-[#777287]">ไม่มีคำขอบริษัทภายนอก</p> : externalRequests.map((request) => <div key={request.id} className="grid gap-3 px-5 py-4 lg:grid-cols-[1fr_360px] lg:items-center"><div><p className="font-semibold">{request.company_name}</p><p className="mt-1 text-sm text-[#777287]">{request.position} · {request.location || "ไม่ระบุสถานที่"}</p><p className="mt-1 text-xs text-[#9691A5]">{request.student?.full_name || "ไม่ระบุชื่อ"} ({request.student?.user_code || "-"})</p></div>{request.status === "pending" ? <div><input value={reviewNotes[request.id] ?? ""} onChange={(event) => setReviewNotes((current) => ({ ...current, [request.id]: event.target.value }))} placeholder="เหตุผลเมื่อไม่อนุมัติ หรือหมายเหตุเพิ่มเติม" className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm" /><div className="mt-2 flex justify-end gap-2"><button disabled={busyId === request.id} onClick={() => void reviewExternal(request, "approved")} className="inline-flex h-9 items-center gap-1 rounded-lg bg-[#E8F8EF] px-3 text-xs font-semibold text-[#159447]"><Check size={15} />อนุมัติ</button><button disabled={busyId === request.id} onClick={() => void reviewExternal(request, "rejected")} className="inline-flex h-9 items-center gap-1 rounded-lg bg-[#FDECEC] px-3 text-xs font-semibold text-[#E94B4B]"><X size={15} />ไม่อนุมัติ</button></div></div> : <div className="flex justify-end"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs">{request.status === "approved" ? "อนุมัติแล้ว" : "ไม่อนุมัติ"}</span></div>}</div>)}</div>}
     </section>
-    <section className="overflow-hidden rounded-lg border border-[#E7E4EF] bg-white"><div className="flex flex-col justify-between gap-3 border-b border-[#ECE9F1] px-5 py-4 md:flex-row md:items-center"><div><h2 className="font-bold">สถานะการสมัครงาน</h2><p className="mt-1 text-xs text-[#777287]">แสดงผลพร้อมหลักฐานที่นักศึกษารายงานจากบริษัท</p></div><label className="relative"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหานักศึกษา หรือบริษัท" className="h-10 rounded-lg border border-slate-200 pl-9 pr-3 text-sm" /></label></div><div className="overflow-x-auto"><table className="w-full min-w-[900px]"><thead className="bg-[#FBFAFD] text-left text-xs text-[#777287]"><tr><th className="px-5 py-3">นักศึกษา</th><th className="px-5 py-3">บริษัท / ตำแหน่ง</th><th className="px-5 py-3">สถานะสมัคร</th><th className="px-5 py-3">หลักฐานล่าสุด</th><th className="px-5 py-3">ยืนยันที่ฝึกงาน</th></tr></thead><tbody>{filteredApplications.map((application) => { const latestUpdate = application.status_updates[0]; return <tr key={application.id} className="border-t border-[#F0EDF4]"><td className="px-5 py-4 text-sm"><p className="font-semibold">{application.student?.full_name || "-"}</p><p className="text-xs text-[#777287]">{application.student?.user_code || "-"}</p></td><td className="px-5 py-4 text-sm"><p className="font-semibold">{application.company_name}</p><p className="text-xs text-[#777287]">{application.job_title}</p></td><td className="px-5 py-4"><span className="rounded-full bg-[#EFEEFC] px-3 py-1 text-xs text-[#3D348B]">{labels[application.application_status]}</span></td><td className="px-5 py-4 text-xs">{latestUpdate ? <div><p className="font-medium text-slate-700">{labels[latestUpdate.previous_status]} → {labels[latestUpdate.new_status]}</p><div className="mt-2 flex flex-wrap gap-1">{latestUpdate.evidence_files.map((path) => <button key={path} type="button" onClick={() => void openEvidence(path)} className="inline-flex items-center gap-1 rounded-md border border-[#DDD9E8] px-2 py-1 text-[#3D348B] hover:bg-[#F4F3FC]"><FileText size={13} />เปิดไฟล์</button>)}</div></div> : <span className="text-slate-400">ไม่มีประวัติ</span>}</td><td className="px-5 py-4 text-sm">{application.placement_request_status === "pending_verification" ? <span className="font-semibold text-[#D99500]">รอตรวจสอบ</span> : application.placement_request_status === "confirmed" ? <span className="font-semibold text-[#159447]">ยืนยันแล้ว</span> : "-"}</td></tr>; })}</tbody></table></div></section>
+
+    <section className="mb-6 overflow-hidden rounded-lg border border-[#E7E4EF] bg-white"><div className="flex items-center justify-between border-b border-[#ECE9F1] px-5 py-4"><div><h2 className="font-bold">คำขออัปเดตที่รอตรวจ</h2><p className="mt-1 text-xs text-[#777287]">สถานะจริงจะเปลี่ยนหลังจากกดอนุมัติเท่านั้น</p></div><span className="inline-flex items-center gap-1 text-sm font-semibold text-amber-700"><Clock3 size={15} />{pendingRequests.length} รายการ</span></div>
+      {pendingRequests.length === 0 ? <p className="px-5 py-10 text-center text-sm text-[#777287]">ไม่มีคำขออัปเดตที่รอตรวจ</p> : <div className="divide-y divide-[#F0EDF4]">{pendingRequests.map(({ application, update }) => <article key={update.id} className="grid gap-5 p-5 xl:grid-cols-[1fr_380px]"><div><p className="text-xs text-[#777287]">{application.student?.full_name || "-"} ({application.student?.user_code || "-"})</p><h3 className="mt-1 font-bold">{application.company_name}</h3><p className="text-sm text-[#777287]">{application.job_title}</p><p className="mt-3 font-semibold text-[#3D348B]">{labels[update.previous_status]} → {labels[update.new_status]}</p>{update.note && <p className="mt-2 text-sm text-slate-600">หมายเหตุ: {update.note}</p>}<div className="mt-3 flex flex-wrap gap-2">{update.evidence_files.map((path, index) => <button key={path} type="button" onClick={() => void openEvidence(path)} className="inline-flex items-center gap-1.5 rounded-lg border border-[#DDD9E8] px-3 py-2 text-xs font-semibold text-[#3D348B]"><FileText size={14} />หลักฐาน {index + 1}</button>)}</div><p className="mt-2 text-xs text-slate-400">ส่งเมื่อ {new Date(update.created_at).toLocaleString("th-TH")}</p></div><div><textarea value={reviewNotes[update.id] ?? ""} onChange={(event) => setReviewNotes((current) => ({ ...current, [update.id]: event.target.value }))} placeholder="ความคิดเห็น หรือเหตุผลเมื่อส่งกลับแก้ไข" className="min-h-24 w-full rounded-lg border border-slate-200 p-3 text-sm" /><div className="mt-2 flex justify-end gap-2"><button type="button" disabled={busyId === update.id} onClick={() => void reviewStatusUpdate(update, "rejected")} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"><X size={15} />ขอแก้ไข</button><button type="button" disabled={busyId === update.id} onClick={() => void reviewStatusUpdate(update, "approved")} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#3D348B] px-3 text-xs font-semibold text-white">{busyId === update.id ? <Loader2 className="animate-spin" size={15} /> : <Check size={15} />}อนุมัติสถานะ</button></div></div></article>)}</div>}
+    </section>
+
+    <section className="overflow-hidden rounded-lg border border-[#E7E4EF] bg-white"><div className="flex flex-col justify-between gap-3 border-b border-[#ECE9F1] px-5 py-4 md:flex-row md:items-center"><div><h2 className="font-bold">ประวัติการสมัครทั้งหมด</h2><p className="mt-1 text-xs text-[#777287]">ดูสถานะที่ยืนยันแล้วและผลตรวจย้อนหลัง</p></div><label className="relative"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหานักศึกษา หรือบริษัท" className="h-10 rounded-lg border border-slate-200 pl-9 pr-3 text-sm" /></label></div><div className="divide-y divide-[#F0EDF4]">{filteredApplications.map((application) => <article key={application.id} className="grid gap-4 p-5 lg:grid-cols-[280px_220px_1fr]"><div><p className="font-semibold">{application.student?.full_name || "-"}</p><p className="text-xs text-[#777287]">{application.student?.user_code || "-"}</p><p className="mt-2 font-semibold text-slate-800">{application.company_name}</p><p className="text-xs text-[#777287]">{application.job_title}</p></div><div><p className="text-xs text-[#777287]">สถานะที่ยืนยันแล้ว</p><span className="mt-2 inline-flex rounded-full bg-[#EFEEFC] px-3 py-1 text-xs font-semibold text-[#3D348B]">{labels[application.application_status]}</span>{application.selection_outcome === "selected" && <p className="mt-2 text-xs font-semibold text-emerald-700">นักศึกษาเลือกบริษัทนี้</p>}{application.selection_outcome === "not_selected" && <p className="mt-2 text-xs text-slate-500">ไม่ได้เลือกเป็นที่ฝึกงาน</p>}</div><details><summary className="cursor-pointer text-sm font-semibold text-[#3D348B]">ประวัติ {application.status_updates.length} รายการ</summary><div className="mt-3 space-y-3">{application.status_updates.map((update) => <div key={update.id} className="rounded-lg bg-slate-50 p-3 text-xs"><div className="flex flex-wrap items-center gap-2"><strong>{labels[update.previous_status]} → {labels[update.new_status]}</strong><span className={`rounded-full px-2 py-0.5 ${reviewStyles[update.review_status]}`}>{reviewLabels[update.review_status]}</span></div><p className="mt-1 text-slate-400">{new Date(update.created_at).toLocaleString("th-TH")}</p>{update.review_note && <p className="mt-1 text-red-700">ผลตรวจ: {update.review_note}</p>}<div className="mt-2 flex flex-wrap gap-1">{update.evidence_files.map((path) => <button key={path} type="button" onClick={() => void openEvidence(path)} className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-[#3D348B]"><FileText size={12} />เปิดไฟล์</button>)}</div></div>)}</div></details></article>)}</div></section>
   </div></main></div>;
 }

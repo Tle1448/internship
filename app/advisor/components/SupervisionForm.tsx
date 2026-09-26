@@ -185,6 +185,17 @@ export default function SupervisionForm({ student }: { student: Student }) {
       setMessage("กรุณาเลือกนัดหมายที่ต้องการบันทึกผล");
       return;
     }
+    const selectedAppointment = appointments.find((item) => item.id === form.appointmentId);
+    if (selectedAppointment && new Date(selectedAppointment.scheduled_at).getTime() > Date.now()) {
+      setSaveState("idle");
+      setMessage("ยังไม่ถึงวันและเวลานัดหมาย จึงยังบันทึกผลการนิเทศไม่ได้");
+      return;
+    }
+    if (!selectedAppointment && form.date > new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10)) {
+      setSaveState("idle");
+      setMessage("ไม่สามารถบันทึกผลการนิเทศล่วงหน้าได้ กรุณาสร้างนัดหมายแทน");
+      return;
+    }
 
     setMessage("");
     setSaveState("saving");
