@@ -2,7 +2,7 @@
 import AdminSidebar from "@/components/AdminSidebar";
 import AdminBreadcrumb from "@/components/AdminBreadcrumb";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type DocumentStatus = "รอตรวจสอบ" | "อนุมัติแล้ว" | "ส่งแก้ไข";
 type Document = { id: string; student: string; studentId: string; email: string; type: string; company: string; submittedAt: string; fileName: string; size: string; status: DocumentStatus; note?: string };
@@ -18,11 +18,18 @@ const initialDocuments: Document[] = [
 const statusStyles: Record<DocumentStatus, string> = { "รอตรวจสอบ": "bg-[#FFF4D8] text-[#A16207]", "อนุมัติแล้ว": "bg-[#E5FAED] text-[#16A34A]", "ส่งแก้ไข": "bg-[#FEE2E2] text-[#DC2626]" };
 
 export default function DocumentsPage() {
-  const [documents, setDocuments] = useState(initialDocuments);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<DocumentStatus | "ทั้งหมด">("ทั้งหมด");
   const [type, setType] = useState("ทั้งหมด");
   const [selected, setSelected] = useState<Document | null>(null);
+  useEffect(() => {
+    void (async () => {
+      const response = await fetch("/api/admin/documents", { cache: "no-store" });
+      const payload = await response.json() as { documents?: Document[] };
+      if (response.ok) setDocuments(payload.documents ?? []);
+    })();
+  }, []);
   const types = useMemo(() => [...new Set(documents.map((document) => document.type))], [documents]);
   const filtered = documents.filter((document) => (status === "ทั้งหมด" || document.status === status) && (type === "ทั้งหมด" || document.type === type) && [document.student, document.studentId, document.type, document.company].some((item) => item.toLowerCase().includes(query.trim().toLowerCase())));
   const updateStatus = (nextStatus: DocumentStatus) => { if (!selected) return; setDocuments((current) => current.map((document) => document.id === selected.id ? { ...document, status: nextStatus } : document)); setSelected((current) => current ? { ...current, status: nextStatus } : null); };

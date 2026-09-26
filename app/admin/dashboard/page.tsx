@@ -29,10 +29,10 @@ function relativeTime(value: string) {
 
 export default async function AdminDashboardPage() {
   const [studentsResult, advisorsResult, recordsResult, companiesResult, jobsResult, documentsResult, applicationsResult, activitiesResult] = await Promise.all([
-    supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("role", "student").eq("is_active", true),
-    supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("role", "advisor").eq("is_active", true),
+    supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("role", "student"),
+    supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("role", "advisor"),
     supabaseAdmin.from("internship_records").select("placement_status"),
-    supabaseAdmin.from("companies").select("approval_status"),
+    supabaseAdmin.from("companies").select("status"),
     supabaseAdmin.from("jobs").select("status, positions"),
     supabaseAdmin.from("student_documents").select("status"),
     supabaseAdmin.from("job_applications").select("status"),
@@ -46,8 +46,8 @@ export default async function AdminDashboardPage() {
   const documents = documentsResult.data ?? [];
   const applications = applicationsResult.data ?? [];
   const placedStudents = records.filter((record) => record.placement_status && record.placement_status !== "pending").length;
-  const approvedCompanies = companies.filter((company) => company.approval_status === "approved").length;
-  const pendingCompanies = companies.filter((company) => company.approval_status === "pending").length;
+  const approvedCompanies = companies.filter((company) => company.status === "approved").length;
+  const pendingCompanies = companies.filter((company) => company.status === "pending").length;
   const openJobs = jobs.filter((job) => job.status === "open");
   const openPositions = openJobs.reduce((total, job) => total + (job.positions ?? 0), 0);
   const pendingJobs = jobs.filter((job) => job.status === "draft").length;

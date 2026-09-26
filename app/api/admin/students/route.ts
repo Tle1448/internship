@@ -5,6 +5,49 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 
+async function isAdmin() {
+  const sessionClient = await createSupabaseServerClient();
+  const { data: { user } } = await sessionClient.auth.getUser();
+  if (!user) return false;
+  const { data } = await supabaseAdmin.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  return data?.role === "admin";
+}
+
+export async function GET() {
+  if (!await isAdmin()) return NextResponse.json({ error: "Admin access is required" }, { status: 403 });
+
+  const [{ data: profiles, error: profilesError }, { data: records, error: recordsError }, { data: documents, error: documentsError }, { data: advisors, error: advisorsError }] = await Promise.all([
+    supabaseAdmin.from("profiles").select("id, user_code, full_name, email, faculty, major, year").eq("role", "student").order("user_code"),
+    supabaseAdmin.from("internship_records").select("student_id, advisor_id, placement_status, status"),
+    supabaseAdmin.from("student_documents").select("student_id, status"),
+    supabaseAdmin.from("profiles").select("id, full_name").eq("role", "advisor"),
+  ]);
+  const error = profilesError ?? recordsError ?? documentsError ?? advisorsError;
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  const recordsByStudent = new Map((records ?? []).map((record) => [record.student_id, record]));
+  const advisorNames = new Map((advisors ?? []).map((advisor) => [advisor.id, advisor.full_name ?? "ยังไม่ระบุอาจารย์ที่ปรึกษา"]));
+  const documentsByStudent = new Map<string, string[]>();
+  for (const document of documents ?? []) documentsByStudent.set(document.student_id, [...(documentsByStudent.get(document.student_id) ?? []), document.status]);
+
+  return NextResponse.json({ students: (profiles ?? []).map((profile) => {
+    const record = recordsByStudent.get(profile.id);
+    const placement = record?.placement_status ?? "pending";
+    const status = placement === "approved" || placement === "placed" || record?.status === "completed" ? "ได้ที่ฝึกงานแล้ว" : placement === "reviewing" || placement === "submitted" ? "รอการอนุมัติ" : "กำลังหาที่ฝึกงาน";
+    return {
+      id: profile.user_code ?? profile.id,
+      name: profile.full_name ?? "-",
+      email: profile.email ?? "-",
+      school: profile.faculty ?? "ยังไม่ระบุสำนักวิชา",
+      program: profile.major ?? "ยังไม่ระบุหลักสูตร",
+      year: profile.year ? `ชั้นปีที่ ${profile.year}` : "ยังไม่ระบุชั้นปี",
+      status,
+      advisor: record?.advisor_id ? advisorNames.get(record.advisor_id) ?? "ยังไม่ระบุอาจารย์ที่ปรึกษา" : "ยังไม่ระบุอาจารย์ที่ปรึกษา",
+      c1Status: (documentsByStudent.get(profile.id) ?? []).includes("approved") ? "ผ่าน C1" : "รอตรวจ C1",
+    };
+  }) });
+}
+
 type CreateStudentBody = {
   userCode?: unknown;
   fullName?: unknown;

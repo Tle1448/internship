@@ -157,6 +157,12 @@ export default function StudentPage() {
   const loadedStudentId = useRef<string | null>(null);
 
   const loadStudents = useCallback(async () => {
+    const response = await fetch("/api/admin/students", { cache: "no-store" });
+    const payload = await response.json() as { students?: Student[] };
+    if (response.ok) {
+      setStudents(payload.students ?? []);
+      return;
+    }
     const [profilesResult, recordsResult, documentsResult] = await Promise.all([
       supabase.from("profiles").select("id, user_code, full_name, email, faculty, major, year").eq("role", "student").eq("is_active", true).order("user_code"),
       supabase.from("internship_records").select("student_id, advisor_id, placement_status, status"),

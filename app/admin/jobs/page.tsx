@@ -45,6 +45,17 @@ export default function JobsPage() {
   const [selected, setSelected] = useState<Job | null>(null);
   useEffect(() => {
     async function loadJobs() {
+      const response = await fetch("/api/admin/jobs", { cache: "no-store" });
+      const payload = await response.json() as { jobs?: Array<{ id: string; title: string | null; company: string; department: string | null; location: string | null; work_type: string | null; positions: number | null; applicants: number; end_date: string | null; status: string | null; description: string | null; qualifications: string[] | null }> };
+      if (response.ok) {
+        setJobs((payload.jobs ?? []).map((job) => {
+          const end = job.end_date ? new Date(job.end_date) : null;
+          const isClosingSoon = job.status === "open" && end && end.getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000 && end.getTime() >= Date.now();
+          const displayStatus: JobStatus = job.status === "closed" ? "ปิดรับสมัคร" : job.status === "draft" ? "รอตรวจสอบ" : isClosingSoon ? "ใกล้ปิดรับ" : "เปิดรับสมัคร";
+          return { id: job.id, title: job.title ?? "-", company: job.company, category: job.department ?? "-", location: job.location ?? "-", type: job.work_type ?? "-", slots: job.positions ?? 0, applicants: job.applicants, deadline: end ? end.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : "-", status: displayStatus, description: job.description ?? "", qualifications: job.qualifications ?? [] };
+        }));
+        return;
+      }
       const [companiesResult, jobsResult, applicationsResult] = await Promise.all([
         supabase.from("companies").select("id, name"),
         supabase.from("jobs").select("id, company_id, title, location, department, positions, work_type, description, qualifications, end_date, status").order("created_at", { ascending: false }),
