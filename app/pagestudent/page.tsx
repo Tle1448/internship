@@ -73,20 +73,29 @@ interface ProfileData {
   avatarUrl: string | null;
 }
 
-function getApplyErrorMessage(error: unknown) {
-  const message =
-    typeof error === 'object' &&
+function getErrorMessage(error: unknown) {
+  return typeof error === 'object' &&
     error !== null &&
     'message' in error &&
     typeof (error as { message?: unknown }).message === 'string'
-      ? (error as { message: string }).message
-      : '';
+    ? (error as { message: string }).message
+    : '';
+}
 
-  if (
+function isDuplicateApplicationError(error: unknown) {
+  const message = getErrorMessage(error);
+
+  return (
     message.includes('already exists') ||
     message.includes('duplicate key') ||
     message.includes('job_applications_one_active_job_idx')
-  ) {
+  );
+}
+
+function getApplyErrorMessage(error: unknown) {
+  const message = getErrorMessage(error);
+
+  if (isDuplicateApplicationError(error)) {
     return 'คุณมีรายการสมัครตำแหน่งนี้อยู่แล้ว กรุณาตรวจสอบในหน้าติดตามการสมัคร';
   }
 
@@ -190,6 +199,8 @@ export default function StudentDashboard() {
   // =========================================================
   const [jobsFromDB, setJobsFromDB] = useState<Job[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
+  const [activeApplicationJobIds, setActiveApplicationJobIds] =
+    useState<Set<string>>(new Set());
 
   // =========================================================
   // สมัครงาน
@@ -332,6 +343,35 @@ export default function StudentDashboard() {
       if (jobsError) {
         console.error('ดึงข้อมูลประกาศงานไม่สำเร็จ:', jobsError);
         return;
+      }
+
+      const userId = await getCurrentStudentId();
+      if (userId) {
+        const { data: applicationsData, error: applicationsError } =
+          await supabase
+            .from('job_applications')
+            .select('job_id')
+            .eq('student_id', userId)
+            .in('application_status', [
+              'submitted',
+              'interview',
+              'offer_received',
+            ]);
+
+        if (applicationsError) {
+          console.error(
+            'ดึงข้อมูลใบสมัครงานไม่สำเร็จ:',
+            applicationsError
+          );
+        } else {
+          setActiveApplicationJobIds(
+            new Set(
+              (applicationsData ?? [])
+                .map((application) => application.job_id)
+                .filter((jobId): jobId is string => Boolean(jobId))
+            )
+          );
+        }
       }
 
       // แปลงข้อมูลจาก database format เป็น Job interface
@@ -843,6 +883,11 @@ export default function StudentDashboard() {
       return;
     }
 
+    if (activeApplicationJobIds.has(selectedJob.id)) {
+      router.push('/select-company');
+      return;
+    }
+
     setApplying(true);
     setApplyError(null);
 
@@ -859,14 +904,29 @@ export default function StudentDashboard() {
         throw error;
       }
 
+      setActiveApplicationJobIds((current) => {
+        const next = new Set(current);
+        next.add(selectedJob.id);
+        return next;
+      });
       setSelectedJob(null);
 
-      router.push('/coordinator');
+      router.push('/select-company');
     } catch (err: unknown) {
       console.error(
         'สมัครงานไม่สำเร็จ:',
         JSON.stringify(err, null, 2)
       );
+
+      if (selectedJob && isDuplicateApplicationError(err)) {
+        setActiveApplicationJobIds((current) => {
+          const next = new Set(current);
+          next.add(selectedJob.id);
+          return next;
+        });
+        setApplyError(null);
+        return;
+      }
 
       setApplyError(
         getApplyErrorMessage(err)
@@ -1337,13 +1397,17 @@ export default function StudentDashboard() {
                       {job.salary}
                     </span>
 
-                    <span className="text-indigo-900 font-medium text-[11px] group-hover:translate-x-0.5 transition-transform flex items-center">
-
-                      ดูรายละเอียด
-
-                      <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
-
-                    </span>
+                    {activeApplicationJobIds.has(job.id) ? (
+                      <span className="text-emerald-700 font-semibold text-[11px] flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        สมัครแล้ว
+                      </span>
+                    ) : (
+                      <span className="text-indigo-900 font-medium text-[11px] group-hover:translate-x-0.5 transition-transform flex items-center">
+                        ดูรายละเอียด
+                        <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+                      </span>
+                    )}
 
                   </div>
 
@@ -2196,6 +2260,10 @@ export default function StudentDashboard() {
                 <span className="text-xs text-red-600">
                   {applyError}
                 </span>
+              ) : activeApplicationJobIds.has(selectedJob.id) ? (
+                <span className="text-xs font-medium text-emerald-700">
+                  คุณสมัครตำแหน่งนี้แล้ว
+                </span>
               ) : (
                 <span></span>
               )}
@@ -2215,9 +2283,13 @@ export default function StudentDashboard() {
 
                 <button
                   type="button"
-                  onClick={
-                    handleApplyJob
-                  }
+                  onClick={() => {
+                    if (activeApplicationJobIds.has(selectedJob.id)) {
+                      router.push('/select-company');
+                      return;
+                    }
+                    void handleApplyJob();
+                  }}
                   disabled={applying}
                   className="px-5 py-2 bg-indigo-900 hover:bg-indigo-800 text-white font-semibold rounded-lg text-xs transition-colors flex items-center gap-2 shadow-sm disabled:opacity-60"
                 >
@@ -2229,6 +2301,11 @@ export default function StudentDashboard() {
                       <span>
                         กำลังส่งคำขอ...
                       </span>
+                    </>
+                  ) : activeApplicationJobIds.has(selectedJob.id) ? (
+                    <>
+                      <ChevronRight className="w-4 h-4" />
+                      <span>ดูสถานะการสมัคร</span>
                     </>
                   ) : (
                     <>
