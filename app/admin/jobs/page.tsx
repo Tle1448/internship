@@ -111,7 +111,7 @@ export default function JobsPage() {
         cell.style.fontSize = row.parentElement?.tagName === "THEAD" ? "0.6875rem" : "0.8125rem";
 
         if (index === 0) {
-          const metadata = cell.querySelector("p.mt-1");
+          const metadata = cell.querySelector<HTMLElement>("p.mt-1");
           const text = metadata?.textContent ?? "";
           const separator = text.indexOf(" · ");
           if (metadata) {
@@ -124,7 +124,7 @@ export default function JobsPage() {
           button.style.padding = "0.5rem 0.75rem";
           button.style.fontSize = "0.6875rem";
         });
-        cell.querySelectorAll("span.rounded-full").forEach((badge) => {
+        cell.querySelectorAll<HTMLElement>("span.rounded-full").forEach((badge) => {
           badge.style.padding = "0.375rem 0.75rem";
           badge.style.fontSize = "0.6875rem";
         });
