@@ -6,13 +6,19 @@ import { ArrowRight, BriefcaseBusiness, Building2, CheckCircle2, ClipboardCheck,
 import ConditerSidebar from "@/components/ConditerSidebar";
 import { supabase } from "@/lib/supabase";
 
+type ApplicationStatus = "draft" | "submitted" | "interview" | "offer_received" | "rejected" | "withdrawn";
+
 type RecentApplication = {
   id: string;
   company_name: string;
   job_title: string;
-  status: "pending" | "approved" | "rejected" | "cancelled";
-  student: { full_name: string | null }[] | null;
+  application_status: ApplicationStatus;
+  student: { full_name: string | null; user_code: string | null } | null;
 };
+
+function relation<T>(value: T | T[] | null): T | null {
+  return Array.isArray(value) ? value[0] ?? null : value;
+}
 
 export default function ConditerPage() {
   const [companyCount, setCompanyCount] = useState(0);
@@ -21,31 +27,45 @@ export default function ConditerPage() {
   const [pendingCount, setPendingCount] = useState(0);
   const [applications, setApplications] = useState<RecentApplication[]>([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    void loadDashboard();
-  }, []);
+  const [error, setError] = useState<string | null>(null);
 
   async function loadDashboard() {
+    setLoading(true);
+    setError(null);
+
     const [companies, jobs, allApplications, pendingApplications, recentApplications] = await Promise.all([
       supabase.from("companies").select("id", { count: "exact", head: true }),
       supabase.from("jobs").select("id", { count: "exact", head: true }).is("archived_at", null),
       supabase.from("job_applications").select("id", { count: "exact", head: true }),
-      supabase.from("job_applications").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      supabase.from("application_status_updates").select("id", { count: "exact", head: true }).eq("review_status", "pending"),
       supabase
         .from("job_applications")
-        .select("id, company_name, job_title, status, student:profiles!job_applications_student_id_fkey(full_name)")
+        .select("id, company_name, job_title, application_status, student:profiles!job_applications_student_id_fkey(full_name, user_code)")
         .order("submitted_at", { ascending: false })
         .limit(5),
     ]);
+
+    const queryErrors = [companies.error, jobs.error, allApplications.error, pendingApplications.error, recentApplications.error].filter(Boolean);
+    if (queryErrors.length > 0) {
+      console.error("Unable to load coordinator dashboard", queryErrors);
+      setError("โหลดข้อมูลแดชบอร์ดไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    }
 
     setCompanyCount(companies.count ?? 0);
     setJobCount(jobs.count ?? 0);
     setApplicationCount(allApplications.count ?? 0);
     setPendingCount(pendingApplications.count ?? 0);
-    setApplications((recentApplications.data ?? []) as RecentApplication[]);
+    setApplications((recentApplications.data ?? []).map((application) => ({
+      ...application,
+      student: relation(application.student),
+    })) as RecentApplication[]);
     setLoading(false);
   }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadDashboard(), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#F8F7FB] text-[#29263A]">
@@ -65,6 +85,8 @@ export default function ConditerPage() {
             <StatCard title="การสมัครทั้งหมด" value={applicationCount} icon={<ClipboardCheck size={21} />} iconClass="bg-[#E9F8EF] text-[#2D9B59]" />
           </div>
 
+          {error && <p role="alert" className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+
           <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
             <QuickCard href="/conditer/companies" icon={<Building2 size={21} />} title="รายการบริษัท" description="ดูบริษัท ประกาศที่ใช้งาน และประวัติประกาศ" />
             <QuickCard href="/conditer/jobs/create" icon={<BriefcaseBusiness size={21} />} title="สร้างประกาศงาน" description="เพิ่มบริษัทและประกาศงานลงฐานข้อมูล" />
@@ -83,10 +105,10 @@ export default function ConditerPage() {
             ) : applications.map((application) => (
               <div key={application.id} className="flex flex-col gap-3 border-b border-[#F0EEF4] px-5 py-4 last:border-b-0 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EFEEFC] text-xs font-bold text-[#3D348B]">{(application.student?.[0]?.full_name || "?").slice(0, 1)}</div>
-                  <div><p className="text-sm font-semibold text-[#353143]">{application.student?.[0]?.full_name || "ไม่ระบุชื่อ"}</p><p className="mt-1 text-[11px] text-[#858095]">{application.company_name} · {application.job_title}</p></div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EFEEFC] text-xs font-bold text-[#3D348B]">{(application.student?.full_name || "?").slice(0, 1)}</div>
+                  <div><p className="text-sm font-semibold text-[#353143]">{application.student?.full_name || "ไม่ระบุชื่อ"}</p><p className="mt-1 text-[11px] text-[#858095]">{application.student?.user_code ? `${application.student.user_code} · ` : ""}{application.company_name} · {application.job_title}</p></div>
                 </div>
-                <StatusBadge status={application.status} />
+                <StatusBadge status={application.application_status} />
               </div>
             ))}
           </section>
@@ -104,8 +126,8 @@ function QuickCard({ href, icon, title, description }: { href: string; icon: Rea
   return <Link href={href} className="group rounded-lg border border-[#E8E6F0] bg-white p-5 shadow-sm transition hover:border-[#D6D2EC] hover:shadow-md"><div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-[#EFEEFC] text-[#3D348B]">{icon}</div><div className="flex items-center justify-between"><h3 className="text-sm font-bold text-[#353143]">{title}</h3><ArrowRight size={16} className="text-[#AAA6B8] transition group-hover:translate-x-1 group-hover:text-[#3D348B]" /></div><p className="mt-1 text-[11px] text-[#9994A8]">{description}</p></Link>;
 }
 
-function StatusBadge({ status }: { status: RecentApplication["status"] }) {
-  const labels = { pending: "รอพิจารณา", approved: "อนุมัติแล้ว", rejected: "ไม่อนุมัติ", cancelled: "ยกเลิก" };
-  const styles = status === "pending" ? "bg-[#FFF7D6] text-[#A97800]" : status === "approved" ? "bg-[#E9F8EF] text-[#23864B]" : "bg-[#FDECEC] text-[#D94B4B]";
-  return <span className={"inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-semibold " + styles}>{status === "approved" && <CheckCircle2 size={12} />}{status === "pending" && <Clock size={12} />}{labels[status]}</span>;
+function StatusBadge({ status }: { status: ApplicationStatus }) {
+  const labels: Record<ApplicationStatus, string> = { draft: "ยังไม่ยืนยัน", submitted: "สมัครแล้ว", interview: "ได้สัมภาษณ์", offer_received: "ได้รับข้อเสนอ", rejected: "ไม่ผ่าน", withdrawn: "ถอนการสมัคร" };
+  const styles = status === "offer_received" ? "bg-[#E9F8EF] text-[#23864B]" : status === "rejected" || status === "withdrawn" ? "bg-[#FDECEC] text-[#D94B4B]" : "bg-[#FFF7D6] text-[#A97800]";
+  return <span className={"inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-semibold " + styles}>{status === "offer_received" && <CheckCircle2 size={12} />}{status !== "offer_received" && status !== "rejected" && status !== "withdrawn" && <Clock size={12} />}{labels[status]}</span>;
 }
