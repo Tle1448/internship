@@ -388,8 +388,9 @@
 .advisor-details .advisor-profile-grid dd { margin: 6px 0 0; overflow-wrap: anywhere; color: #302c38; font-size: 14px; font-weight: 600; }
 .advisor-details .advisor-profile-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 22px; }
 .advisor-details .advisor-profile-form label { color: #625d70; font-size: 12px; font-weight: 600; }
-.advisor-details .advisor-profile-form input { box-sizing: border-box; width: 100%; margin-top: 7px; border: 1px solid #cbd2df; border-radius: 8px; background: #fff; color: #302c38; font: inherit; font-size: 14px; padding: 11px 12px; }
-.advisor-details .advisor-profile-form input:focus { outline: 2px solid #ddd8ff; border-color: var(--bright); }
+.advisor-details .advisor-profile-form input,.advisor-details .advisor-profile-form select { box-sizing: border-box; width: 100%; margin-top: 7px; border: 1px solid #cbd2df; border-radius: 8px; background: #fff; color: #302c38; font: inherit; font-size: 14px; padding: 11px 12px; }
+.advisor-details .advisor-profile-form input:focus,.advisor-details .advisor-profile-form select:focus { outline: 2px solid #ddd8ff; border-color: var(--bright); }
+.advisor-details .advisor-profile-form select:disabled { cursor: not-allowed; background: #f3f4f6; color: #8a8594; }
 .advisor-details .advisor-profile-form-actions { display: flex; justify-content: flex-end; gap: 10px; grid-column: 1 / -1; padding-top: 4px; }
 .advisor-details .filter-controls { display: grid; grid-template-columns: minmax(220px, 1.35fr) repeat(4, minmax(150px, 1fr)); align-items: end; }
 .advisor-details .filter-controls .search-field { width: 100%; }
