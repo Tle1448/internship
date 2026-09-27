@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { departments } from "@/components/UserEditModal";
 import { supabase } from "@/lib/supabase";
 import AdvisorShell from "./AdvisorShell";
 import Icon from "./Icon";
@@ -21,13 +22,15 @@ export default function AdvisorProfile() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
-  useEffect(() => { void (async () => {
-    if (!user || user.role !== "advisor") { setLoading(false); return; }
-    const { data, error } = await supabase.from("profiles").select("full_name, user_code, email, phone, faculty, major").eq("id", user.id).maybeSingle();
-    if (error) setMessage(`ไม่สามารถโหลดข้อมูลได้: ${error.message}`);
-    else { const next = data as Profile | null; setProfile(next); setDraft(toDraft(next)); }
-    setLoading(false);
-  })(); }, [user]);
+  useEffect(() => {
+    void (async () => {
+      if (!user || user.role !== "advisor") { setLoading(false); return; }
+      const { data, error } = await supabase.from("profiles").select("full_name, user_code, email, phone, faculty, major").eq("id", user.id).maybeSingle();
+      if (error) setMessage(`ไม่สามารถโหลดข้อมูลได้: ${error.message}`);
+      else { const next = data as Profile | null; setProfile(next); setDraft(toDraft(next)); }
+      setLoading(false);
+    })();
+  }, [user]);
 
   async function save() {
     if (!user || !draft.full_name.trim()) { setMessage("กรุณาระบุชื่อที่แสดง"); return; }
@@ -42,5 +45,26 @@ export default function AdvisorProfile() {
 
   const name = profile?.full_name || user?.name || "อาจารย์ที่ปรึกษา";
   const code = profile?.user_code || user?.userCode || "-";
-  return <AdvisorShell active="profile" title="โปรไฟล์อาจารย์"><section className="advisor-list-page advisor-profile-page" aria-labelledby="advisor-profile-title"><div className="list-heading"><div><h1 id="advisor-profile-title">โปรไฟล์อาจารย์</h1><p>ข้อมูลส่วนตัวสำหรับติดต่อและแสดงผลในระบบ</p></div>{!editing && <button className="button secondary" onClick={() => { setDraft(toDraft(profile)); setEditing(true); setMessage(""); }}><Icon name="file" />แก้ไขข้อมูล</button>}</div>{message && <p className="feedback">{message}</p>}<section className="detail-card advisor-profile-identity"><div className="advisor-profile-avatar">{name.slice(0, 1)}</div><div className="advisor-profile-name"><span>อาจารย์ที่ปรึกษา</span><h2>{loading ? "กำลังโหลด..." : name}</h2><p>{code}</p></div><div className="advisor-profile-role"><span>บทบาทในระบบ</span><strong>Advisor</strong></div></section><section className="detail-card advisor-profile-details"><div className="section-title"><span className="detail-icon"><Icon name="users" /></span><div><h2>ข้อมูลติดต่อและสังกัด</h2><p>{editing ? "แก้ไขเฉพาะข้อมูลส่วนตัวที่ไม่กระทบสิทธิ์และการดำเนินงาน" : "ข้อมูลที่บันทึกไว้ในระบบ"}</p></div></div>{editing ? <form className="advisor-profile-form" onSubmit={(event) => { event.preventDefault(); void save(); }}><label>ชื่อที่แสดง<input required value={draft.full_name} onChange={(event) => setDraft({ ...draft, full_name: event.target.value })} /></label><label>โทรศัพท์<input inputMode="tel" value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} /></label><label>คณะ / สำนักวิชา<input value={draft.faculty} onChange={(event) => setDraft({ ...draft, faculty: event.target.value })} /></label><label>สาขา / หลักสูตร<input value={draft.major} onChange={(event) => setDraft({ ...draft, major: event.target.value })} /></label><div className="advisor-profile-form-actions"><button className="button secondary" type="button" onClick={() => { setDraft(toDraft(profile)); setEditing(false); setMessage(""); }}>ยกเลิก</button><button className="button primary" type="submit" disabled={saving}>{saving ? "กำลังบันทึก..." : "บันทึกข้อมูล"}</button></div></form> : <dl className="advisor-profile-grid"><div><dt>รหัสอาจารย์</dt><dd>{code}</dd></div><div><dt>อีเมลสำหรับล็อกอิน</dt><dd>{display(profile?.email)}</dd></div><div><dt>โทรศัพท์</dt><dd>{display(profile?.phone)}</dd></div><div><dt>คณะ / สำนักวิชา</dt><dd>{display(profile?.faculty)}</dd></div><div><dt>สาขา / หลักสูตร</dt><dd>{display(profile?.major)}</dd></div></dl>}</section></section></AdvisorShell>;
+  const facultyOptions = [...new Set([...Object.keys(departments), draft.faculty])].filter(Boolean);
+  const majorOptions = [...new Set([...(departments[draft.faculty] ?? []), draft.major])].filter(Boolean);
+
+  return <AdvisorShell active="profile" title="โปรไฟล์อาจารย์">
+    <section className="advisor-list-page advisor-profile-page" aria-labelledby="advisor-profile-title"><div className="list-heading"><div><h1 id="advisor-profile-title">โปรไฟล์อาจารย์</h1><p>ข้อมูลส่วนตัวสำหรับติดต่อและแสดงผลในระบบ</p></div>{!editing && <button className="button secondary" onClick={() => { setDraft(toDraft(profile)); setEditing(true); setMessage(""); }}><Icon name="file" />แก้ไขข้อมูล</button>}</div>{message && <p className="feedback">{message}</p>}
+      <section className="detail-card advisor-profile-identity"><div className="advisor-profile-avatar">{name.slice(0, 1)}</div><div className="advisor-profile-name"><span>อาจารย์ที่ปรึกษา</span><h2>{loading ? "กำลังโหลด..." : name}</h2><p>{code}</p></div><div className="advisor-profile-role"><span>บทบาทในระบบ</span><strong>Advisor</strong></div></section>
+      <section className="detail-card advisor-profile-details">
+        <div className="section-title">
+          <span className="detail-icon"><Icon name="users" /></span>
+          <div><h2>ข้อมูลติดต่อและสังกัด</h2><p>{editing ? "แก้ไขเฉพาะข้อมูลส่วนตัวที่ไม่กระทบสิทธิ์และการดำเนินงาน" : "ข้อมูลที่บันทึกไว้ในระบบ"}</p></div>
+        </div>
+        {editing ? <form className="advisor-profile-form" onSubmit={(event) => { event.preventDefault(); void save(); }}><label>ชื่อที่แสดง<input required value={draft.full_name} onChange={(event) => setDraft({ ...draft, full_name: event.target.value })} /></label>
+          <label>โทรศัพท์<input inputMode="tel" value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} /></label>
+          <label>คณะ / สำนักวิชา<select required value={draft.faculty} onChange={(event) => setDraft({ ...draft, faculty: event.target.value, major: "" })}><option value="">เลือกคณะ / สำนักวิชา</option>{facultyOptions.map((faculty) => <option key={faculty} value={faculty}>{faculty}</option>)}</select></label>
+          <label>สาขา / หลักสูตร<select required disabled={!draft.faculty} value={draft.major} onChange={(event) => setDraft({ ...draft, major: event.target.value })}><option value="">{draft.faculty ? "เลือกสาขา / หลักสูตร" : "เลือกคณะ / สำนักวิชาก่อน"}</option>{majorOptions.map((major) => <option key={major} value={major}>{major}</option>)}</select></label><div className="advisor-profile-form-actions">
+            <button className="button secondary" type="button" onClick={() => { setDraft(toDraft(profile)); setEditing(false); setMessage(""); }}>ยกเลิก</button>
+            <button className="button primary" type="submit" disabled={saving}>{saving ? "กำลังบันทึก..." : "บันทึกข้อมูล"}</button></div></form> : <dl className="advisor-profile-grid">
+          <div><dt>รหัสอาจารย์</dt><dd>{code}</dd></div><div><dt>อีเมลสำหรับล็อกอิน</dt><dd>{display(profile?.email)}</dd></div>
+          <div><dt>โทรศัพท์</dt><dd>{display(profile?.phone)}</dd></div><div><dt>คณะ / สำนักวิชา</dt><dd>{display(profile?.faculty)}</dd></div>
+          <div><dt>สาขา / หลักสูตร</dt><dd>{display(profile?.major)}</dd></div></dl>}
+      </section>
+    </section></AdvisorShell>;
 }
